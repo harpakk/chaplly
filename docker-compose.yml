@@ -1,0 +1,11 @@
+services:
+  web:
+    build: .
+    restart: unless-stopped
+    env_file: .envsecure
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks: [chapli_internal]
+
+networks:
+  chapli_internal:

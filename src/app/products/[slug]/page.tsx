@@ -1,0 +1,285 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import {
+  BadgeCheck,
+  ChevronLeft,
+  CreditCard,
+  PackageCheck,
+  RotateCcw,
+  ShieldCheck,
+  Sparkles,
+  Star,
+  Truck,
+} from "lucide-react";
+import { AddToCart } from "@/components/add-to-cart";
+import { ProductGallery } from "@/components/product-gallery";
+import { ProductTabs } from "@/components/product-tabs";
+import { ProductCard } from "@/components/product-card";
+import { ProductViewTracker } from "@/components/product-view-tracker";
+import { SizeGuideModal } from "@/components/size-guide-modal";
+import { ReelsGallery } from "@/components/reels-gallery";
+import { formatPrice, type Product } from "@/lib/catalog";
+import {
+  findProduct,
+  getLiveProductInventory,
+  getProductSizeGuide,
+  getProducts,
+} from "@/lib/catalog-data";
+import { getProductReviews, getProductReels, getReelInteractionIds } from "@/lib/dashboard-data";
+import { getCurrentUser } from "@/lib/auth";
+import { createSupabaseAdmin } from "@/lib/supabase/admin";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const product = await findProduct((await params).slug);
+  return { title: product?.title ?? "محصول" };
+}
+
+export default async function ProductPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const products = await getProducts();
+  const cachedProduct = products.find((item) => item.slug === slug);
+  if (!cachedProduct) notFound();
+  const [inventory, reviews, reels, user, sizeGuide] = await Promise.all([
+    getLiveProductInventory(cachedProduct.id),
+    getProductReviews(cachedProduct.id),
+    getProductReels(cachedProduct.id),
+    getCurrentUser(),
+    getProductSizeGuide(cachedProduct.id),
+  ]);
+  const reelInteractions = await getReelInteractionIds(user?.id);
+  const product = {
+    ...cachedProduct,
+    variants: cachedProduct.variants.map((variant) => ({
+      ...variant,
+      inventory: inventory.get(variant.id) || 0,
+    })),
+  };
+  const admin = createSupabaseAdmin();
+  const { data: supplier } = await admin
+    .from("seller_products")
+    .select("primary:supplier_offers!seller_products_primary_supplier_offer_id_fkey(supplier_organization_id,capacity_per_day)")
+    .eq("id", product.id)
+    .maybeSingle();
+  const primary = Array.isArray(supplier?.primary)
+    ? supplier.primary[0]
+    : supplier?.primary;
+  let supplierOverCapacity = false;
+  if (primary?.supplier_organization_id && primary.capacity_per_day > 0) {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const { count } = await admin
+      .from("fulfilments")
+      .select("id", { count: "exact", head: true })
+      .eq("supplier_organization_id", primary.supplier_organization_id)
+      .gte("created_at", start.toISOString());
+    supplierOverCapacity = (count || 0) >= primary.capacity_per_day;
+  }
+  return (
+    <main className="pdp-page">
+      <ProductViewTracker productId={product.id} />
+      <div className="shop-container breadcrumbs">
+        <Link href="/">خانه</Link>
+        <ChevronLeft />
+        <Link href={`/category/${product.categorySlug}`}>
+          {product.category}
+        </Link>
+        <ChevronLeft />
+        <b>{product.title}</b>
+      </div>
+      <section className="shop-container pdp-grid pdp-grid-wow">
+        <ProductGallery images={product.images} title={product.title} />
+        <div className="pdp-story-spine">
+          <span className="spine-eyebrow">درباره این محصول</span>
+          <h2>{product.subtitle}</h2>
+          <p>{product.description}</p>
+          <dl>
+            <div>
+              <dt>سبک طرح</dt>
+              <dd>
+                {product.graphicStyles.map((item) => item.name).join("، ") ||
+                  "—"}
+              </dd>
+            </div>
+            <div>
+              <dt>رنگ‌ها</dt>
+              <dd>{product.colors.join("، ")}</dd>
+            </div>
+            <div>
+              <dt>اندازه‌ها</dt>
+              <dd>{product.sizes.join("، ")}</dd>
+            </div>
+            <div>
+              <dt>ساخته‌ی</dt>
+              <dd>
+                <Link href={`/stores/${product.shopSlug}`}>
+                  {product.seller}
+                </Link>
+              </dd>
+            </div>
+          </dl>
+          <div className="trust-spine">
+            <span>
+              <ShieldCheck />
+              <b>تضمین کیفیت چاپلی</b>
+              <small>بررسی پیش از ارسال</small>
+            </span>
+            <span>
+              <RotateCcw />
+              <b>۷ روز ضمانت بازگشت</b>
+              <small>خرید بدون استرس</small>
+            </span>
+            <span>
+              <Sparkles />
+              <b>طرح اوریجینال</b>
+              <small>از کریتور مستقل</small>
+            </span>
+            <span>
+              <CreditCard />
+              <b>خرید امن</b>
+              <small>پرداخت محافظت‌شده</small>
+            </span>
+            <span>
+              <PackageCheck />
+              <b>بسته‌بندی کنترل‌شده</b>
+              <small>آماده رسیدن به دست تو</small>
+            </span>
+            <span>
+              <BadgeCheck />
+              <b>فروشنده تأییدشده</b>
+              <small>هویت بررسی‌شده</small>
+            </span>
+          </div>
+        </div>
+        <aside className="pdp-info pdp-buy-card">
+          {product.badge && <span className="pdp-badge">{product.badge}</span>}
+          <p className="pdp-seller store-hover-card">
+            فروشنده: <strong>{product.seller}</strong>
+            <ShieldCheck />
+            <span>
+              <b>{product.seller}</b>
+              <small>{product.sellerDescription || "فروشگاه تأییدشده چاپلی"}</small>
+              {product.sellerSocialUrl && <small>{product.sellerSocialUrl}</small>}
+            </span>
+          </p>
+          <h1>{product.title}</h1>
+          <div className="pdp-rating">
+            <span>
+              <Star fill="currentColor" />
+              {product.rating.toLocaleString("fa-IR")}
+            </span>
+            <a href="#reviews">
+              {reviews.length.toLocaleString("fa-IR")} دیدگاه
+            </a>
+          </div>
+          <div className="pdp-price">
+            <strong>{formatPrice(product.price)}</strong>
+            {product.compareAtPrice && (
+              <>
+                <del>{formatPrice(product.compareAtPrice)}</del>
+                <span>
+                  {Math.round(
+                    (1 - product.price / product.compareAtPrice) * 100,
+                  ).toLocaleString("fa-IR")}
+                  ٪ تخفیف
+                </span>
+              </>
+            )}
+          </div>
+          <AddToCart product={product} />
+          {supplierOverCapacity && (
+            <p className="supplier-capacity-notice">
+              ظرفیت سفارش امروز این تأمین‌کننده تکمیل شده است؛ تحویل این محصول یک روز بیشتر زمان می‌برد.
+            </p>
+          )}
+          {sizeGuide && <SizeGuideModal guide={sizeGuide} />}
+          <div className="delivery-card">
+            <Truck />
+            <div>
+              <strong>{product.delivery}</strong>
+              <span>پس از ارسال، کد رهگیری فعال می‌شود.</span>
+            </div>
+          </div>
+        </aside>
+      </section>
+      {product.videos?.length ? (
+        <section className="shop-container product-video-section">
+          <div>
+            <span>نمایش واقعی محصول</span>
+            <h2>ویدئوی محصول</h2>
+            <p>
+              این ویدئو توسط فروشنده برای نمایش بهتر محصول بارگذاری شده است.
+            </p>
+          </div>
+          <video
+            src={product.videos[0]}
+            controls
+            preload="metadata"
+            playsInline
+          />
+        </section>
+      ) : null}
+      {reels.length ? <section className="shop-container product-reels-section"><div className="section-title-row"><div><span>ریلز این محصول</span><h2>محصول را در ویدیو ببین</h2></div></div><ReelsGallery reels={reels} initialLiked={reelInteractions.liked} initialSaved={reelInteractions.saved}/></section> : null}
+      <ProductTabs product={product} reviews={reviews} />
+      <SimilarityRow
+        eyebrow="از همین دسته"
+        title={`بیشتر از ${product.category}`}
+        items={products.filter(
+          (item) =>
+            item.id !== product.id &&
+            item.categorySlug === product.categorySlug,
+        )}
+      />
+      <SimilarityRow
+        eyebrow="همین سبک"
+        title="محصول‌های مشابه"
+        items={products
+          .filter(
+            (item) =>
+              item.id !== product.id &&
+              item.graphicStyles.some((style) =>
+                product.graphicStyles.some(
+                  (current) => current.slug === style.slug,
+                ),
+              ),
+          )
+          .slice(0, 4)}
+      />
+    </main>
+  );
+}
+
+function SimilarityRow({
+  eyebrow,
+  title,
+  items,
+}: {
+  eyebrow: string;
+  title: string;
+  items: Product[];
+}) {
+  if (!items.length) return null;
+  return (
+    <section className="shop-container related-products similarity-row">
+      <div className="section-title-row">
+        <div>
+          <span>{eyebrow}</span>
+          <h2>{title}</h2>
+        </div>
+      </div>
+      <div className="product-grid">
+        {items.slice(0, 4).map((item) => (
+          <ProductCard product={item} key={item.id} />
+        ))}
+      </div>
+    </section>
+  );
+}

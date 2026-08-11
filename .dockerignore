@@ -1,0 +1,10 @@
+node_modules
+.next
+.git
+.env
+.env.*
+.envsecure
+*serviceAccount*.json
+*service-account*.json
+*firebase-adminsdk*.json
+npm-debug.log*

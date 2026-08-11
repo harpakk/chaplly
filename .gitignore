@@ -1,0 +1,23 @@
+node_modules
+.next
+.next-stale-*/
+.next-dev*
+.tmp-*
+.env
+.env.local
+.envsecure
+*serviceAccount*.json
+*service-account*.json
+*firebase-adminsdk*.json
+*.log
+*.tsbuildinfo
+.server-current.txt
+.next-build-current.txt
+playwright-report
+test-results
+coverage
+dist
+.cpanel-deploy
+chapli-deploy*.tar.gz
+/0-marketing plan.docx
+prisma/*.db

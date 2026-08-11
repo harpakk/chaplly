@@ -1,0 +1,59 @@
+{
+  "name": "chapli",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run test:unit",
+    "test:unit": "tsx --test tests/unit/*.test.ts",
+    "test:database": "npm run db:verify && npm run db:audit",
+    "test:ci": "npm run typecheck && npm run lint && npm run test:unit && npm run build",
+    "db:migrate": "node --env-file=.envsecure scripts/migrate-supabase.mjs",
+    "db:seed": "node --env-file=.envsecure scripts/seed-supabase.mjs",
+    "db:seed:tutorials": "node --env-file=.envsecure scripts/seed-high-priority-tutorials.mjs",
+    "db:migrate:raw-main-images": "node --env-file=.envsecure scripts/migrate-raw-main-images-to-public.mjs",
+    "db:types": "node --env-file=.envsecure scripts/generate-database-types.mjs",
+    "db:docs": "node --env-file=.envsecure scripts/generate-schema-doc.mjs",
+    "db:verify": "node --env-file=.envsecure scripts/verify-supabase.mjs",
+    "db:audit": "node --env-file=.envsecure scripts/audit-production-readiness.mjs",
+    "db:repair": "node --env-file=.envsecure scripts/repair-data-integrity.mjs",
+    "db:repair:apply": "node --env-file=.envsecure scripts/repair-data-integrity.mjs --apply",
+    "deploy:preflight": "node --env-file=.envsecure scripts/preflight-production.mjs",
+    "deploy:cpanel": "node scripts/deploy-cpanel.mjs",
+    "deploy:record": "node --env-file=.envsecure scripts/record-release.mjs",
+    "fulfilments:complete": "node --env-file=.envsecure scripts/complete-sent-fulfilments.mjs"
+  },
+  "dependencies": {
+    "@fontsource/estedad": "^5.3.0",
+    "@fontsource/vazirmatn": "^5.3.0",
+    "@supabase/ssr": "^0.12.4",
+    "@supabase/supabase-js": "^2.111.0",
+    "dotenv": "^17.4.2",
+    "html-to-image": "^1.11.13",
+    "lucide-react": "^0.468.0",
+    "next": "^15.4.2",
+    "pg": "^8.22.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "server-only": "^0.0.1",
+    "zod": "^4.0.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/pg": "^8.20.0",
+    "@types/react": "^19.0.6",
+    "@types/react-dom": "^19.0.3",
+    "eslint": "^9.17.0",
+    "eslint-config-next": "^15.4.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "overrides": {
+    "postcss": "8.5.24",
+    "sharp": "0.35.3"
+  }
+}
