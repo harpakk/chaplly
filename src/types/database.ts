@@ -8,6 +8,18 @@ type Table<Row, Required extends keyof Row> = {
 };
 
 type AdditionalTables = {
+  support_ai_settings: Table<{
+    id: string; model: string; system_prompt: string; updated_at: string;
+  }, "system_prompt">;
+  support_ai_conversations: Table<{
+    id: string; user_id: string; user_role: string; created_at: string; updated_at: string;
+  }, "user_id" | "user_role">;
+  support_ai_messages: Table<{
+    id: string; conversation_id: string; user_id: string; role: string; body: string; created_at: string;
+  }, "conversation_id" | "user_id" | "role" | "body">;
+  ticket_ai_drafts: Table<{
+    ticket_id: string; draft: string; source_message_at: string | null; created_at: string; updated_at: string;
+  }, "ticket_id" | "draft">;
   buyer_wallets: Table<{
     user_id: string; balance: number; currency: string; updated_at: string;
   }, "user_id">;
@@ -61,6 +73,10 @@ type AdditionalTables = {
 };
 
 type AdditionalFunctions = {
+  create_support_ai_user_message: {
+    Args: { p_user_id: string; p_user_role: string; p_conversation_id: string | null; p_body: string };
+    Returns: { message_id: string; conversation_id: string; remaining: number }[];
+  };
   apply_buyer_wallet_to_order: { Args: { p_order_id: string }; Returns: number };
   buyer_confirm_order_received: { Args: Record<string, unknown>; Returns: unknown };
   request_partial_payout: { Args: Record<string, unknown>; Returns: unknown };
@@ -75,10 +91,28 @@ type AdditionalFunctions = {
 
 type OrderState = GeneratedDatabase["public"]["Enums"]["order_state"] | "PENDING";
 type GeneratedOrders = GeneratedDatabase["public"]["Tables"]["orders"];
+type AttributionFields = {
+  referral_code: string | null;
+  acquisition_source: string | null;
+  attribution_landing_path: string | null;
+};
 type Orders = Omit<GeneratedOrders, "Row" | "Insert" | "Update"> & {
-  Row: Omit<GeneratedOrders["Row"], "status"> & { status: OrderState };
-  Insert: Omit<GeneratedOrders["Insert"], "status"> & { status?: OrderState };
-  Update: Omit<GeneratedOrders["Update"], "status"> & { status?: OrderState };
+  Row: Omit<GeneratedOrders["Row"], "status"> & AttributionFields & { status: OrderState };
+  Insert: Omit<GeneratedOrders["Insert"], "status"> & Partial<AttributionFields> & { status?: OrderState };
+  Update: Omit<GeneratedOrders["Update"], "status"> & Partial<AttributionFields> & { status?: OrderState };
+};
+type GeneratedProfiles = GeneratedDatabase["public"]["Tables"]["profiles"];
+type Profiles = Omit<GeneratedProfiles, "Row" | "Insert" | "Update"> & {
+  Row: GeneratedProfiles["Row"] & AttributionFields;
+  Insert: GeneratedProfiles["Insert"] & Partial<AttributionFields>;
+  Update: GeneratedProfiles["Update"] & Partial<AttributionFields>;
+};
+type GeneratedSupportKnowledgeBase = GeneratedDatabase["public"]["Tables"]["support_knowledge_base"];
+type SupportKnowledgeBaseFields = { source_type: string; file_name: string | null };
+type SupportKnowledgeBase = Omit<GeneratedSupportKnowledgeBase, "Row" | "Insert" | "Update"> & {
+  Row: GeneratedSupportKnowledgeBase["Row"] & SupportKnowledgeBaseFields;
+  Insert: GeneratedSupportKnowledgeBase["Insert"] & Partial<SupportKnowledgeBaseFields>;
+  Update: GeneratedSupportKnowledgeBase["Update"] & Partial<SupportKnowledgeBaseFields>;
 };
 type GeneratedFreeDesigns = GeneratedDatabase["public"]["Tables"]["free_designs"];
 type FreeDesigns = Omit<GeneratedFreeDesigns, "Row" | "Insert" | "Update"> & {
@@ -106,8 +140,10 @@ type AssetKind = GeneratedDatabase["public"]["Enums"]["asset_kind"] | "CATEGORY_
 
 export type Database = {
   public: Omit<GeneratedDatabase["public"], "Tables" | "Functions" | "Enums"> & {
-    Tables: Omit<GeneratedDatabase["public"]["Tables"], "orders" | "free_designs" | "refunds"> & AdditionalTables & {
+    Tables: Omit<GeneratedDatabase["public"]["Tables"], "orders" | "profiles" | "support_knowledge_base" | "free_designs" | "refunds"> & AdditionalTables & {
       orders: Orders;
+      profiles: Profiles;
+      support_knowledge_base: SupportKnowledgeBase;
       free_designs: FreeDesigns;
       refunds: Refunds;
     };

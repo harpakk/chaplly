@@ -1434,11 +1434,11 @@ export async function getAdminDashboardData(
     supplierOffersResult,
     supplierOfferVariantsResult,
   ] = await Promise.all([
-    needsSettings ? (db as any)
+    needsSettings ? db
       .from("support_knowledge_base")
       .select("id,title,category,content,status,source_type,file_name,updated_at")
       .order("updated_at", { ascending: false }) : emptyMany,
-    needsSettings ? (db as any)
+    needsSettings ? db
       .from("support_ai_settings")
       .select("model,system_prompt,updated_at")
       .eq("id", "default")
@@ -1760,7 +1760,7 @@ export async function getTicketsData(input: {
         .in("ticket_id", ids),
       db.from("profiles").select("id,first_name,last_name,primary_role"),
       input.admin
-        ? (db as any)
+        ? db
             .from("ticket_ai_drafts")
             .select("ticket_id,draft,source_message_at,updated_at")
             .in("ticket_id", ids)
