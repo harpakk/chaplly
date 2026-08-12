@@ -102,10 +102,11 @@ type Orders = Omit<GeneratedOrders, "Row" | "Insert" | "Update"> & {
   Update: Omit<GeneratedOrders["Update"], "status"> & Partial<AttributionFields> & { status?: OrderState };
 };
 type GeneratedProfiles = GeneratedDatabase["public"]["Tables"]["profiles"];
+type ProfileAttributionFields = AttributionFields & { attributed_at: string | null };
 type Profiles = Omit<GeneratedProfiles, "Row" | "Insert" | "Update"> & {
-  Row: GeneratedProfiles["Row"] & AttributionFields;
-  Insert: GeneratedProfiles["Insert"] & Partial<AttributionFields>;
-  Update: GeneratedProfiles["Update"] & Partial<AttributionFields>;
+  Row: GeneratedProfiles["Row"] & ProfileAttributionFields;
+  Insert: GeneratedProfiles["Insert"] & Partial<ProfileAttributionFields>;
+  Update: GeneratedProfiles["Update"] & Partial<ProfileAttributionFields>;
 };
 type GeneratedSupportKnowledgeBase = GeneratedDatabase["public"]["Tables"]["support_knowledge_base"];
 type SupportKnowledgeBaseFields = { source_type: string; file_name: string | null };
