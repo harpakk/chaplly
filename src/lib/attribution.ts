@@ -51,12 +51,19 @@ export async function persistOrderAttribution(orderId: string, userId?: string) 
       .select("referral_code,acquisition_source,attribution_landing_path")
       .eq("id", userId)
       .maybeSingle();
-    if (data?.referral_code || data?.acquisition_source)
+    if (data?.referral_code || data?.acquisition_source) {
+      const storedSource = data.acquisition_source;
+      const source: Attribution["source"] = data.referral_code
+        ? "REFERRAL"
+        : storedSource && ["DIRECT", "GOOGLE", "REFERRAL", "OTHER"].includes(storedSource)
+          ? storedSource as Attribution["source"]
+          : "OTHER";
       attribution = {
         referralCode: data.referral_code || null,
-        source: data.referral_code ? "REFERRAL" : data.acquisition_source,
+        source,
         landingPath: data.attribution_landing_path || null,
       };
+    }
   }
   const { error } = await createSupabaseAdmin()
     .from("orders")
