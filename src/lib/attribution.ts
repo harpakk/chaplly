@@ -29,7 +29,7 @@ export async function readAttribution(): Promise<Attribution> {
 
 export async function persistUserAttribution(userId: string) {
   const attribution = await readAttribution();
-  const { error } = await (createSupabaseAdmin() as any)
+  const { error } = await createSupabaseAdmin()
     .from("profiles")
     .update({
       referral_code: attribution.referralCode,
@@ -46,7 +46,7 @@ export async function persistOrderAttribution(orderId: string, userId?: string) 
   const cookieAttribution = await readAttribution();
   let attribution = cookieAttribution;
   if (userId && !cookieAttribution.referralCode) {
-    const { data } = await (createSupabaseAdmin() as any)
+    const { data } = await createSupabaseAdmin()
       .from("profiles")
       .select("referral_code,acquisition_source,attribution_landing_path")
       .eq("id", userId)
@@ -58,7 +58,7 @@ export async function persistOrderAttribution(orderId: string, userId?: string) 
         landingPath: data.attribution_landing_path || null,
       };
   }
-  const { error } = await (createSupabaseAdmin() as any)
+  const { error } = await createSupabaseAdmin()
     .from("orders")
     .update({
       referral_code: attribution.referralCode,

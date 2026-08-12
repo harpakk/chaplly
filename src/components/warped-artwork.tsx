@@ -421,7 +421,7 @@ export function WarpedArtwork({
       window.clearTimeout(timer);
       observer.disconnect();
     };
-  }, [clip, pointSignature, size.height, size.width, warped]);
+  }, [clip, pointSignature, points, size.height, size.width, warped]);
 
   return (
     <div ref={ref} className="configured-artwork" style={style}>
