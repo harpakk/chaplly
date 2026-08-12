@@ -548,7 +548,7 @@ export async function sendSupportAiMessageAction(formData: FormData) {
   const conversationId = String(formData.get("conversationId") || "") || null;
   if (!body || body.length > 3000)
     return { ok: false as const, message: "پیام باید بین ۱ تا ۳۰۰۰ نویسه باشد." };
-  const db = createSupabaseAdmin() as any;
+  const db = createSupabaseAdmin();
   const { data: quota, error: quotaError } = await db.rpc(
     "create_support_ai_user_message",
     {
@@ -627,7 +627,7 @@ export async function saveSupportAiSettingsAction(
   const model = String(formData.get("model") || "gpt-5.6-luna").trim();
   if (systemPrompt.length < 40) return fail("پرامپت سیستم خیلی کوتاه است.");
   if (!/^gpt-[a-z0-9.-]+$/i.test(model)) return fail("شناسه مدل معتبر نیست.");
-  const { error } = await (createSupabaseAdmin() as any).from("support_ai_settings").upsert({
+  const { error } = await createSupabaseAdmin().from("support_ai_settings").upsert({
     id: "default",
     model,
     system_prompt: systemPrompt,
@@ -652,7 +652,7 @@ export async function uploadSupportKnowledgeFileAction(
     return fail("فایل متنی، Markdown، CSV، JSON یا HTML بارگذاری کنید.");
   const content = (await file.text()).trim();
   if (content.length < 5) return fail("فایل محتوای متنی کافی ندارد.");
-  const { error } = await (createSupabaseAdmin() as any).from("support_knowledge_base").insert({
+  const { error } = await createSupabaseAdmin().from("support_knowledge_base").insert({
     title: String(formData.get("title") || file.name).trim() || file.name,
     category: String(formData.get("category") || "FILE").trim() || "FILE",
     content: content.slice(0, 200_000),

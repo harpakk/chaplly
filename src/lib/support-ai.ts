@@ -20,7 +20,7 @@ function outputText(payload: {
 }
 
 async function assistantContext(query: string) {
-  const db = createSupabaseAdmin() as any;
+  const db = createSupabaseAdmin();
   const [{ data: settings }, { data: knowledge }] = await Promise.all([
     db
       .from("support_ai_settings")
@@ -124,7 +124,7 @@ export async function answerSupportConversation({
 }
 
 export async function generateAndStoreTicketDraft(ticketId: string) {
-  const db = createSupabaseAdmin() as any;
+  const db = createSupabaseAdmin();
   const [{ data: ticket }, { data: messages }] = await Promise.all([
     db
       .from("tickets")
