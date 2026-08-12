@@ -7,6 +7,11 @@ import { NavigationFeedback } from "@/components/navigation-feedback";
 import { AttributionTracker } from "@/components/attribution-tracker";
 import "./globals.css";
 
+// Liara injects application secrets at runtime rather than while building the
+// image. Every route depends on Supabase-backed navigation or user data, so it
+// must be rendered when a request arrives instead of during `next build`.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: {
     default: "چاپلی | محصولات خاص از طراحان مستقل",
