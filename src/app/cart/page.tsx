@@ -7,6 +7,7 @@ import { ArrowLeft, Minus, Plus, ShieldCheck, ShoppingBag, Trash2 } from "lucide
 import { useCart } from "@/components/cart-context";
 import { formatPrice } from "@/lib/catalog";
 import { getBuyerWalletBalanceAction } from "@/app/actions/dashboard";
+import { TrustLogos } from "@/components/trust-logos";
 
 export default function CartPage() {
   const { items, total, updateQuantity, removeItem } = useCart();
@@ -42,6 +43,7 @@ export default function CartPage() {
             <div className="summary-total"><span>{walletBalance > 0 ? "مبلغ پس از کیف پول" : "مبلغ قابل پرداخت"}</span><strong>{formatPrice(Math.max(0, total - walletBalance))}</strong></div>
             <Link className="checkout-button" href="/checkout">ادامه و ثبت اطلاعات <ArrowLeft size={19} /></Link>
             <span className="safe-checkout"><ShieldCheck size={16} /> خرید امن و تضمین‌شده با چاپلی</span>
+            <TrustLogos />
           </aside>
         </div>
       </div>

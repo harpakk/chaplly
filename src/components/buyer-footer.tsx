@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Instagram, Send } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { TrustLogos } from "@/components/trust-logos";
 
 export function BuyerFooter() {
   const pathname = usePathname();
@@ -18,6 +19,7 @@ export function BuyerFooter() {
         <div><strong>همکاری با ما</strong><Link href="/seller">فروشنده شو</Link><Link href="/seller/login">ورود فروشنده</Link><Link href="/search">فروشگاه‌ها و محصولات</Link><Link href="/support">درباره چاپلی</Link></div>
         <div><strong>قوانین و اعتماد</strong><Link href="/terms">قوانین و شرایط استفاده</Link><Link href="/privacy">حریم خصوصی</Link><Link href="/terms#returns">قوانین بازگشت</Link><Link href="/terms#intellectual-property">حقوق مالکیت فکری</Link></div>
       </div>
+      <div className="shop-container footer-trust"><TrustLogos /></div>
       <div className="shop-container footer-bottom"><span>© ۱۴۰۵ چاپلی — chaplly.ir، ساخته‌شده برای سلیقه‌های غیرتکراری.</span><div><Link href="/support" aria-label="ارتباط با چاپلی"><Instagram /></Link><Link href="/support" aria-label="پشتیبانی چاپلی"><Send /></Link></div></div>
     </footer>
   );
