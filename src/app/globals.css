@@ -636,6 +636,46 @@ body {
   color: #7f918a;
   font-size: 10px;
 }
+.footer-trust {
+  display: flex;
+  justify-content: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-block: 24px;
+}
+.trust-logos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+.trust-logos > a,
+.trust-logos > span {
+  display: grid;
+  width: 82px;
+  height: 82px;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid #e3e8e6;
+  border-radius: 12px;
+  background: white;
+}
+.trust-logos img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.order-summary > .trust-logos {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e9e7;
+  gap: 7px;
+}
+.order-summary > .trust-logos > a,
+.order-summary > .trust-logos > span {
+  width: 66px;
+  height: 66px;
+}
 .breadcrumbs {
   display: flex;
   align-items: center;
