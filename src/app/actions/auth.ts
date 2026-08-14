@@ -25,7 +25,7 @@ const registerSchema=z.object({
   sellerType:z.string().trim().min(1,"نوع فعالیت را انتخاب کن.").max(40),
   experienceLevel:optional(40),instagramHandle:optional(100),websiteUrl:optional(),audienceSize:optional(40),monthlyViews:optional(40),sellerGoal:optional(1000),
   storeName:z.string().trim().min(2,"نام فروشگاه باید حداقل ۲ حرف باشد.").max(160),
-  storeSlug:optional(100),
+  storeSlug:z.union([z.literal(""),z.string().trim().max(100).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/,"آدرس باید فقط شامل حروف کوچک انگلیسی، عدد و خط تیره باشد و فاصله نداشته باشد.")]).optional().default(""),
   storeDescription:z.string().trim().min(10,"توضیح فروشگاه باید حداقل ۱۰ حرف باشد.").max(1000),
   primaryCategory:z.string().trim().min(1,"دسته اصلی را انتخاب کن.").max(40),
   brandTone:optional(40),

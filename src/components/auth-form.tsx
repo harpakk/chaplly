@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import { useFormStatus } from "react-dom";
-import { ArrowLeft, ArrowRight, Check, CircleCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CircleCheck, Eye, EyeOff } from "lucide-react";
 import type { AuthState } from "@/app/actions/auth";
 import { loginAction, registerAction } from "@/app/actions/auth";
 import { SavingOverlay } from "@/components/saving-overlay";
@@ -40,6 +40,8 @@ function Field({
   autoComplete,
   error,
   required = false,
+  pattern,
+  title,
 }: {
   id: string;
   label: string;
@@ -48,13 +50,18 @@ function Field({
   autoComplete?: string;
   error?: string[];
   required?: boolean;
+  pattern?: string;
+  title?: string;
 }) {
+  const [visible, setVisible] = useState(false);
+  const password = type === "password";
   return (
     <label className="field" htmlFor={id}>
       <span>
         {label}
         {required && <b> *</b>}
       </span>
+      <div className={password ? "password-input-wrap" : "field-input-wrap"}>
       <input
         aria-describedby={error ? `${id}-error` : undefined}
         aria-invalid={Boolean(error)}
@@ -63,9 +70,13 @@ function Field({
         id={id}
         name={id}
         placeholder={placeholder}
-        type={type}
+        type={password && visible ? "text" : type}
         required={required}
+        pattern={pattern}
+        title={title}
       />
+      {password && <button type="button" aria-label={visible ? "پنهان کردن رمز عبور" : "نمایش رمز عبور"} onClick={() => setVisible((value) => !value)}>{visible ? <EyeOff /> : <Eye />}</button>}
+      </div>
       {error && (
         <small className="field-error" id={`${id}-error`}>
           {error[0]}
@@ -146,7 +157,7 @@ export function RegisterForm() {
   const [bannerPreview, setBannerPreview] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
   const slug =
-    storeName.trim().replace(/\s+/g, "-").toLowerCase() || "your-shop";
+    storeName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "your-shop";
   const steps = ["حساب تو", "درباره کارت", "فروشگاه", "تأیید"];
   useEffect(() => {
     try {
@@ -225,6 +236,8 @@ export function RegisterForm() {
     }
     if (control.name === "storeDescription" && value.length < 10)
       control.setCustomValidity("توضیح فروشگاه باید حداقل ۱۰ کاراکتر باشد.");
+    if (control.name === "storeSlug" && value && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value))
+      control.setCustomValidity("آدرس باید انگلیسی و بدون فاصله باشد؛ فقط حروف کوچک، عدد و خط تیره مجاز است.");
     return control.checkValidity();
   };
   const validateStep = (targetStep: number) => {
@@ -417,14 +430,6 @@ export function RegisterForm() {
             <option value="OVER_10M">بیشتر از ۱۰ میلیون</option>
           </Select>
         </div>
-        <label className="field">
-          <span>هدفت از ساخت فروشگاه</span>
-          <textarea
-            className="input onboarding-textarea"
-            name="sellerGoal"
-            placeholder="مثلاً ساخت برند شخصی، فروش طرح‌ها یا مرچ پیج…"
-          />
-        </label>
       </section>
       <section hidden={step !== 3}>
         <div className="step-copy">
@@ -492,7 +497,7 @@ export function RegisterForm() {
               required
             />
           </label>
-          <Field id="storeSlug" label="آدرس پیشنهادی" placeholder={slug} />
+          <Field id="storeSlug" label="آدرس پیشنهادی (انگلیسی)" placeholder={slug} pattern="[a-z0-9]+(?:-[a-z0-9]+)*" title="فقط حروف کوچک انگلیسی، عدد و خط تیره؛ بدون فاصله" error={state.errors?.storeSlug} />
         </div>
         <div className="slug-preview">
           chaplly.ir/stores/<b>{slug}</b>
@@ -524,26 +529,6 @@ export function RegisterForm() {
           </Select>
         </div>
         <div className="form-row">
-          <Field
-            id="supportEmail"
-            label="ایمیل پشتیبانی"
-            type="email"
-            placeholder="support@example.com"
-          />
-          <Field
-            id="supportPhone"
-            label="شماره پشتیبانی"
-            type="tel"
-            placeholder="اختیاری"
-          />
-        </div>
-        <div className="form-row">
-          <Field
-            id="socialUrl"
-            label="لینک شبکه اجتماعی"
-            type="url"
-            placeholder="https://instagram.com/..."
-          />
           <label className="field">
             <span>رنگ اصلی برند</span>
             <input

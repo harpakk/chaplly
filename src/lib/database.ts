@@ -291,14 +291,10 @@ export async function registerSeller(input: SellerInput) {
     websiteUrl: input.websiteUrl,
     audienceSize: input.audienceSize,
     monthlyViews: input.monthlyViews,
-    sellerGoal: input.sellerGoal,
     storeName: input.storeName,
     storeDescription: input.storeDescription,
     primaryCategory: input.primaryCategory,
     brandTone: input.brandTone,
-    supportEmail: input.supportEmail || input.email,
-    supportPhone: input.supportPhone || input.phone,
-    socialUrl: input.socialUrl,
     brandColor: input.brandColor,
   };
   const { error: answersError } = await db.rpc("service_save_seller_onboarding_answers", {

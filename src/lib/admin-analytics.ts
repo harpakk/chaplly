@@ -16,10 +16,9 @@ const chartQuestions=[
  ["sellerType","نوع فعالیت","choice"],["experienceLevel","تجربه فروش آنلاین","choice"],
  ["instagramHandle","آیدی اینستاگرام","presence"],["websiteUrl","سایت فعلی","presence"],
  ["audienceSize","اندازه مخاطب","choice"],["monthlyViews","بازدید ماهانه","choice"],
- ["sellerGoal","هدف از ساخت فروشگاه","presence"],["storeName","نام فروشگاه","presence"],
+ ["storeName","نام فروشگاه","presence"],
  ["storeDescription","توضیح فروشگاه","presence"],["primaryCategory","دسته اصلی محصولات","choice"],
- ["brandTone","حال‌وهوای برند","choice"],["supportEmail","ایمیل پشتیبانی","presence"],
- ["supportPhone","شماره پشتیبانی","presence"],["socialUrl","لینک شبکه اجتماعی","presence"],
+ ["brandTone","حال‌وهوای برند","choice"],
  ["brandColor","رنگ اصلی برند","color"],
 ] as const;
 function sellerAnswerCharts(rows:unknown[]):SellerAnswerChart[]{
