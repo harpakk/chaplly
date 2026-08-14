@@ -8,6 +8,23 @@ type Table<Row, Required extends keyof Row> = {
 };
 
 type AdditionalTables = {
+  coupons: Table<{
+    id: string; code: string; created_by: string; owner_organization_id: string | null;
+    discount_type: string; discount_value: number; applies_to: string; all_stores: boolean;
+    expires_at: string; max_usage: number; usage_count: number; status: string;
+    created_at: string; updated_at: string;
+  }, "code" | "created_by" | "discount_type" | "discount_value" | "applies_to" | "expires_at" | "max_usage">;
+  coupon_stores: Table<{ coupon_id: string; store_id: string }, "coupon_id" | "store_id">;
+  coupon_categories: Table<{ coupon_id: string; category_id: string }, "coupon_id" | "category_id">;
+  coupon_redemptions: Table<{
+    id: string; coupon_id: string; order_id: string; buyer_user_id: string | null;
+    discount_amount: number; redeemed_at: string;
+  }, "coupon_id" | "order_id" | "discount_amount">;
+  sms_event_configs: Table<{
+    event_type: string; name: string; recipient_role: string; description: string;
+    pattern_id: number | null; variable_keys: string[]; enabled: boolean;
+    is_required_event: boolean; created_at: string; updated_at: string;
+  }, "event_type" | "name" | "recipient_role">;
   support_ai_settings: Table<{
     id: string; model: string; system_prompt: string; updated_at: string;
   }, "system_prompt">;
@@ -73,6 +90,9 @@ type AdditionalTables = {
 };
 
 type AdditionalFunctions = {
+  service_quote_coupon: { Args: { p_code: string; p_items: Json }; Returns: Json };
+  service_apply_coupon_to_order: { Args: { p_order_id: string; p_code: string; p_buyer_user_id: string | null }; Returns: number };
+  service_save_seller_onboarding_answers: { Args: { p_user_id: string; p_answers: Json }; Returns: undefined };
   create_support_ai_user_message: {
     Args: { p_user_id: string; p_user_role: string; p_conversation_id: string | null; p_body: string };
     Returns: { message_id: string; conversation_id: string; remaining: number }[];
@@ -108,6 +128,12 @@ type Profiles = Omit<GeneratedProfiles, "Row" | "Insert" | "Update"> & {
   Insert: GeneratedProfiles["Insert"] & Partial<ProfileAttributionFields>;
   Update: GeneratedProfiles["Update"] & Partial<ProfileAttributionFields>;
 };
+type GeneratedSellerProfiles = GeneratedDatabase["public"]["Tables"]["seller_profiles"];
+type SellerProfiles = Omit<GeneratedSellerProfiles, "Row" | "Insert" | "Update"> & {
+  Row: GeneratedSellerProfiles["Row"] & { onboarding_answers: Json };
+  Insert: GeneratedSellerProfiles["Insert"] & { onboarding_answers?: Json };
+  Update: GeneratedSellerProfiles["Update"] & { onboarding_answers?: Json };
+};
 type GeneratedSupportKnowledgeBase = GeneratedDatabase["public"]["Tables"]["support_knowledge_base"];
 type SupportKnowledgeBaseFields = { source_type: string; file_name: string | null };
 type SupportKnowledgeBase = Omit<GeneratedSupportKnowledgeBase, "Row" | "Insert" | "Update"> & {
@@ -141,9 +167,10 @@ type AssetKind = GeneratedDatabase["public"]["Enums"]["asset_kind"] | "CATEGORY_
 
 export type Database = {
   public: Omit<GeneratedDatabase["public"], "Tables" | "Functions" | "Enums"> & {
-    Tables: Omit<GeneratedDatabase["public"]["Tables"], "orders" | "profiles" | "support_knowledge_base" | "free_designs" | "refunds"> & AdditionalTables & {
+    Tables: Omit<GeneratedDatabase["public"]["Tables"], "orders" | "profiles" | "seller_profiles" | "support_knowledge_base" | "free_designs" | "refunds"> & AdditionalTables & {
       orders: Orders;
       profiles: Profiles;
+      seller_profiles: SellerProfiles;
       support_knowledge_base: SupportKnowledgeBase;
       free_designs: FreeDesigns;
       refunds: Refunds;

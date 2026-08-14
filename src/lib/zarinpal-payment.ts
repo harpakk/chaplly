@@ -2,6 +2,7 @@ import "server-only";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { verifyZarinpalPayment } from "@/lib/zarinpal";
 import type { Json } from "@/types/database";
+import { queueOrderPaidSms } from "@/lib/sms-events";
 
 export type ZarinpalFinalization = {
   ok: boolean;
@@ -38,6 +39,9 @@ export async function finalizeZarinpalPayment(authority: string): Promise<Zarinp
     : {};
   if (attempt.status === "SUCCEEDED" && attempt.payment_id) {
     await db.from("orders").update({ status: "CONFIRMED" }).eq("id", attempt.order_id).eq("status", "PENDING");
+    await queueOrderPaidSms(attempt.order_id).catch((smsError) =>
+      console.error("Order SMS queue failed", smsError),
+    );
     return {
       ok: true,
       orderNumber: order.number,
@@ -71,6 +75,9 @@ export async function finalizeZarinpalPayment(authority: string): Promise<Zarinp
         failure_message: null,
       })
       .eq("id", attempt.id);
+    await queueOrderPaidSms(attempt.order_id).catch((smsError) =>
+      console.error("Order SMS queue failed", smsError),
+    );
     return {
       ok: true,
       orderNumber: order.number,

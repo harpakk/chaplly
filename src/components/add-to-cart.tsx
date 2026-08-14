@@ -44,6 +44,7 @@ export function AddToCart({ product }: { product: Product }) {
       title: product.title,
       image: product.image,
       price: variant.price,
+      compareAtPrice: variant.compareAtPrice,
       color,
       size,
       quantity: 1,

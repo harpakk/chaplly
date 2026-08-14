@@ -44,24 +44,30 @@ export function zarinpalCallbackUrl() {
 function gatewayError(payload: GatewayResponse) {
   const errors = Array.isArray(payload.errors) ? payload.errors[0] : payload.errors;
   return new ZarinpalError(
-    errors?.message || "پاسخ نامعتبر از زرین‌پال دریافت شد.",
+    `${errors?.message || "پاسخ نامعتبر از زرین‌پال دریافت شد."}${errors?.code == null ? "" : ` (کد خطا: ${errors.code})`}`,
     errors?.code,
     payload,
   );
 }
 
 async function post(path: string, body: Record<string, unknown>) {
-  const response = await fetch(`${API_ORIGIN}${path}`, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "User-Agent": "Chaplly/1.0 ZarinPal",
-    },
-    body: JSON.stringify({ merchant_id: merchantId(), ...body }),
-    cache: "no-store",
-    signal: AbortSignal.timeout(15_000),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_ORIGIN}${path}`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "User-Agent": "Chaplly/1.0 ZarinPal",
+      },
+      body: JSON.stringify({ merchant_id: merchantId(), ...body }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(15_000),
+    });
+  } catch (error) {
+    const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+    throw new ZarinpalError(timedOut ? "پاسخ زرین‌پال بیش از ۱۵ ثانیه طول کشید." : `ارتباط سرور با زرین‌پال برقرار نشد${error instanceof Error ? `: ${error.message}` : "."}`);
+  }
   let payload: GatewayResponse;
   try {
     payload = (await response.json()) as GatewayResponse;

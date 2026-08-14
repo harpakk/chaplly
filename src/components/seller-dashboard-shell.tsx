@@ -17,6 +17,8 @@ import {
   Video,
   Store,
   ShoppingCart,
+  BellRing,
+  BadgePercent,
   X,
 } from "lucide-react";
 import { Brand } from "./brand";
@@ -140,6 +142,19 @@ export function SellerDashboardShell({
                 <span>{label}</span>
               </Link>
             ))}
+            <Link className={pathname.includes("/coupons") ? "active" : ""} href="/seller/dashboard/coupons" prefetch={false} onClick={() => setMobile(false)}>
+              <BadgePercent />
+              <span>کدهای تخفیف</span>
+            </Link>
+            <Link
+              className={pathname.includes("/notifications") ? "active" : ""}
+              href="/seller/dashboard/notifications"
+              prefetch={false}
+              onClick={() => setMobile(false)}
+            >
+              <BellRing />
+              <span>تنظیمات پیامک</span>
+            </Link>
             <Link
               className={pathname.includes("/reels") ? "active" : ""}
               href="/seller/dashboard/reels"

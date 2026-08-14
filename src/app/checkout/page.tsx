@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -15,6 +16,7 @@ import {
 import { useCart } from "@/components/cart-context";
 import { formatPrice } from "@/lib/catalog";
 import { ActionForm } from "@/components/action-form";
+import { iranProvinces } from "@/lib/iran-address";
 import { checkoutOrderAction, getBuyerWalletBalanceAction } from "@/app/actions/dashboard";
 
 type Address = {
@@ -39,9 +41,10 @@ const emptyAddress: Address = {
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, total, clear } = useCart();
+  const { items, total, coupon, clear } = useCart();
   const [step, setStep] = useState(1);
   const [address, setAddress] = useState(emptyAddress);
+  const [addressReady, setAddressReady] = useState(false);
   const [walletBalance, setWalletBalance] = useState(0);
   const [useWallet, setUseWallet] = useState(true);
   const [pendingPayment, setPendingPayment] = useState<{ order: string; receipt: string } | null>(null);
@@ -53,9 +56,18 @@ export default function CheckoutPage() {
     try {
       const saved = window.localStorage.getItem("chaplly_pending_payment");
       if (saved) setPendingPayment(JSON.parse(saved));
+      const savedAddress = window.localStorage.getItem("chaplly_checkout_address");
+      if (savedAddress) setAddress({ ...emptyAddress, ...(JSON.parse(savedAddress) as Partial<Address>) });
     } catch {}
+    setAddressReady(true);
   }, []);
-  const payableTotal = useWallet ? Math.max(0, total - walletBalance) : total;
+  useEffect(() => {
+    if (addressReady) window.localStorage.setItem("chaplly_checkout_address", JSON.stringify(address));
+  }, [address, addressReady]);
+  const discountedTotal = Math.max(0, total - (coupon?.discountAmount || 0));
+  const payableTotal = useWallet ? Math.max(0, discountedTotal - walletBalance) : discountedTotal;
+  const productSavings = items.reduce((sum, item) =>
+    sum + Math.max(0, Number(item.compareAtPrice || 0) - item.price) * item.quantity, 0);
 
   if (!items.length)
     return (
@@ -96,6 +108,7 @@ export default function CheckoutPage() {
           <span>
             <ShieldCheck /> ثبت امن اطلاعات
           </span>
+          <Link className="checkout-auth-link" href="/account/login?next=/checkout">ورود / ثبت‌نام سریع</Link>
         </div>
         <ol className="checkout-steps">
           {["نشانی تحویل", "مرور سفارش", "پرداخت"].map(
@@ -144,7 +157,8 @@ export default function CheckoutPage() {
                       <span>شماره موبایل *</span>
                       <input
                         required
-                        minLength={7}
+                        pattern="(?:09[0-9]{9}|989[0-9]{9}|\+989[0-9]{9})"
+                        title="شماره باید با 09، 989 یا +989 شروع شود."
                         value={address.phone}
                         onChange={(event) => update("phone", event.target.value)}
                         inputMode="tel"
@@ -158,22 +172,27 @@ export default function CheckoutPage() {
                           update("postalCode", event.target.value)
                         }
                         inputMode="numeric"
+                        pattern="[0-9]{10}"
+                        title="کد پستی باید دقیقاً ۱۰ رقم باشد."
                       />
                     </label>
                   </div>
                   <div>
                     <label>
-                      <span>استان (اختیاری)</span>
-                      <input
+                      <span>استان *</span>
+                      <select
+                        required
                         value={address.province}
                         onChange={(event) =>
                           update("province", event.target.value)
                         }
-                      />
+                      ><option value="">انتخاب استان</option>{iranProvinces.map((province) => <option value={province} key={province}>{province}</option>)}</select>
                     </label>
                     <label>
-                      <span>شهر (اختیاری)</span>
+                      <span>شهر *</span>
                       <input
+                        required
+                        minLength={2}
                         value={address.city}
                         onChange={(event) => update("city", event.target.value)}
                       />
@@ -219,6 +238,7 @@ export default function CheckoutPage() {
                 <div className="review-order">
                   {items.map((item) => (
                     <div key={item.variantId}>
+                      <Image className="checkout-item-image" src={item.image} alt={item.title} width={58} height={58} />
                       <span>
                         <b>{item.title}</b>
                         <small>
@@ -226,7 +246,7 @@ export default function CheckoutPage() {
                           {item.quantity.toLocaleString("fa-IR")}
                         </small>
                       </span>
-                      <strong>{formatPrice(item.price * item.quantity)}</strong>
+                      <strong>{item.compareAtPrice && item.compareAtPrice > item.price && <del>{formatPrice(item.compareAtPrice * item.quantity)}</del>}{formatPrice(item.price * item.quantity)}</strong>
                     </div>
                   ))}
                 </div>
@@ -285,8 +305,11 @@ export default function CheckoutPage() {
                         "chaplly_pending_payment",
                         JSON.stringify({ order: result.id, receipt: idempotency }),
                       );
+                      window.location.assign(result.detail);
+                      return;
                     } else {
                       clear();
+                      window.localStorage.removeItem("chaplly_checkout_address");
                     }
                     router.push(result.detail || "/order-success");
                   }}
@@ -307,6 +330,7 @@ export default function CheckoutPage() {
                     name="idempotencyKey"
                     value={idempotency}
                   />
+                  {coupon && <input type="hidden" name="couponCode" value={coupon.code} />}
                   {Object.entries(address).map(([key, value]) => (
                     <input type="hidden" name={key} value={value} key={key} />
                   ))}
@@ -319,6 +343,7 @@ export default function CheckoutPage() {
           </section>
           <aside className="order-summary checkout-summary">
             <h2>سفارش شما</h2>
+            <div className="checkout-summary-items">{items.map((item) => <article key={item.variantId}><Image src={item.image} alt={item.title} width={48} height={48} /><span><b>{item.title}</b><small>{item.color} · {item.size} · {item.quantity.toLocaleString("fa-IR")} عدد</small></span><strong>{item.compareAtPrice && item.compareAtPrice > item.price && <del>{formatPrice(item.compareAtPrice * item.quantity)}</del>}{formatPrice(item.price * item.quantity)}</strong></article>)}</div>
             <div>
               <span>
                 {items
@@ -327,6 +352,8 @@ export default function CheckoutPage() {
               </span>
               <strong>{formatPrice(total)}</strong>
             </div>
+            {productSavings > 0 && <div className="checkout-savings"><span>سود شما از این خرید</span><strong>{formatPrice(productSavings)}</strong></div>}
+            {coupon && <div><span>تخفیف کد {coupon.code}</span><strong>-{formatPrice(coupon.discountAmount)}</strong></div>}
             <div>
               <span>ارسال</span>
               <strong>پس‌کرایه</strong>

@@ -14,6 +14,7 @@ import {
   Clock3,
   FileUp,
   ImagePlus,
+  MessageSquareText,
   Package,
   Palette,
   Pencil,
@@ -51,6 +52,8 @@ import {
   saveGraphicStyleAction,
   saveSupportKnowledgeAction,
   saveSupportAiSettingsAction,
+  saveSmsEventConfigAction,
+  testSmsEventAction,
   uploadSupportKnowledgeFileAction,
   reviewSupplierOfferAction,
   upsertRawProductAction,
@@ -1306,6 +1309,45 @@ function Settings({ data }: { data: AdminData }) {
             این داده‌ها از دیتابیس خوانده می‌شوند و در تصمیم بررسی استفاده
             می‌شوند.
           </p>
+        </div>
+      </section>
+      <section className="admin-card sms-admin-settings">
+        <header>
+          <MessageSquareText />
+          <div>
+            <h2>پیامک‌های ملی‌پیامک</h2>
+            <p>فعال‌سازی، تغییر شناسه الگو و ارسال آزمایشی هر رویداد. ترتیب متغیرها دقیقاً مطابق پنل پیامک است.</p>
+          </div>
+          <span>{process.env.NEXT_PUBLIC_APP_URL ? "آماده تنظیم" : "نیازمند متغیر محیطی"}</span>
+        </header>
+        <div className="sms-config-list">
+          {data.smsConfigs.map((config) => (
+            <article key={config.event_type}>
+              <div className="sms-config-copy">
+                <b>{config.name}</b>
+                <small>{config.recipient_role} · {config.event_type}</small>
+                <p>{config.description}</p>
+                <code>{config.variable_keys.join(" ; ")}</code>
+              </div>
+              <ActionForm action={saveSmsEventConfigAction} className="sms-config-form">
+                <input type="hidden" name="eventType" value={config.event_type} />
+                <label>شناسه الگو<input name="patternId" type="number" min="1" defaultValue={config.pattern_id || ""} /></label>
+                <label className="sms-toggle"><input name="enabled" type="checkbox" defaultChecked={config.enabled} /> فعال</label>
+                <button>ذخیره</button>
+              </ActionForm>
+              <ActionForm action={testSmsEventAction} className="sms-test-form" refreshAfterSuccess={false}>
+                <input type="hidden" name="eventType" value={config.event_type} />
+                <label>موبایل تست<input name="testPhone" type="tel" required placeholder="09xxxxxxxxx" /></label>
+                <label>مقادیر تست<input name="testValues" required placeholder={config.variable_keys.join(";")} /></label>
+                <button>ارسال تست</button>
+              </ActionForm>
+            </article>
+          ))}
+        </div>
+        <div className="sms-delivery-log">
+          <h3>آخرین ارسال‌ها</h3>
+          {data.smsOutbox.map((item) => <p key={item.id}><b>{item.event_type}</b><span>{item.recipient_phone || "بدون شماره"}</span><i data-status={item.status}>{item.status}</i><small>{item.last_error || (item.sent_at ? date(item.sent_at) : date(item.created_at))}</small></p>)}
+          {!data.smsOutbox.length && <small>هنوز پیامکی در صف ثبت نشده است.</small>}
         </div>
       </section>
       <section className="admin-card graphic-admin-settings">

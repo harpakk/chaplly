@@ -20,6 +20,7 @@ import {
   Settings,
   ShoppingCart,
   X,
+  BadgePercent,
 } from "lucide-react";
 import { adminLogoutAction } from "@/app/admin/actions";
 const links = [
@@ -33,6 +34,7 @@ const links = [
   ["/admin/pending-products", "محصولات در انتظار", ClipboardCheck],
   ["/admin/reviews", "بررسی دیدگاه‌ها", MessageSquareText],
   ["/admin/orders", "سفارش‌ها", ShoppingCart],
+  ["/admin/coupons", "کدهای تخفیف", BadgePercent],
   ["/admin/tickets", "پشتیبانی", Headphones],
   ["/admin/ai-assistant", "دستیار هوشمند", Bot],
   ["/admin/settings", "تنظیمات", Settings],

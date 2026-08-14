@@ -140,7 +140,7 @@ export const getSellerStoreRecord = cache(async (storeId: string) => {
 async function getReviewOpportunities(userId: string) {
   const db = createSupabaseAdmin();
   const eligibleBefore = new Date(
-    Date.now() - 7 * 24 * 60 * 60 * 1000,
+    Date.now() - 2 * 24 * 60 * 60 * 1000,
   ).toISOString();
   const { data: orders, error: ordersError } = await db
     .from("orders")
@@ -1486,6 +1486,14 @@ export async function getAdminDashboardData(
     imageUrl:
       (fileKey(item.file) && freeDesignUrls.get(fileKey(item.file)!)) || "",
   }));
+  const [smsConfigsResult, smsOutboxResult] = needsSettings
+    ? await Promise.all([
+        db.from("sms_event_configs").select("event_type,name,recipient_role,description,pattern_id,variable_keys,enabled,is_required_event,updated_at").order("recipient_role").order("name"),
+        db.from("notification_outbox").select("id,event_type,recipient_phone,status,attempts,sent_at,last_error,created_at").order("created_at", { ascending: false }).limit(30),
+      ])
+    : [{ data: [], error: null }, { data: [], error: null }];
+  if (smsConfigsResult.error || smsOutboxResult.error)
+    throw new Error(smsConfigsResult.error?.message || smsOutboxResult.error?.message);
   let buyerRefundsResult = needsFinancial
     ? await db
         .from("refunds")
@@ -1589,6 +1597,8 @@ export async function getAdminDashboardData(
       return { ...item, total: n(item.total), items, firstImageUrl: publicFileUrl(firstImage?.file) };
     }),
     rejectionReasons: reasonsResult.data || [],
+    smsConfigs: smsConfigsResult.data || [],
+    smsOutbox: smsOutboxResult.data || [],
     knowledgeBase: (knowledgeBaseResult.data || []) as Array<{
       id: string;
       title: string;
@@ -1640,6 +1650,22 @@ export async function getAdminDashboardData(
       ).length,
       rawProducts: (rawsResult.data || []).length,
     },
+  };
+}
+
+export async function getSmsPreferenceData(userId: string, roles: Array<"BUYER" | "SELLER" | "SUPPLIER">) {
+  const db = createSupabaseAdmin();
+  const [{ data: configs, error: configError }, { data: preferences, error: preferenceError }, { data: profile, error: profileError }] = await Promise.all([
+    db.from("sms_event_configs").select("event_type,name,description,recipient_role").in("recipient_role", roles).order("name"),
+    db.from("notification_preferences").select("event_type,enabled").eq("user_id", userId).eq("channel", "SMS"),
+    db.from("profiles").select("phone").eq("id", userId).maybeSingle(),
+  ]);
+  if (configError || preferenceError || profileError)
+    throw new Error(configError?.message || preferenceError?.message || profileError?.message);
+  const selected = new Map((preferences || []).map((item) => [item.event_type, item.enabled]));
+  return {
+    phone: profile?.phone || null,
+    items: (configs || []).map((item) => ({ ...item, enabled: selected.get(item.event_type) !== false })),
   };
 }
 
@@ -1699,6 +1725,8 @@ export async function getAdminOverviewData(): Promise<AdminDashboardData> {
       firstImageUrl: null,
     })),
     rejectionReasons: [],
+    smsConfigs: [],
+    smsOutbox: [],
     knowledgeBase: [],
     supportAiSettings: null,
     graphicStyles: [],

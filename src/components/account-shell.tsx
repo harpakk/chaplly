@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { History, LayoutDashboard, MapPin, MessageCircle, Package, Star, WalletCards } from "lucide-react";
+import { BellRing, History, LayoutDashboard, MapPin, MessageCircle, Package, Star, WalletCards } from "lucide-react";
 
 const links = [
   ["/account", "نمای کلی", LayoutDashboard],
@@ -8,6 +8,7 @@ const links = [
   ["/account/recent", "دیده‌شده‌های اخیر", History],
   ["/account/addresses", "نشانی‌ها", MapPin],
   ["/account/reviews", "دیدگاه‌ها", Star],
+  ["/account/notifications", "تنظیمات پیامک", BellRing],
   ["/account/support", "پشتیبانی", MessageCircle],
 ] as const;
 

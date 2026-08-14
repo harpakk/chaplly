@@ -175,7 +175,6 @@ export function DesignEditor({ data }: { data: EditorData }) {
     [selectedMockups, setSelectedMockups] = useState<string[]>(
       data.selectedMockupIds || [],
     ),
-    [mockupGenderFilter, setMockupGenderFilter] = useState("ALL"),
     [mockupSideFilter, setMockupSideFilter] = useState("ALL"),
     [mockupColorFilter, setMockupColorFilter] = useState("ALL"),
     [chatGuideOpen, setChatGuideOpen] = useState(false),
@@ -229,8 +228,7 @@ export function DesignEditor({ data }: { data: EditorData }) {
         Boolean(mockup.color_id) &&
         selectedVariantColorIds.has(String(mockup.color_id)) &&
         (mockupColorFilter === "ALL" || mockup.color_id === mockupColorFilter) &&
-        (mockupSideFilter === "ALL" || mockup.side === mockupSideFilter) &&
-        (mockupGenderFilter === "ALL" || mockup.gender === mockupGenderFilter)
+        (mockupSideFilter === "ALL" || mockup.side === mockupSideFilter)
       );
     },
   );
@@ -1438,14 +1436,6 @@ export function DesignEditor({ data }: { data: EditorData }) {
                       ))}
                     </select>
                   </label>
-                  <label>جنسیت
-                    <select value={mockupGenderFilter} onChange={(event) => setMockupGenderFilter(event.target.value)}>
-                      <option value="ALL">همه</option>
-                      <option value="MALE">مردانه</option>
-                      <option value="FEMALE">زنانه</option>
-                      <option value="UNISEX">یونیسکس</option>
-                    </select>
-                  </label>
                   <label>نما
                     <select value={mockupSideFilter} onChange={(event) => setMockupSideFilter(event.target.value)}>
                       <option value="ALL">همه نماها</option>
@@ -1481,7 +1471,7 @@ export function DesignEditor({ data }: { data: EditorData }) {
                             )}
                           </div>
                           <b>{mockup.name}</b>
-                          <small>{raw.colors.find((color) => color.id === mockup.color_id)?.name || "—"} · {mockup.gender === "MALE" ? "مردانه" : mockup.gender === "FEMALE" ? "زنانه" : "یونیسکس"}</small>
+                          <small>{raw.colors.find((color) => color.id === mockup.color_id)?.name || "—"}</small>
                           <span className={`mockup-side-badge ${mockup.side.toLowerCase()}`}>
                             {mockup.side === "BACK" ? "نمای پشت" : "نمای جلو"}
                           </span>

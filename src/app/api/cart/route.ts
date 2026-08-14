@@ -51,6 +51,7 @@ export async function GET() {
         title: match.product.title,
         image: match.product.image,
         price: match.variant.price,
+        compareAtPrice: match.variant.compareAtPrice,
         color: match.variant.color,
         size: match.variant.size,
         quantity: row.quantity,

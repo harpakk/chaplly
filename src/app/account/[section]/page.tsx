@@ -5,6 +5,8 @@ import { ReviewCreation } from "@/components/review-creation";
 import { TicketWorkspace } from "@/components/ticket-workspace";
 import { requireBuyer } from "@/lib/auth";
 import { getBuyerSectionData, getBuyerSupportData } from "@/lib/dashboard-data";
+import { getSmsPreferenceData } from "@/lib/dashboard-data";
+import { SmsPreferences } from "@/components/sms-preferences";
 
 export default async function AccountSection({
   params,
@@ -13,9 +15,10 @@ export default async function AccountSection({
 }) {
   const user = await requireBuyer();
   const { section } = await params;
-  if (!["addresses", "reviews", "support"].includes(section)) notFound();
+  if (!["addresses", "reviews", "support", "notifications"].includes(section)) notFound();
   const data = await getBuyerSectionData(user.id);
   const supportData = section === "support" ? await getBuyerSupportData(user.id) : null;
+  const smsData = section === "notifications" ? await getSmsPreferenceData(user.id, ["BUYER"]) : null;
   const name = [data.profile.first_name, data.profile.last_name]
     .filter(Boolean)
     .join(" ");
@@ -86,6 +89,8 @@ export default async function AccountSection({
         )}
       </>
     );
+  else if (section === "notifications")
+    content = <><div className="account-heading"><span>انتخاب با شماست</span><h1>تنظیمات پیامک</h1><p>فقط پیام‌هایی را دریافت کنید که برایتان مفید هستند.</p></div>{smsData && <SmsPreferences items={smsData.items} phone={smsData.phone} />}</>;
   else
     content = (
       <>

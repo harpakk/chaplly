@@ -9,15 +9,20 @@ export type CartItem = {
   title: string;
   image: string;
   price: number;
+  compareAtPrice?: number;
   color: string;
   size: string;
   quantity: number;
 };
 
+export type AppliedCoupon = { code: string; discountAmount: number };
+
 type CartContextValue = {
   items: CartItem[];
   count: number;
   total: number;
+  coupon: AppliedCoupon | null;
+  setCoupon: (coupon: AppliedCoupon | null) => void;
   addItem: (item: CartItem) => void;
   updateQuantity: (index: number, quantity: number) => void;
   removeItem: (index: number) => void;
@@ -30,6 +35,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [ready, setReady] = useState(false);
   const [cloudEnabled, setCloudEnabled] = useState(false);
+  const [coupon, setCouponState] = useState<AppliedCoupon | null>(null);
 
   useEffect(() => {
     const stored = window.localStorage.getItem("chapli_cart");
@@ -54,6 +60,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         window.localStorage.setItem("chapli_cart", JSON.stringify(validItems));
       } catch {
         window.localStorage.removeItem("chapli_cart");
+      }
+    }
+    const storedCoupon = window.localStorage.getItem("chapli_coupon");
+    if (storedCoupon) {
+      try {
+        const parsed = JSON.parse(storedCoupon) as AppliedCoupon;
+        if (/^\d{1,6}$/.test(parsed.code) && Number(parsed.discountAmount) > 0)
+          setCouponState(parsed);
+      } catch {
+        window.localStorage.removeItem("chapli_coupon");
       }
     }
     setReady(true);
@@ -101,6 +117,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [items, ready]);
 
   useEffect(() => {
+    if (!ready) return;
+    if (coupon) window.localStorage.setItem("chapli_coupon", JSON.stringify(coupon));
+    else window.localStorage.removeItem("chapli_coupon");
+  }, [coupon, ready]);
+
+  useEffect(() => {
     if (!ready || !cloudEnabled) return;
     const timer = window.setTimeout(() => {
       void fetch("/api/cart", {
@@ -123,8 +145,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       items,
       count: items.reduce((sum, item) => sum + item.quantity, 0),
       total: items.reduce((sum, item) => sum + item.price * item.quantity, 0),
+      coupon,
+      setCoupon: setCouponState,
       addItem: (item) =>
         setItems((current) => {
+          setCouponState(null);
           const match = current.findIndex(
             (entry) =>
               entry.productId === item.productId &&
@@ -139,17 +164,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         }),
       updateQuantity: (index, quantity) =>
         setItems((current) =>
+          (setCouponState(null),
           quantity <= 0
             ? current.filter((_, itemIndex) => itemIndex !== index)
             : current.map((item, itemIndex) =>
                 itemIndex === index ? { ...item, quantity: Math.min(99, quantity) } : item,
-              ),
+              )),
         ),
       removeItem: (index) =>
-        setItems((current) => current.filter((_, itemIndex) => itemIndex !== index)),
-      clear: () => setItems([]),
+        setItems((current) => (setCouponState(null), current.filter((_, itemIndex) => itemIndex !== index))),
+      clear: () => { setItems([]); setCouponState(null); },
     }),
-    [items],
+    [items, coupon],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

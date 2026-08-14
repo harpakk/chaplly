@@ -1,11 +1,14 @@
 import { updateSupplierProfileAction } from "@/app/actions/supplier-auth";
 import { requireSupplier } from "@/lib/auth";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
+import { getSmsPreferenceData } from "@/lib/dashboard-data";
+import { SmsPreferences } from "@/components/sms-preferences";
 
 export default async function SupplierSettingsPage() {
   const context = await requireSupplier();
   const organizationId = context.membership.organization.id;
   const db = createSupabaseAdmin();
+  const smsData = await getSmsPreferenceData(context.user.id, ["SUPPLIER"]);
   const [{ data: organization }, { data: profile }, { data: facility }] =
     await Promise.all([
       db.from("organizations").select("display_name").eq("id", organizationId).single(),
@@ -29,6 +32,7 @@ export default async function SupplierSettingsPage() {
         <label>بنر<input name="supplierBanner" type="file" accept="image/*" /></label>
         <button>ذخیره اطلاعات</button>
       </form>
+      <SmsPreferences items={smsData.items} phone={smsData.phone} />
     </main>
   );
 }

@@ -1,5 +1,5 @@
 "use server";
-import { randomUUID } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 import { revalidatePath, revalidateTag } from "next/cache";
 import {
   requireAdmin,
@@ -25,6 +25,9 @@ import {
   answerSupportConversation,
   generateAndStoreTicketDraft,
 } from "@/lib/support-ai";
+import { queueOrderLifecycleSms, queueOrderPaidSms, queueOrderShippedSms, queuePayoutPaidSms, queueReturnApprovedSms, queueSupplierExceptionSms } from "@/lib/sms-events";
+import { sendMeliPayamakPattern } from "@/lib/sms";
+import { iranMobilePattern, iranProvinces } from "@/lib/iran-address";
 
 export type ActionResult = {
   ok: boolean;
@@ -54,6 +57,72 @@ const isOneOf = <T extends readonly string[]>(values: T, value: string): value i
   values.some((candidate) => candidate === value);
 const one = <T>(value: T | T[] | null | undefined): T | undefined =>
   Array.isArray(value) ? value[0] : (value ?? undefined);
+
+export async function saveSmsEventConfigAction(
+  _: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  await requireAdmin();
+  const eventType = String(formData.get("eventType") || "");
+  const patternRaw = String(formData.get("patternId") || "").trim();
+  const patternId = patternRaw ? Number(patternRaw) : null;
+  if (!eventType || (patternId !== null && (!Number.isInteger(patternId) || patternId < 1)))
+    return fail("شناسه الگو معتبر نیست.");
+  const { error } = await createSupabaseAdmin().from("sms_event_configs").update({
+    pattern_id: patternId,
+    enabled: formData.get("enabled") === "on",
+  }).eq("event_type", eventType);
+  if (error) return fail(error.message);
+  revalidatePath("/admin/settings");
+  return ok("تنظیمات پیامک ذخیره شد.");
+}
+
+export async function testSmsEventAction(
+  _: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  await requireAdmin();
+  const eventType = String(formData.get("eventType") || "");
+  const phone = String(formData.get("testPhone") || "").trim();
+  const values = String(formData.get("testValues") || "").split(";").map((value) => value.trim());
+  const db = createSupabaseAdmin();
+  const { data: config, error } = await db.from("sms_event_configs").select("pattern_id,variable_keys").eq("event_type", eventType).maybeSingle();
+  if (error || !config?.pattern_id) return fail(error?.message || "ابتدا شناسه الگو را ثبت کنید.");
+  if (!/^(\+98|0)?9\d{9}$/.test(phone)) return fail("شماره موبایل تست معتبر نیست.");
+  if (values.length !== config.variable_keys.length)
+    return fail(`برای این الگو ${config.variable_keys.length.toLocaleString("fa-IR")} مقدار با جداکننده ; وارد کنید.`);
+  try {
+    const result = await sendMeliPayamakPattern({ to: phone, patternId: Number(config.pattern_id), values });
+    return ok(`پیامک آزمایشی ارسال شد. شناسه ارائه‌دهنده: ${result.providerId}`);
+  } catch (cause) {
+    return fail(cause instanceof Error ? cause.message : "ارسال پیامک آزمایشی ناموفق بود.");
+  }
+}
+
+export async function saveSmsPreferencesAction(
+  _: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return fail("برای تغییر تنظیمات وارد حساب شوید.");
+  const db = createSupabaseAdmin();
+  const { data: configs, error } = await db.from("sms_event_configs").select("event_type,recipient_role");
+  if (error) return fail(error.message);
+  const roles = new Set([user.primaryRole, ...user.memberships.map((item) => item.organization.type)]);
+  const allowed = (configs || []).filter((config) => roles.has(config.recipient_role as "BUYER" | "SELLER" | "SUPPLIER"));
+  const rows = allowed.map((config) => ({
+    user_id: user.id,
+    event_type: config.event_type,
+    channel: "SMS",
+    enabled: formData.get(`sms_${config.event_type}`) === "on",
+  }));
+  const { error: saveError } = await db.from("notification_preferences").upsert(rows, { onConflict: "user_id,event_type,channel" });
+  if (saveError) return fail(saveError.message);
+  revalidatePath("/account/notifications");
+  revalidatePath("/seller/dashboard");
+  revalidatePath("/supplier/dashboard/settings");
+  return ok("تنظیمات دریافت پیامک ذخیره شد.");
+}
 
 export async function toggleWishlistAction(input: { productId: string; active: boolean }): Promise<ActionResult> {
   const user = await getCurrentUser();
@@ -194,6 +263,9 @@ export async function markFulfilmentSentAction(
     .eq("fulfilment_id", id)
     .eq("tracking_code", tracking);
   if (carrierError) return fail(carrierError.message);
+  await queueOrderShippedSms(id, carrier, tracking).catch((smsError) =>
+    console.error("Shipment SMS queue failed", smsError),
+  );
   revalidatePath("/supplier/dashboard");
   revalidatePath(`/supplier/dashboard/orders/${id}`);
   revalidatePath("/account/orders");
@@ -296,6 +368,7 @@ export async function completePayoutAction(
     p_actor_id: admin.id,
   });
   if (error) return fail(error.message);
+  await queuePayoutPaidSms(payoutId, reference).catch((smsError) => console.error("Payout SMS queue failed", smsError));
   revalidatePath("/admin/financial");
   return ok("پرداخت ثبت و موجودی تسویه شد.", String(data));
 }
@@ -321,6 +394,7 @@ export async function adminUpdateOrderAction(
     if (insertError) return fail(insertError.message);
     const { error } = await db.rpc("service_finalize_order_cancellation", { p_request_id: cancellation.id, p_actor_id: actor.id });
     if (error) return fail(error.message);
+    await queueOrderLifecycleSms(orderId, "CANCELLED").catch((smsError) => console.error("Cancellation SMS queue failed", smsError));
   } else {
     if (status === "DONE") {
       const { error } = await db.from("fulfilments").update({ status: "DONE", done_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("order_id", orderId).not("status", "in", '("DONE","CANCELLED","RETURNED")');
@@ -368,6 +442,7 @@ export async function confirmOrderReceivedAction(
     p_order_id: orderId,
   });
   if (error) return fail(error.message);
+  await queueOrderLifecycleSms(orderId, "DELIVERED").catch((smsError) => console.error("Delivered SMS queue failed", smsError));
   revalidatePath("/account/orders");
   return ok("تحویل سفارش تأیید شد.");
 }
@@ -1997,6 +2072,8 @@ export async function reviewCancellationAction(
       p_actor_id: admin.id,
     });
     if (finalizeError) return fail(finalizeError.message);
+    const { data: cancellation } = await db.from("order_cancellations").select("order_id").eq("id", id).maybeSingle();
+    if (cancellation) await queueOrderLifecycleSms(cancellation.order_id, "CANCELLED").catch((smsError) => console.error("Cancellation SMS queue failed", smsError));
   }
   revalidatePath("/admin/orders");
   revalidatePath("/admin/financial");
@@ -2027,6 +2104,7 @@ export async function reviewReturnAction(
     },
   );
   if (error) return fail(error.message);
+  if (approve) await queueReturnApprovedSms(id).catch((smsError) => console.error("Return SMS queue failed", smsError));
   revalidatePath("/admin/orders");
   return ok(
     approve ? "مرجوعی تأیید و دستور ادامه ثبت شد." : "درخواست مرجوعی رد شد.",
@@ -2078,6 +2156,7 @@ export async function reviewFulfilmentExceptionAction(
     },
   );
   if (error) return fail(error.message);
+  if (status !== "ACKNOWLEDGED") await queueSupplierExceptionSms(id, resolution).catch((smsError) => console.error("Exception SMS queue failed", smsError));
   revalidatePath("/admin/orders");
   return ok(
     status === "ACKNOWLEDGED"
@@ -2414,10 +2493,16 @@ export async function checkoutOrderAction(
   };
   if (address.recipientName.length < 2)
     return fail("نام و نام خانوادگی تحویل‌گیرنده را وارد کنید.");
-  if (address.phone.length < 7)
-    return fail("شماره تماس معتبر تحویل‌گیرنده را وارد کنید.");
+  if (!iranMobilePattern.test(address.phone))
+    return fail("شماره موبایل باید با 09، 989 یا +989 شروع شود و طول معتبر داشته باشد.");
+  if (!iranProvinces.includes(address.province as (typeof iranProvinces)[number]))
+    return fail("استان معتبر را از فهرست انتخاب کنید.");
+  if (address.city.length < 2)
+    return fail("نام شهر را وارد کنید.");
   if (address.addressLine.length < 5)
     return fail("نشانی کامل تحویل را وارد کنید.");
+  if (address.postalCode && !/^\d{10}$/.test(address.postalCode))
+    return fail("کد پستی باید دقیقاً ۱۰ رقم باشد.");
 
   const key = String(formData.get("idempotencyKey") || randomUUID());
   let orderId: string;
@@ -2497,6 +2582,25 @@ export async function checkoutOrderAction(
       return fail("سفارش ساخته شد اما حذف هزینه ارسال کامل نشد.");
   }
   let payableTotal = totalWithoutShipping;
+  const couponCode = String(formData.get("couponCode") || "").trim();
+  if (couponCode) {
+    if (!/^\d{1,6}$/.test(couponCode)) return fail("کد تخفیف معتبر نیست.");
+    const { data: couponDiscount, error: couponError } = await admin.rpc(
+      "service_apply_coupon_to_order",
+      { p_order_id: orderId, p_code: couponCode, p_buyer_user_id: user?.id || null },
+    );
+    if (couponError) {
+      const couponMessages: Record<string, string> = {
+        COUPON_INVALID: "کد تخفیف معتبر نیست.",
+        COUPON_EXPIRED: "مهلت استفاده از این کد تخفیف تمام شده است.",
+        COUPON_EXHAUSTED: "ظرفیت استفاده از این کد تخفیف تمام شده است.",
+        COUPON_NOT_APPLICABLE: "این کد برای کالاهای این سفارش قابل استفاده نیست.",
+      };
+      const couponKey = Object.keys(couponMessages).find((entry) => couponError.message.includes(entry));
+      return fail(couponKey ? couponMessages[couponKey] : "اعمال کد تخفیف انجام نشد.");
+    }
+    payableTotal = Math.max(0, payableTotal - Number(couponDiscount || 0));
+  }
   if (user && useWallet) {
     const { data: remaining, error: walletError } = await authDb.rpc(
       "apply_buyer_wallet_to_order",
@@ -2618,6 +2722,9 @@ export async function checkoutOrderAction(
     .is("paid_at", null);
   if (paidError)
     return fail("پرداخت ثبت شد اما نهایی‌سازی سفارش کامل نشد. دوباره تلاش کنید.");
+  await queueOrderPaidSms(orderId).catch((smsError) =>
+    console.error("Order SMS queue failed", smsError),
+  );
   revalidatePath("/account/orders");
   return {
     ok: true,
@@ -2627,6 +2734,95 @@ export async function checkoutOrderAction(
       ? `/account/orders?created=${encodeURIComponent(order.number)}`
       : `/order-success?order=${encodeURIComponent(order.number)}&receipt=${encodeURIComponent(key)}`,
   };
+}
+
+async function createCoupon(
+  formData: FormData,
+  actorId: string,
+  ownerOrganizationId: string | null,
+  sellerStoreId?: string,
+): Promise<ActionResult> {
+  const db = createSupabaseAdmin();
+  let code = String(formData.get("code") || "").trim();
+  if (!code) {
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      const candidate = String(randomInt(100000, 1000000));
+      const { count } = await db.from("coupons").select("id", { count: "exact", head: true }).eq("code", candidate);
+      if (!count) { code = candidate; break; }
+    }
+  }
+  if (!/^\d{1,6}$/.test(code)) return fail("کد باید فقط شامل حداکثر ۶ رقم باشد.");
+  const discountType = String(formData.get("discountType") || "");
+  const appliesTo = String(formData.get("appliesTo") || "");
+  const discountValue = Number(formData.get("discountValue"));
+  const maxUsage = Number(formData.get("maxUsage"));
+  const expiresAt = new Date(String(formData.get("expiresAt") || ""));
+  if (!isOneOf(["PERCENTAGE", "FIXED_RIAL"] as const, discountType) || !isOneOf(["ITEM", "BASKET"] as const, appliesTo))
+    return fail("نوع یا محدوده تخفیف معتبر نیست.");
+  if (!Number.isInteger(discountValue) || discountValue <= 0) return fail("مقدار تخفیف معتبر نیست.");
+  if (discountType === "PERCENTAGE" && discountValue > (ownerOrganizationId ? 10 : 100))
+    return fail(ownerOrganizationId ? "فروشنده نمی‌تواند بیشتر از ۱۰ درصد تخفیف تعیین کند." : "درصد تخفیف نمی‌تواند بیشتر از ۱۰۰ باشد.");
+  if (ownerOrganizationId && discountType === "FIXED_RIAL" && discountValue > 1_000_000)
+    return fail("فروشنده نمی‌تواند بیشتر از ۱٬۰۰۰٬۰۰۰ ریال تخفیف تعیین کند.");
+  if (!Number.isInteger(maxUsage) || maxUsage < 1) return fail("حداکثر استفاده باید حداقل یک بار باشد.");
+  if (Number.isNaN(expiresAt.getTime()) || expiresAt <= new Date()) return fail("تاریخ انقضا باید در آینده باشد.");
+
+  const requestedStores = formData.getAll("storeIds").map(String).filter((id) => /^[0-9a-f-]{36}$/i.test(id));
+  const categoryIds = formData.getAll("categoryIds").map(String).filter((id) => /^[0-9a-f-]{36}$/i.test(id));
+  const allStores = !ownerOrganizationId && String(formData.get("allStores") || "") === "on";
+  const storeIds = ownerOrganizationId ? (sellerStoreId ? [sellerStoreId] : []) : requestedStores;
+  if (!allStores && !storeIds.length) return fail("حداقل یک فروشگاه را انتخاب کنید.");
+  const { data: coupon, error } = await db.from("coupons").insert({
+    code, created_by: actorId, owner_organization_id: ownerOrganizationId,
+    discount_type: discountType, discount_value: discountValue, applies_to: appliesTo,
+    all_stores: allStores, expires_at: expiresAt.toISOString(), max_usage: maxUsage,
+  }).select("id").single();
+  if (error) return fail(error.code === "23505" ? "این کد قبلاً ساخته شده است؛ کد دیگری انتخاب کنید." : error.message);
+  const targetErrors = await Promise.all([
+    storeIds.length ? db.from("coupon_stores").insert(storeIds.map((storeId) => ({ coupon_id: coupon.id, store_id: storeId }))) : Promise.resolve({ error: null }),
+    categoryIds.length ? db.from("coupon_categories").insert(categoryIds.map((categoryId) => ({ coupon_id: coupon.id, category_id: categoryId }))) : Promise.resolve({ error: null }),
+  ]);
+  const targetError = targetErrors.find((result) => result.error)?.error;
+  if (targetError) {
+    await db.from("coupons").delete().eq("id", coupon.id);
+    return fail("ذخیره محدوده استفاده از کد انجام نشد: " + targetError.message);
+  }
+  revalidatePath(ownerOrganizationId ? "/seller/dashboard/coupons" : "/admin/coupons");
+  return ok(`کد تخفیف ${code} ساخته شد.`, coupon.id);
+}
+
+export async function createSellerCouponAction(_: ActionResult, formData: FormData) {
+  const context = await requireSeller();
+  const storeId = context.membership.organization.stores[0]?.id;
+  if (!storeId) return fail("فروشگاه فروشنده پیدا نشد.");
+  return createCoupon(formData, context.user.id, context.membership.organization.id, storeId);
+}
+
+export async function createAdminCouponAction(_: ActionResult, formData: FormData) {
+  const admin = await requireAdmin();
+  return createCoupon(formData, admin.id, null);
+}
+
+async function toggleCoupon(formData: FormData, ownerOrganizationId: string | null) {
+  const couponId = String(formData.get("couponId") || "");
+  const nextStatus = String(formData.get("status") || "") === "ACTIVE" ? "ACTIVE" : "DISABLED";
+  if (!/^[0-9a-f-]{36}$/i.test(couponId)) return fail("کد تخفیف پیدا نشد.");
+  let query = createSupabaseAdmin().from("coupons").update({ status: nextStatus, updated_at: new Date().toISOString() }).eq("id", couponId);
+  if (ownerOrganizationId) query = query.eq("owner_organization_id", ownerOrganizationId);
+  const { error } = await query;
+  if (error) return fail(error.message);
+  revalidatePath(ownerOrganizationId ? "/seller/dashboard/coupons" : "/admin/coupons");
+  return ok(nextStatus === "ACTIVE" ? "کد تخفیف فعال شد." : "کد تخفیف غیرفعال شد.");
+}
+
+export async function toggleSellerCouponAction(_: ActionResult, formData: FormData) {
+  const context = await requireSeller();
+  return toggleCoupon(formData, context.membership.organization.id);
+}
+
+export async function toggleAdminCouponAction(_: ActionResult, formData: FormData) {
+  await requireAdmin();
+  return toggleCoupon(formData, null);
 }
 
 export async function saveDesignDraftAction(input: {
@@ -2960,6 +3156,45 @@ export async function saveSellerProductAction(
       productAlreadyExists ? productId : undefined,
     );
 
+  const selectedVariantIds = variantPrices.map(
+    (variant) => variant.rawProductVariantId,
+  );
+  const { data: offerVariants, error: offerVariantError } = await admin
+    .from("supplier_offer_variants")
+    .select("raw_product_variant_id,unit_cost")
+    .eq("supplier_offer_id", primarySupplierOfferId)
+    .in("raw_product_variant_id", selectedVariantIds);
+  if (offerVariantError)
+    return fail(offerVariantError.message, undefined, productAlreadyExists ? productId : undefined);
+  const supplierCosts = new Map(
+    (offerVariants || []).map((variant) => [
+      variant.raw_product_variant_id,
+      Number(variant.unit_cost),
+    ]),
+  );
+  if (
+    variantPrices.some(
+      (variant) => !supplierCosts.has(variant.rawProductVariantId),
+    )
+  )
+    return fail(
+      "هزینه تأمین یکی از تنوع‌ها پیدا نشد.",
+      { variantPrices: "تأمین‌کننده باید برای همه تنوع‌ها قیمت معتبر داشته باشد." },
+      productAlreadyExists ? productId : undefined,
+    );
+  if (
+    variantPrices.some(
+      (variant) =>
+        variant.price <
+        Math.ceil((supplierCosts.get(variant.rawProductVariantId) || 0) * 1.1),
+    )
+  )
+    return fail(
+      "قیمت فروش هر تنوع باید حداقل ۱۰ درصد بیشتر از هزینه تأمین باشد.",
+      { variantPrices: "حاشیه سود کمتر از ۱۰ درصد مجاز نیست." },
+      productAlreadyExists ? productId : undefined,
+    );
+
   const { data: duplicateSlug, error: duplicateSlugError } = await admin
     .from("seller_products")
     .select("id")
@@ -3066,7 +3301,7 @@ export async function saveSellerProductAction(
             file,
             "product-images",
             path,
-            { maxDimension: 2400, quality: 92 },
+            { lossless: true },
           );
           const fileId = await insertStorageFileDirect({
             ownerUserId: context.user.id,

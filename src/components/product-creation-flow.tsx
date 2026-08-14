@@ -340,6 +340,21 @@ function FinalProduct({
       );
       return;
     }
+    const belowMinimumMargin = data.design!.variantIds.some((variantId) => {
+      const supplierCost = Number(
+        pricingOffer?.variants.find(
+          (variant) => variant.raw_product_variant_id === variantId,
+        )?.unit_cost || 0,
+      );
+      return (prices[variantId] || 0) < Math.ceil(supplierCost * 1.1);
+    });
+    if (belowMinimumMargin) {
+      showClientError(
+        "قیمت فروش هر تنوع باید حداقل ۱۰ درصد بیشتر از هزینه تأمین باشد.",
+        "variantPrices",
+      );
+      return;
+    }
     if (submitter?.value?.startsWith("publish")) {
       const normalize = (value: unknown) =>
         String(value || "")
@@ -406,8 +421,8 @@ function FinalProduct({
           );
           await document.fonts.ready;
           const background = images[0];
-          const sourceWidth = background?.naturalWidth || 2000;
-          const targetWidth = Math.min(2400, Math.max(1800, sourceWidth));
+          const sourceWidth = background?.naturalWidth || node.offsetWidth;
+          const targetWidth = Math.max(node.offsetWidth, sourceWidth);
           const ratio = node.offsetHeight / Math.max(1, node.offsetWidth);
           const blob = await toBlob(node, {
             pixelRatio: 1,
@@ -871,6 +886,7 @@ function FinalProduct({
                     (item) => item.raw_product_variant_id === variantId,
                   )?.unit_cost || 0,
                 );
+                const minimumPrice = Math.ceil(supplierCost * 1.1);
                 const variantPrice = prices[variantId] || 1;
                 return (
                   <label key={variantId}>
@@ -880,7 +896,7 @@ function FinalProduct({
                     </span>
                     <input
                       type="number"
-                      min="1"
+                      min={minimumPrice}
                       value={prices[variantId] || 1}
                       onChange={(event) =>
                         setPrices((current) => ({
@@ -896,7 +912,7 @@ function FinalProduct({
                           setPrices((current) => ({
                             ...current,
                             [variantId]: Math.max(
-                              1,
+                              minimumPrice,
                               Math.round((current[variantId] || 1) * 0.9),
                             ),
                           }))
@@ -921,6 +937,7 @@ function FinalProduct({
                     <small className="variant-profit">
                       سود: {formatRial(Math.max(0, variantPrice - supplierCost))}
                     </small>
+                    <small>حداقل قیمت با سود ۱۰٪: {formatRial(minimumPrice)}</small>
                   </label>
                 );
               })}

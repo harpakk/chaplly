@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Camera, Star } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { ActionForm } from "@/components/action-form";
 import { submitProductReviewAction } from "@/app/actions/dashboard";
 
@@ -16,9 +17,15 @@ type Opportunity = {
 };
 
 export function ReviewCreation({ items }: { items: Opportunity[] }) {
+  const params = useSearchParams();
+  const requestedOrder = params.get("order");
+  const direct = params.get("review") === "1" && Boolean(requestedOrder);
+  const orderedItems = requestedOrder
+    ? [...items].sort((a, b) => Number(b.orderNumber === requestedOrder) - Number(a.orderNumber === requestedOrder))
+    : items;
   if (!items.length) return null;
   return (
-    <section className="review-opportunities">
+    <section className={`review-opportunities ${direct ? "review-direct-mode" : ""}`}>
       <header>
         <span>یادآوری دیدگاه</span>
         <h2>خریدت چطور بود؟</h2>
@@ -27,12 +34,9 @@ export function ReviewCreation({ items }: { items: Opportunity[] }) {
           می‌کند.
         </p>
       </header>
-      {items.map((item) => (
-        <ActionForm
-          action={submitProductReviewAction}
-          className="review-create-form"
-          key={item.orderItemId}
-        >
+      {orderedItems.map((item, index) => (
+        <div id={`review-${item.orderItemId}`} className={requestedOrder === item.orderNumber && index === 0 ? "review-direct-target" : direct ? "review-direct-hidden" : ""} key={item.orderItemId}>
+        <ActionForm action={submitProductReviewAction} className="review-create-form">
           <input type="hidden" name="orderItemId" value={item.orderItemId} />
           <div className="review-product-summary">
             <Image src={item.image} alt={item.title} width={90} height={90} />
@@ -81,6 +85,7 @@ export function ReviewCreation({ items }: { items: Opportunity[] }) {
           </div>
           <button className="review-submit">ارسال برای بررسی</button>
         </ActionForm>
+        </div>
       ))}
     </section>
   );

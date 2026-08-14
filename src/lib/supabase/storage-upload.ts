@@ -126,7 +126,7 @@ export async function uploadStorageImage(
   file: File,
   bucket: string,
   objectPath: string,
-  options: { maxDimension?: number; quality?: number } = {},
+  options: { maxDimension?: number; quality?: number; lossless?: boolean } = {},
 ): Promise<UploadedStorageImage> {
   if (!file.type.startsWith("image/")) {
     throw new Error("فایل انتخاب‌شده باید تصویر باشد.");
@@ -135,15 +135,16 @@ export async function uploadStorageImage(
   const secretKey = process.env.SUPABASE_SECRET_KEY;
   if (!secretKey) throw new Error("Supabase secret key is missing");
 
-  const optimized = await sharp(Buffer.from(await file.arrayBuffer()))
-    .rotate()
-    .resize({
+  const pipeline = sharp(Buffer.from(await file.arrayBuffer())).rotate();
+  if (!options.lossless)
+    pipeline.resize({
       width: options.maxDimension ?? 1800,
       height: options.maxDimension ?? 1800,
       fit: "inside",
       withoutEnlargement: true,
-    })
-    .webp({ quality: options.quality ?? 80, effort: 4 })
+    });
+  const optimized = await pipeline
+    .webp(options.lossless ? { lossless: true, effort: 6 } : { quality: options.quality ?? 80, effort: 4 })
     .toBuffer();
 
   const path = webpPath(objectPath);
