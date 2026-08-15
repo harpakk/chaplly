@@ -3,7 +3,9 @@ import { createSupabaseAdmin } from "@/lib/supabase/admin";
 export type AnalyticsPoint={day:string;indexViews:number;productViews:number;sales:number;averageBasket:number;totalSales:number;conversionRate:number};
 export type AttributionPoint={sourceKey:string;visits:number;uniqueVisits:number;signups:number;buys:number;visitPercentage:number};
 export type SellerAnswerChart={key:string;title:string;total:number;values:{label:string;count:number;percentage:number;color?:string}[]};
-export type AdminAnalyticsData={series:AnalyticsPoint[];sellers:{all:number;moreThanFive:number;withSales:number};attribution:AttributionPoint[];sellerAnswers:SellerAnswerChart[]};
+export type SellerProfitRow={organizationId:string;name:string;itemsSold:number;lifetimeProfit:number};
+export type SellerFunnel={uniqueVisitors:number;allSellers:number;withSales:number;moreThanOne:number;moreThanFive:number;moreThanTen:number;exactlyOne:number;twoToFive:number;sixToTen:number;overTen:number;totalLifetimeProfit:number;averageLifetimeProfit:number;sellerRows:SellerProfitRow[]};
+export type AdminAnalyticsData={series:AnalyticsPoint[];sellers:{all:number;moreThanFive:number;withSales:number};funnel:SellerFunnel;attribution:AttributionPoint[];sellerAnswers:SellerAnswerChart[]};
 const answerLabels:Record<string,Record<string,string>>={
  sellerType:{INFLUENCER:"اینفلوئنسر / تولیدکننده محتوا",DESIGNER:"گرافیست / طراح",BRAND:"برند یا شرکت",ENTREPRENEUR:"راه‌اندازی آنلاین‌شاپ"},
  experienceLevel:{NONE:"هنوز شروع نکرده",BEGINNER:"تازه‌کار",ACTIVE:"فروش فعال",PRO:"حرفه‌ای"},
@@ -38,15 +40,25 @@ function sellerAnswerCharts(rows:unknown[]):SellerAnswerChart[]{
   return{key,title,total:answers.length,values};
  });
 }
+const metric=(value:unknown)=>Math.max(0,Number(value)||0);
+function normalizeFunnel(value:unknown):SellerFunnel{
+ const row=(value||{}) as Record<string,unknown>;
+ const sellerRows=Array.isArray(row.sellerRows)?row.sellerRows.map(item=>{
+  const seller=item as Record<string,unknown>;
+  return{organizationId:String(seller.organizationId||""),name:String(seller.name||"بدون نام"),itemsSold:metric(seller.itemsSold),lifetimeProfit:metric(seller.lifetimeProfit)};
+ }):[];
+ return{uniqueVisitors:metric(row.uniqueVisitors),allSellers:metric(row.allSellers),withSales:metric(row.withSales),moreThanOne:metric(row.moreThanOne),moreThanFive:metric(row.moreThanFive),moreThanTen:metric(row.moreThanTen),exactlyOne:metric(row.exactlyOne),twoToFive:metric(row.twoToFive),sixToTen:metric(row.sixToTen),overTen:metric(row.overTen),totalLifetimeProfit:metric(row.totalLifetimeProfit),averageLifetimeProfit:metric(row.averageLifetimeProfit),sellerRows};
+}
 export async function getAdminAnalytics(days:number):Promise<AdminAnalyticsData>{
  const db=createSupabaseAdmin();
  const rpc=db.rpc as unknown as (name:string,args:object)=>Promise<{data:unknown;error:{message:string}|null}>;
  const p_days=Math.max(1,Math.min(days,730));
- const [analytics,attribution,profiles]=await Promise.all([
+ const [analytics,attribution,profiles,funnel]=await Promise.all([
   rpc("service_admin_analytics",{p_days}),
   rpc("service_admin_attribution",{p_days}),
   db.from("seller_profiles").select("onboarding_answers"),
+  rpc("service_admin_seller_funnel",{p_days}),
  ]);
- if(analytics.error||attribution.error||profiles.error)throw new Error(analytics.error?.message||attribution.error?.message||profiles.error?.message);
- return {...(analytics.data as Omit<AdminAnalyticsData,"attribution"|"sellerAnswers">),attribution:(attribution.data||[]) as AttributionPoint[],sellerAnswers:sellerAnswerCharts((profiles.data||[]) as unknown[])};
+ if(analytics.error||attribution.error||profiles.error||funnel.error)throw new Error(analytics.error?.message||attribution.error?.message||profiles.error?.message||funnel.error?.message);
+ return {...(analytics.data as Omit<AdminAnalyticsData,"funnel"|"attribution"|"sellerAnswers">),funnel:normalizeFunnel(funnel.data),attribution:(attribution.data||[]) as AttributionPoint[],sellerAnswers:sellerAnswerCharts((profiles.data||[]) as unknown[])};
 }

@@ -3276,6 +3276,14 @@ export type Database = {
           { foreignKeyName: "store_domains_store_id_fkey"; columns: ["store_id"]; isOneToOne: false; referencedRelation: "stores"; referencedColumns: ["id"] },
         ];
       };
+      "storefront_unique_visits": {
+        Row: { "store_id": string; "visitor_hash": string; "day": string; "first_seen_at": string };
+        Insert: { "store_id": string; "visitor_hash": string; "day"?: string; "first_seen_at"?: string };
+        Update: { "store_id"?: string; "visitor_hash"?: string; "day"?: string; "first_seen_at"?: string };
+        Relationships: [
+          { foreignKeyName: "storefront_unique_visits_store_id_fkey"; columns: ["store_id"]; isOneToOne: false; referencedRelation: "stores"; referencedColumns: ["id"] },
+        ];
+      };
       "stores": {
         Row: {
           "id": string;
