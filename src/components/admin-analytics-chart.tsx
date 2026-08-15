@@ -1,6 +1,7 @@
 "use client";
 import {useMemo,useState} from "react";
 import type {AdminAnalyticsData} from "@/lib/admin-analytics";
+import styles from "@/components/admin-analytics-funnel.module.css";
 const metrics=[["indexViews","بازدید صفحه اصلی","#7357ff"],["productViews","بازدید محصول","#16a085"],["sales","تعداد فروش","#ef8354"],["averageBasket","میانگین سبد (ریال)","#2979ff"],["totalSales","فروش کل (ریال)","#d63384"],["conversionRate","نرخ تبدیل (%)","#8a6d1d"]] as const;
 type Metric=typeof metrics[number][0];const number=(v:number)=>v.toLocaleString("fa-IR",{maximumFractionDigits:2});
 export function AdminAnalyticsChart({data,days}:{data:AdminAnalyticsData;days:number}){
@@ -8,12 +9,31 @@ export function AdminAnalyticsChart({data,days}:{data:AdminAnalyticsData;days:nu
  const paths=useMemo(()=>metrics.map(([key,,color])=>{const values=data.series.map(p=>Number(p[key]));const max=Math.max(...values,1);return{key,color,points:values.map((v,i)=>`${data.series.length<2?0:i*100/(data.series.length-1)},${92-v*84/max}`).join(" ")}}),[data.series]);
  const totals=data.series.reduce((s,p)=>({indexViews:s.indexViews+p.indexViews,productViews:s.productViews+p.productViews,sales:s.sales+p.sales,totalSales:s.totalSales+p.totalSales}),{indexViews:0,productViews:0,sales:0,totalSales:0});
  const summary:Record<Metric,number>={...totals,averageBasket:totals.sales?totals.totalSales/totals.sales:0,conversionRate:totals.indexViews?totals.sales*100/totals.indexViews:0};
- return <><section className="admin-card analytics-chart-card"><div className="admin-card-head"><div><h2>روند روزانه</h2><p>هر خط نسبت به بیشترین مقدار خودش مقیاس شده است.</p></div><div className="analytics-range"><label>بازه</label><select defaultValue={days} onChange={e=>location.href=`?days=${e.target.value}`}><option value="7">۷ روز</option><option value="30">۳۰ روز</option><option value="90">۹۰ روز</option><option value="180">۱۸۰ روز</option><option value="365">یک سال</option></select></div></div>
+ return <><SellerFunnelReport data={data} days={days}/><section className="admin-card analytics-chart-card"><div className="admin-card-head"><div><h2>روند روزانه</h2><p>هر خط نسبت به بیشترین مقدار خودش مقیاس شده است.</p></div><div className="analytics-range"><label>بازه</label><select defaultValue={days} onChange={e=>location.href=`?days=${e.target.value}`}><option value="7">۷ روز</option><option value="30">۳۰ روز</option><option value="90">۹۰ روز</option><option value="180">۱۸۰ روز</option><option value="365">یک سال</option></select></div></div>
  <div className="analytics-toggles">{metrics.map(([key,label,color])=><button type="button" className={visible.includes(key)?"active":""} onClick={()=>setVisible(c=>c.includes(key)?c.filter(x=>x!==key):[...c,key])} key={key}><i style={{background:color}}/>{label}<b>{number(summary[key])}</b></button>)}</div>
  <div className="analytics-plot"><svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="نمودار آمار روزانه">{[8,29,50,71,92].map(y=><line key={y} x1="0" y1={y} x2="100" y2={y}/>)}{paths.filter(p=>visible.includes(p.key)).map(p=><polyline key={p.key} points={p.points} style={{stroke:p.color}}/>)}</svg></div><div className="analytics-axis"><span>{data.series[0]?.day||"—"}</span><span>{data.series.at(-1)?.day||"—"}</span></div></section>
  <section className="admin-card attribution-card"><div className="admin-card-head"><div><h2>منبع ورودی و همکاری در فروش</h2><p>بازدید، بازدید یکتا، ثبت‌نام و خرید در بازه انتخاب‌شده</p></div></div><div className="attribution-table"><header><span>منبع</span><span>بازدید</span><span>یکتا</span><span>ثبت‌نام</span><span>خرید</span><span>سهم بازدید</span></header>{data.attribution.map(row=><article key={row.sourceKey}><b>{sourceLabel(row.sourceKey)}</b><span>{number(row.visits)}</span><span>{number(row.uniqueVisits)}</span><span>{number(row.signups)}</span><span>{number(row.buys)}</span><span className="attribution-percent"><i style={{width:`${Math.min(100,row.visitPercentage)}%`}}/><em>{number(row.visitPercentage)}٪</em></span></article>)}{!data.attribution.length&&<p className="empty-state">هنوز ورودی ثبت نشده است.</p>}</div></section>
  <section className="admin-card seller-answer-section"><div className="admin-card-head"><div><h2>پاسخ‌های ثبت‌نام فروشندگان</h2><p>برای هر پرسش فرم ثبت‌نام یک نمودار جداگانه نمایش داده می‌شود.</p></div></div><div className="seller-answer-grid">{data.sellerAnswers.map(chart=><article className="seller-answer-chart" key={chart.key}><header><h3>{chart.title}</h3><span>{number(chart.total)} فروشنده</span></header>{chart.values.length?<div>{chart.values.map((item,index)=><div className="seller-answer-row" key={item.label}><span>{item.color&&<i style={{background:item.color}}/>}{item.label}</span><b>{number(item.count)} <small>({number(item.percentage)}٪)</small></b><em><i style={{width:`${Math.min(100,item.percentage)}%`,background:item.color||["#7357ff","#16a085","#ef8354","#2979ff","#d63384"][index%5]}}/></em></div>)}</div>:<p className="empty-state">هنوز پاسخی ثبت نشده است.</p>}</article>)}</div></section>
  <section className="seller-goals"><Goal label="همه فروشندگان" value={data.sellers.all} goal={100000}/><Goal label="فروشندگان با فروش بیش از ۵ آیتم در ۳۰ روز" value={data.sellers.moreThanFive} goal={10000}/><Goal label="فروشندگان با حداقل یک فروش در ۳۰ روز" value={data.sellers.withSales} goal={10000}/></section></>;
+}
+function SellerFunnelReport({data,days}:{data:AdminAnalyticsData;days:number}){
+ const funnel=data.funnel;
+ const stages=[
+  ["بازدیدکنندگان یکتای صفحات فروشگاه",funnel.uniqueVisitors,100],
+  ["کل حساب‌های فروشنده",funnel.allSellers,88],
+  ["حداقل ۱ محصول فروخته‌اند",funnel.withSales,72],
+  ["بیش از ۱ محصول فروخته‌اند",funnel.moreThanOne,58],
+  ["بیش از ۵ محصول فروخته‌اند",funnel.moreThanFive,44],
+  ["بیش از ۱۰ محصول فروخته‌اند",funnel.moreThanTen,30],
+ ] as const;
+ const buckets=[["دقیقاً ۱",funnel.exactlyOne],["۲ تا ۵",funnel.twoToFive],["۶ تا ۱۰",funnel.sixToTen],["بیش از ۱۰",funnel.overTen]] as const;
+ const download=()=>{
+  const rows=[["گزارش قیف فروشندگان",`${days} روز اخیر`],["شاخص","تعداد"],...stages.map(([label,value])=>[label,String(value)]),["",""] ,["بازه فروش تجمعی","تعداد فروشنده"],...buckets.map(([label,value])=>[label,String(value)])];
+  const csv="\uFEFF"+rows.map(row=>row.map(cell=>`"${String(cell).replaceAll('"','""')}"`).join(",")).join("\r\n");
+  const url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+  const link=document.createElement("a");link.href=url;link.download=`seller-funnel-${days}-days.csv`;link.click();URL.revokeObjectURL(url);
+ };
+ return <section className={`admin-card ${styles.card}`}><div className="admin-card-head"><div><h2>قیف رشد فروشندگان</h2><p>بازدید یکتا برای {number(days)} روز اخیر است؛ فروش محصولات و تعداد فروشندگان به‌صورت تجمعی از ابتدای فعالیت محاسبه می‌شود.</p></div><button type="button" className="admin-primary" onClick={download}>دانلود گزارش CSV</button></div><div className={styles.layout}><div className={styles.funnel}>{stages.map(([label,value,width],index)=><article key={label} style={{width:`${width}%`}}><span>{index+1}</span><b>{label}</b><strong>{number(value)}</strong>{index>1&&<small>{funnel.allSellers?number(value*100/funnel.allSellers):"۰"}٪ از فروشندگان</small>}</article>)}</div><aside><h3>توزیع فروشندگان فعال</h3><p>هر فروشنده فقط در یکی از این بازه‌ها قرار می‌گیرد.</p>{buckets.map(([label,value])=><div key={label}><span>{label} محصول</span><b>{number(value)} فروشنده</b><i><em style={{width:`${funnel.withSales?Math.min(100,value*100/funnel.withSales):0}%`}}/></i></div>)}</aside></div></section>;
 }
 function sourceLabel(key:string){if(key==="direct")return"مستقیم";if(key==="google")return"گوگل";if(key==="other")return"سایر ورودی‌ها";return key.startsWith("ref:")?`معرف: ${key.slice(4)}`:key;}
 function Goal({label,value,goal}:{label:string;value:number;goal:number}){const percent=Math.min(100,value*100/goal);return <article className="admin-card seller-goal"><span>{label}</span><strong>{number(value)} <small>از {number(goal)}</small></strong><div><i style={{width:`${percent}%`}}/></div><p>{number(percent)}٪ پیشرفت</p></article>}
