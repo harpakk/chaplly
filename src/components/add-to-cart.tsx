@@ -3,11 +3,13 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, Minus, Plus, ShoppingBag, X } from "lucide-react";
 import { useCart } from "@/components/cart-context";
 import { formatPrice, type Product } from "@/lib/catalog";
 
-export function AddToCart({ product }: { product: Product }) {
+export function AddToCart({ product, redirectToCart = false }: { product: Product; redirectToCart?: boolean }) {
+  const router = useRouter();
   const { addItem, items, updateQuantity } = useCart();
   const [color, setColor] = useState(product.variants[0]?.color || "");
   const availableSizes = useMemo(
@@ -49,6 +51,10 @@ export function AddToCart({ product }: { product: Product }) {
       size,
       quantity: 1,
     });
+    if (redirectToCart) {
+      router.push("/cart");
+      return;
+    }
     setAdded(true);
     setCartPromptOpen(true);
     window.setTimeout(() => setAdded(false), 1800);

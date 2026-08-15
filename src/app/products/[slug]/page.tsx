@@ -41,10 +41,13 @@ export async function generateMetadata({
 
 export default async function ProductPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { slug } = await params;
+  const fromStore = typeof (await searchParams).fromStore === "string";
   const products = await getProducts();
   const cachedProduct = products.find((item) => item.slug === slug);
   if (!cachedProduct) notFound();
@@ -194,7 +197,7 @@ export default async function ProductPage({
               </>
             )}
           </div>
-          <AddToCart product={product} />
+          <AddToCart product={product} redirectToCart={fromStore} />
           {supplierOverCapacity && (
             <p className="supplier-capacity-notice">
               ظرفیت سفارش امروز این تأمین‌کننده تکمیل شده است؛ تحویل این محصول یک روز بیشتر زمان می‌برد.

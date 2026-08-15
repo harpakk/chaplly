@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { ActionForm } from "@/components/action-form";
 import { ExclusiveStoreControl } from "@/components/exclusive-store-control";
+import { StorefrontBuilder } from "@/components/storefront-builder";
 import {
   archiveSellerProductAction,
   assignSupplierToProductAction,
@@ -434,6 +435,7 @@ function StorePanel({ data }: { data: SellerData }) {
         </Link>
       </section>
       <ExclusiveStoreControl store={data.store} />
+      <StorefrontBuilder store={data.store} />
       <section className="sd-ranks">
         <Kpi
           icon={<Eye />}

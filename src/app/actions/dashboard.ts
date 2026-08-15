@@ -29,6 +29,7 @@ import {
 import { queueOrderLifecycleSms, queueOrderPaidSms, queueOrderShippedSms, queuePayoutPaidSms, queueReturnApprovedSms, queueSupplierExceptionSms } from "@/lib/sms-events";
 import { sendMeliPayamakPattern } from "@/lib/sms";
 import { iranMobilePattern, iranProvinces } from "@/lib/iran-address";
+import { normalizeStorefrontConfig, type StorefrontBanner } from "@/lib/storefront";
 
 export type ActionResult = {
   ok: boolean;
@@ -2333,6 +2334,146 @@ export async function updateStoreAction(
   revalidateTag("marketplace-home");
   clearMarketplaceMemoryCache();
   return ok("اطلاعات فروشگاه ذخیره شد.");
+}
+
+export async function updateStorefrontAction(
+  _: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  const context = await requireSeller();
+  const store = context.membership.organization.stores[0];
+  if (!store) return fail("فروشگاه پیدا نشد.");
+  const slug = String(formData.get("slug") || "").trim().toLowerCase();
+  const reserved = new Set([
+    "admin", "api", "account", "auth", "cart", "checkout", "login",
+    "products", "reels", "search", "seller", "signup", "stores", "supplier",
+  ]);
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || slug.length < 3 || slug.length > 48)
+    return fail("آدرس فروشگاه باید ۳ تا ۴۸ کاراکتر و فقط شامل حروف کوچک انگلیسی، عدد و خط تیره باشد؛ فاصله مجاز نیست.");
+  if (reserved.has(slug)) return fail("این آدرس برای بخش‌های اصلی چاپلی رزرو شده است.");
+
+  const db = createSupabaseAdmin();
+  const { data: duplicate, error: duplicateError } = await db
+    .from("stores")
+    .select("id")
+    .eq("slug", slug)
+    .neq("id", store.id)
+    .maybeSingle();
+  if (duplicateError) return fail(duplicateError.message);
+  if (duplicate) return fail("این آدرس قبلاً توسط فروشگاه دیگری انتخاب شده است.");
+
+  const { data: currentRow, error: readError } = await db
+    .from("stores")
+    .select("storefront_config")
+    .eq("id", store.id)
+    .single();
+  if (readError) return fail(readError.message);
+  const current = normalizeStorefrontConfig(currentRow.storefront_config);
+  const publicImageUrl = (path: string) => {
+    const base = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+    return `${base}/storage/v1/object/public/product-images/${path.split("/").map(encodeURIComponent).join("/")}`;
+  };
+  const banners: StorefrontBanner[] = [];
+  try {
+    for (let index = 0; index < 3; index += 1) {
+      const file = formData.get(`promoBanner${index}`);
+      let url = String(formData.get(`currentBanner${index}`) || "").trim();
+      if (file instanceof File && file.size) {
+        if (file.size > 15 * 1024 * 1024)
+          throw new Error("هر بنر باید کمتر از ۱۵ مگابایت باشد.");
+        const path = `${context.user.id}/stores/${store.id}/promotions/${randomUUID()}-${file.name.replace(/[^\w.-]+/g, "-")}`;
+        const uploaded = await uploadStorageImage(file, "product-images", path, { lossless: true });
+        const { error: fileError } = await db.from("storage_files").insert({
+          owner_user_id: context.user.id,
+          owner_organization_id: context.membership.organization.id,
+          bucket: "product-images",
+          path: uploaded.path,
+          kind: "STORE_BANNER",
+          original_name: file.name,
+          mime_type: uploaded.mimeType,
+          size_bytes: uploaded.sizeBytes,
+          state: "READY",
+        });
+        if (fileError) throw fileError;
+        url = publicImageUrl(uploaded.path);
+      }
+      if (!url) continue;
+      const rawCtaUrl = String(formData.get(`bannerCtaUrl${index}`) || "").trim();
+      banners.push({
+        url,
+        title: String(formData.get(`bannerTitle${index}`) || "").trim().slice(0, 90),
+        subtitle: String(formData.get(`bannerSubtitle${index}`) || "").trim().slice(0, 180),
+        ctaLabel: String(formData.get(`bannerCtaLabel${index}`) || "").trim().slice(0, 35),
+        ctaUrl: /^(https?:\/\/|\/)/i.test(rawCtaUrl) ? rawCtaUrl : "",
+      });
+    }
+  } catch (error) {
+    console.error("Promotional banner upload failed", error);
+    return fail(errorMessage(error, "ذخیره بنرهای فروشگاه انجام نشد."));
+  }
+
+  const questions = formData.getAll("faqQuestion");
+  const answers = formData.getAll("faqAnswer");
+  const faqs = questions.slice(0, 8).flatMap((question, index) => {
+    const cleanQuestion = String(question || "").trim().slice(0, 180);
+    const answer = String(answers[index] || "").trim().slice(0, 1200);
+    return cleanQuestion && answer ? [{ question: cleanQuestion, answer }] : [];
+  });
+  const bannerMode = formData.get("bannerMode") === "SLIDER" ? "SLIDER" : "STATIC";
+  const aboutBody = String(formData.get("aboutBody") || "").trim().slice(0, 6000);
+  const announcement = String(formData.get("announcement") || "").trim().slice(0, 180);
+  const requestedBanner = formData.get("bannerEnabled") === "on";
+  const requestedAbout = formData.get("aboutEnabled") === "on";
+  const requestedFaq = formData.get("faqEnabled") === "on";
+  const config = {
+    ...current,
+    heroEnabled: formData.get("heroEnabled") === "on",
+    tagline: String(formData.get("tagline") || "").trim().slice(0, 180),
+    announcementEnabled: formData.get("announcementEnabled") === "on" && Boolean(announcement),
+    announcement,
+    bannerMode,
+    banners,
+    bannerEnabled: requestedBanner && banners.length >= (bannerMode === "SLIDER" ? 2 : 1),
+    aboutTitle: String(formData.get("aboutTitle") || "").trim().slice(0, 90) || "درباره ما",
+    aboutBody,
+    aboutEnabled: requestedAbout && aboutBody.length >= 40,
+    faqs,
+    faqEnabled: requestedFaq && faqs.length >= 3,
+    popularEnabled: formData.get("popularEnabled") === "on",
+    newestEnabled: formData.get("newestEnabled") === "on",
+    discountsEnabled: formData.get("discountsEnabled") === "on",
+    affordableEnabled: formData.get("affordableEnabled") === "on",
+    reelsEnabled: formData.get("reelsEnabled") === "on",
+  };
+  const { error } = await db
+    .from("stores")
+    .update({ slug, storefront_config: config, updated_at: new Date().toISOString() })
+    .eq("id", store.id)
+    .eq("organization_id", context.membership.organization.id);
+  if (error) return fail(error.message);
+
+  if (slug !== store.slug) {
+    const root = (process.env.STORE_SUBDOMAIN_ROOT || "chaplly.ir").trim().toLowerCase();
+    const { error: domainError } = await db
+      .from("store_domains")
+      .update({ hostname: `${slug}.${root}`, updated_at: new Date().toISOString() })
+      .eq("store_id", store.id)
+      .eq("domain_type", "SUBDOMAIN");
+    if (domainError) return fail(`آدرس فروشگاه ذخیره شد اما زیردامنه به‌روزرسانی نشد: ${domainError.message}`);
+  }
+  revalidatePath("/seller/dashboard");
+  revalidatePath(`/stores/${store.slug}`);
+  revalidatePath(`/stores/${slug}`);
+  revalidatePath("/");
+  revalidateTag("marketplace-home");
+  clearMarketplaceMemoryCache();
+  const hidden: string[] = [];
+  if (requestedBanner && !config.bannerEnabled) hidden.push("بنر");
+  if (requestedAbout && !config.aboutEnabled) hidden.push("درباره ما");
+  if (requestedFaq && !config.faqEnabled) hidden.push("سؤالات متداول");
+  return ok(hidden.length
+    ? `تنظیمات ذخیره شد. بخش ${hidden.join("، ")} تا کامل‌شدن محتوا نمایش داده نمی‌شود.`
+    : "صفحه اختصاصی فروشگاه ذخیره شد.");
 }
 
 export async function activateExclusiveStoreAction(

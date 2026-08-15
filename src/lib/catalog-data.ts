@@ -11,12 +11,13 @@ import type {
   ProductVariant,
   Reel,
 } from "@/lib/catalog";
+import { normalizeStorefrontConfig } from "@/lib/storefront";
 
 const fallback = "/images/product-placeholder.png";
 function publicFileUrl(file: unknown) {
   const row = file as { bucket?: string; path?: string } | null;
   if (!row?.bucket || !row.path) return fallback;
-  if (!["product-images", "variant-mockups", "catalog-assets"].includes(row.bucket))
+  if (!["product-images", "variant-mockups", "catalog-assets", "reel-videos"].includes(row.bucket))
     return fallback;
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
   return `${base}/storage/v1/object/public/${encodeURIComponent(row.bucket)}/${row.path.split("/").map(encodeURIComponent).join("/")}`;
@@ -849,14 +850,32 @@ export async function getStorefrontData(slug: string) {
   const { data: store, error } = await db
     .from("stores")
     .select(
-      "id,name,slug,description,support_phone,social_url,brand_color,accent_color,brand_tone,follower_count,is_verified,logo:storage_files!stores_logo_file_id_fkey(bucket,path),banner:storage_files!stores_banner_file_id_fkey(bucket,path)",
+      "id,name,slug,description,support_phone,social_url,brand_color,accent_color,brand_tone,follower_count,is_verified,storefront_config,logo:storage_files!stores_logo_file_id_fkey(bucket,path),banner:storage_files!stores_banner_file_id_fkey(bucket,path)",
     )
     .eq("slug", slug)
     .eq("status", "ACTIVE")
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!store) return null;
-  const browse = await getBrowseData();
+  const [browse, reelsResult] = await Promise.all([
+    getBrowseData(),
+    db.from("reel_posts")
+      .select("id,caption,tags,social_url,like_count,save_count,view_count,storage_files(bucket,path)")
+      .eq("store_id", store.id)
+      .eq("status", "PUBLISHED")
+      .order("view_count", { ascending: false })
+      .order("published_at", { ascending: false })
+      .limit(6),
+  ]);
+  if (reelsResult.error) throw new Error(reelsResult.error.message);
+  const reelIds = (reelsResult.data || []).map((reel) => reel.id);
+  const linksResult = reelIds.length
+    ? await db.from("reel_products")
+        .select("reel_id,sort_order,seller_products(id,title,slug)")
+        .in("reel_id", reelIds)
+        .order("sort_order")
+    : { data: [], error: null };
+  if (linksResult.error) throw new Error(linksResult.error.message);
   const logo = one(store.logo) as
     { bucket?: string; path?: string } | undefined;
   const banner = one(store.banner) as
@@ -867,6 +886,29 @@ export async function getStorefrontData(slug: string) {
       : fallback;
   return {
     ...browse,
-    store: { ...store, logoUrl: fileUrl(logo), bannerUrl: fileUrl(banner) },
+    store: {
+      ...store,
+      storefront: normalizeStorefrontConfig(store.storefront_config),
+      logoUrl: fileUrl(logo),
+      bannerUrl: fileUrl(banner),
+    },
+    reels: (reelsResult.data || []).map((reel) => ({
+      id: reel.id,
+      shopSlug: store.slug,
+      shopName: store.name,
+      handle: `@${store.slug}`,
+      productSlug: "",
+      products: (linksResult.data || []).filter((link) => link.reel_id === reel.id).flatMap((link) => {
+        const product = one(link.seller_products) as { id: string; title: string; slug: string } | undefined;
+        return product ? [product] : [];
+      }),
+      caption: reel.caption,
+      tags: reel.tags || [],
+      socialUrl: reel.social_url || undefined,
+      media: publicFileUrl(one(reel.storage_files)),
+      likes: Number(reel.like_count),
+      saves: Number(reel.save_count),
+      views: Number(reel.view_count),
+    })),
   };
 }

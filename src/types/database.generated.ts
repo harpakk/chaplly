@@ -3300,6 +3300,7 @@ export type Database = {
           "brand_tone": string | null;
           "follower_count": number;
           "is_verified": boolean;
+          "storefront_config": Json;
           "version": number;
         };
         Insert: {
@@ -3325,6 +3326,7 @@ export type Database = {
           "brand_tone"?: string | null;
           "follower_count"?: number;
           "is_verified"?: boolean;
+          "storefront_config"?: Json;
           "version"?: number;
         };
         Update: {
@@ -3350,6 +3352,7 @@ export type Database = {
           "brand_tone"?: string | null;
           "follower_count"?: number;
           "is_verified"?: boolean;
+          "storefront_config"?: Json;
           "version"?: number;
         };
         Relationships: [
