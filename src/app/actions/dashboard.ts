@@ -1611,8 +1611,6 @@ export async function upsertRawProductAction(
       originalName: file.name,
       mimeType: uploaded.mimeType,
       sizeBytes: uploaded.sizeBytes,
-      width: uploaded.width,
-      height: uploaded.height,
     });
   }
   try {
@@ -1931,11 +1929,7 @@ export async function saveRawProductMockupAction(
     } catch {
       return fail("نقاط پرسپکتیو معتبر نیستند.");
     }
-    const encodedImage = String(formData.get("mockupImageData") || "");
-    const match = encodedImage.match(/^data:(image\/[\w.+-]+);base64,(.+)$/);
-    const file = match
-      ? new File([Buffer.from(match[2], "base64")], "mockup-image", { type: match[1] })
-      : formData.get("mockupImage");
+    const file = formData.get("mockupImage");
     let fileId: string | null = null;
     if (file instanceof File && file.size) {
       if (file.size > 20 * 1024 * 1024)
@@ -1950,56 +1944,25 @@ export async function saveRawProductMockupAction(
         originalName: file.name,
         mimeType: uploaded.mimeType,
         sizeBytes: uploaded.sizeBytes,
-        width: uploaded.width,
-        height: uploaded.height,
       });
     }
-    const placement = {
-      x: number("areaX", 0.3),
-      y: number("areaY", 0.2),
-      width: number("areaWidth", 0.4),
-      height: number("areaHeight", 0.4),
-      rotation: number("rotation", 0),
-    };
     const { error } = await db.rpc("service_upsert_raw_product_mockup", {
       p_id: id,
       p_raw_product_id: rawProductId,
       p_name: name,
       p_side: side,
       p_background_file_id: fileId,
-      p_area_x: placement.x,
-      p_area_y: placement.y,
-      p_area_width: placement.width,
-      p_area_height: placement.height,
-      p_rotation_degrees: placement.rotation,
+      p_area_x: number("areaX", 0.3),
+      p_area_y: number("areaY", 0.2),
+      p_area_width: number("areaWidth", 0.4),
+      p_rotation_degrees: number("rotation", 0),
       p_actor_id: admin.id,
       p_color_id: colorId,
       p_gender: gender,
       p_perspective_points: perspectivePoints,
       p_artwork_clip: artworkClip,
     });
-    if (error) {
-      const missingRpc = error.code === "PGRST202" || error.message.includes("service_upsert_raw_product_mockup");
-      if (!missingRpc) return fail(error.message);
-      const existingView = fileId ? null : await db.from("raw_product_mockup_views").select("background_file_id").eq("mockup_id", id).maybeSingle();
-      if (existingView?.error) return fail(existingView.error.message);
-      const backgroundFileId = fileId || existingView?.data?.background_file_id || null;
-      if (!backgroundFileId) return fail("تصویر موکاپ انتخاب نشده است.");
-      const mockupResult = await db.from("raw_product_mockups").upsert({
-        id, raw_product_id: rawProductId, name, side, color_id: colorId, gender,
-        status: "ACTIVE", created_by: admin.id, needs_alignment: false,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "id" });
-      if (mockupResult.error) return fail(mockupResult.error.message);
-      const viewResult = await db.from("raw_product_mockup_views").upsert({
-        mockup_id: id, side, background_file_id: backgroundFileId,
-        area_x: placement.x, area_y: placement.y, area_width: placement.width,
-        area_height: placement.height, rotation_degrees: placement.rotation,
-        perspective_points: perspectivePoints, artwork_clip: artworkClip,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "mockup_id" });
-      if (viewResult.error) return fail(viewResult.error.message);
-    }
+    if (error) return fail(error.message);
     revalidatePath("/admin/mockups");
     return ok("موکاپ تک‌نما و محدوده هم‌نسبت آن ذخیره شد.", id);
   } catch (error) {
@@ -2009,62 +1972,6 @@ export async function saveRawProductMockupAction(
         ? `ذخیره موکاپ انجام نشد: ${error.message}`
         : "ذخیره موکاپ انجام نشد.",
     );
-  }
-}
-
-export async function saveAdminMockupTestImageAction(
-  formData: FormData,
-): Promise<ActionResult & { url?: string }> {
-  try {
-    const admin = await requireAdmin();
-    const encodedImage = String(formData.get("testImageData") || "");
-    const match = encodedImage.match(/^data:(image\/[\w.+-]+);base64,(.+)$/);
-    const file = match
-      ? new File(
-          [Buffer.from(match[2], "base64")],
-          String(formData.get("testImageName") || "mockup-test-image"),
-          { type: String(formData.get("testImageType") || match[1]) },
-        )
-      : formData.get("testImage");
-    if (!(file instanceof File) || !file.size)
-      return fail("تصویر تست انتخاب نشده است.");
-    if (!file.type.startsWith("image/")) return fail("فایل تست باید تصویر باشد.");
-    if (file.size > 15 * 1024 * 1024)
-      return fail("تصویر تست باید کمتر از ۱۵ مگابایت باشد.");
-    const path = `${admin.id}/mockup-test/${randomUUID()}-${file.name.replace(/[^\w.-]+/g, "-")}`;
-    const uploaded = await uploadStorageImage(file, "variant-mockups", path, {
-      lossless: true,
-    });
-    const fileId = await insertStorageFileDirect({
-      ownerUserId: admin.id,
-      bucket: "variant-mockups",
-      path: uploaded.path,
-      kind: "VARIANT_MOCKUP",
-      originalName: file.name,
-      mimeType: uploaded.mimeType,
-      sizeBytes: uploaded.sizeBytes,
-      width: uploaded.width,
-      height: uploaded.height,
-    });
-    const db = createSupabaseAdmin();
-    const { error } = await db.from("admin_mockup_test_assets").upsert({
-      singleton: true,
-      file_id: fileId,
-      updated_by: admin.id,
-      updated_at: new Date().toISOString(),
-    });
-    if (error) return fail(error.message);
-    const { data } = db.storage.from("variant-mockups").getPublicUrl(uploaded.path);
-    revalidatePath("/admin/mockups");
-    return {
-      ok: true,
-      message: "تصویر تست ذخیره شد و از این پس خودکار استفاده می‌شود.",
-      id: fileId,
-      url: data.publicUrl,
-    };
-  } catch (error) {
-    console.error("Mockup test image upload failed", error);
-    return fail(errorMessage(error, "ذخیره تصویر تست انجام نشد."));
   }
 }
 

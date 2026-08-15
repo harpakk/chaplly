@@ -127,32 +127,13 @@ const primaryRawMediaUrls = async (
   );
 };
 export const getSellerStoreRecord = cache(async (storeId: string) => {
-  const db = createSupabaseAdmin();
-  const result = await db
+  const result = await createSupabaseAdmin()
     .from("stores")
     .select(
       "id,name,slug,status,description,support_email,support_phone,social_url,brand_color,brand_tone,follower_count,is_verified,storefront_config,logo:storage_files!stores_logo_file_id_fkey(bucket,path),banner:storage_files!stores_banner_file_id_fkey(bucket,path),store_domains(hostname,status,domain_type)",
     )
     .eq("id", storeId)
     .single();
-  if (
-    result.error?.code === "42703" &&
-    result.error.message.includes("storefront_config")
-  ) {
-    const fallback = await db
-      .from("stores")
-      .select(
-        "id,name,slug,status,description,support_email,support_phone,social_url,brand_color,brand_tone,follower_count,is_verified,logo:storage_files!stores_logo_file_id_fkey(bucket,path),banner:storage_files!stores_banner_file_id_fkey(bucket,path),store_domains(hostname,status,domain_type)",
-      )
-      .eq("id", storeId)
-      .single();
-    return {
-      ...fallback,
-      data: fallback.data
-        ? { ...fallback.data, storefront_config: null }
-        : null,
-    } as typeof result;
-  }
   return result;
 });
 
@@ -2198,11 +2179,11 @@ export async function getAdminMockupData() {
     const fields = "id,raw_product_id,name,side,status,needs_alignment,created_at";
     return db.from("raw_product_mockups").select(`${fields},color_id,gender`).order("created_at", { ascending: false });
   };
-  const [raws, rawViews, mockups, views, files, testAsset] = await Promise.all([
+  const [raws, rawViews, mockups, views, files] = await Promise.all([
     rawProductsQuery(),
     db
       .from("raw_product_views")
-      .select("raw_product_id,side,print_area_width,print_area_height,background:storage_files!raw_product_views_background_file_id_fkey(bucket,path)"),
+      .select("raw_product_id,side,print_area_width,print_area_height"),
     mockupsQuery(),
     db
       .from("raw_product_mockup_views")
@@ -2213,34 +2194,19 @@ export async function getAdminMockupData() {
       .from("storage_files")
       .select("id,bucket,path")
       .eq("kind", "VARIANT_MOCKUP"),
-    db
-      .from("admin_mockup_test_assets")
-      .select("file:storage_files!admin_mockup_test_assets_file_id_fkey(bucket,path)")
-      .eq("singleton", true)
-      .maybeSingle(),
   ]);
   for (const result of [raws, rawViews, mockups, views, files])
     if (result.error) throw new Error(result.error.message);
-  if (
-    testAsset.error &&
-    testAsset.error.code !== "PGRST205" &&
-    !testAsset.error.message.includes("admin_mockup_test_assets")
-  )
-    throw new Error(testAsset.error.message);
   const fileMap = new Map((files.data || []).map((file) => [file.id, file]));
   const rawProducts = (raws.data || []).map((raw) => ({
     ...raw,
     views: (rawViews.data || []).filter(
       (view) => view.raw_product_id === raw.id,
-    ).map((view) => ({
-      ...view,
-      backgroundUrl: publicFileUrl(one(view.background)) || "",
-    })),
+    ),
   }));
   const activeRawIds = new Set(rawProducts.map((raw) => raw.id));
   return {
     rawProducts,
-    testImageUrl: publicFileUrl(one(testAsset.data?.file)) || null,
     mockups: (mockups.data || [])
       .filter((mockup) => activeRawIds.has(mockup.raw_product_id))
       .map((mockup) => ({

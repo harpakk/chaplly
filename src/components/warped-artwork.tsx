@@ -4,7 +4,6 @@ import {
   CSSProperties,
   ReactNode,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -366,13 +365,7 @@ export function WarpedArtwork({
   style: CSSProperties;
   children: ReactNode;
 }) {
-  const pointSignature = JSON.stringify(parseWarpPoints(rawPoints));
-  const points = useMemo(
-    () => parseWarpPoints(rawPoints),
-    // The serialized coordinates are the stable identity of the warp.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [pointSignature],
-  );
+  const points = parseWarpPoints(rawPoints);
   const clip = parseArtworkClip(rawClip);
   const ref = useRef<HTMLDivElement>(null);
   const sourceRef = useRef<HTMLDivElement>(null);
@@ -380,6 +373,7 @@ export function WarpedArtwork({
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [ready, setReady] = useState(false);
   const warped = isWarped(points);
+  const pointSignature = JSON.stringify(points);
 
   useEffect(() => {
     const node = ref.current;
@@ -393,17 +387,15 @@ export function WarpedArtwork({
   }, []);
 
   useEffect(() => {
-    setReady(false);
     if (!warped || !size.width || !size.height) return;
     const source = sourceRef.current;
     const canvas = canvasRef.current;
     if (!source || !canvas) return;
-    canvas.dataset.warpReady = "false";
     let cancelled = false;
-    let frame = 0;
+    let timer = 0;
     const render = () => {
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(async () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(async () => {
         try {
           const images = Array.from(source.querySelectorAll("img"));
           await Promise.all(images.map((image) => image.decode().catch(() => undefined)));
@@ -439,14 +431,14 @@ export function WarpedArtwork({
         } catch {
           if (!cancelled) setReady(false);
         }
-      });
+      }, 30);
     };
     render();
     const observer = new MutationObserver(render);
     observer.observe(source, { attributes: true, childList: true, subtree: true, characterData: true });
     return () => {
       cancelled = true;
-      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
       observer.disconnect();
     };
   }, [clip, pointSignature, points, size.height, size.width, warped]);

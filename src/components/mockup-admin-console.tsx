@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, ImageIcon, Pencil, Plus, Trash2, X } from "lucide-react";
+import { ImageIcon, Pencil, Plus, Trash2, X } from "lucide-react";
 import type { getAdminMockupData } from "@/lib/dashboard-data";
 import { ActionForm } from "@/components/action-form";
 import { MockupPlacementField } from "@/components/mockup-placement-field";
@@ -31,7 +31,11 @@ export function MockupAdminConsole({ data }: { data: Data }) {
   const [listGenderFilter, setListGenderFilter] = useState("ALL");
   const record = data.mockups.find((item) => item.id === editing);
   const raw = data.rawProducts.find((item) => item.id === rawId);
+  const rawView = raw?.views.find((item) => item.side === side);
   const initialView = record?.views[0];
+  const printRatio = rawView
+    ? Number(rawView.print_area_width) / Number(rawView.print_area_height)
+    : 1;
   const listColors = data.rawProducts
     .filter((item) => listRawFilter === "ALL" || item.id === listRawFilter)
     .flatMap((item) =>
@@ -73,12 +77,6 @@ export function MockupAdminConsole({ data }: { data: Data }) {
     );
     if (!nextRaw?.has_back) setSide("FRONT");
   };
-  const navigateEdit = (direction: -1 | 1) => {
-    if (!record || !filteredMockups.length) return;
-    const currentIndex = filteredMockups.findIndex((item) => item.id === record.id);
-    const nextIndex = (currentIndex + direction + filteredMockups.length) % filteredMockups.length;
-    openEdit(filteredMockups[nextIndex].id);
-  };
 
   return (
     <div className="admin-page mockup-admin">
@@ -103,11 +101,6 @@ export function MockupAdminConsole({ data }: { data: Data }) {
       {editing && raw && (
         <div className="raw-edit-backdrop">
           <div className="raw-edit-dialog mockup-dialog">
-            {record && filteredMockups.length > 1 && <div className="mockup-edit-navigation">
-              <button type="button" onClick={() => navigateEdit(-1)}><ChevronRight /> قبلی</button>
-              <span>{(filteredMockups.findIndex((item) => item.id === record.id) + 1).toLocaleString("fa-IR")} از {filteredMockups.length.toLocaleString("fa-IR")}</span>
-              <button type="button" onClick={() => navigateEdit(1)}>بعدی <ChevronLeft /></button>
-            </div>}
             <button
               className="raw-edit-close"
               onClick={() => setEditing(null)}
@@ -120,8 +113,14 @@ export function MockupAdminConsole({ data }: { data: Data }) {
               action={saveRawProductMockupAction}
               className="admin-card mockup-form"
               onSuccess={() => {
+                if (record) setEditing(null);
+              }}
+              onSubmit={() => {
                 if (!record)
-                  setImageResetSignal((value) => value + 1);
+                  window.setTimeout(
+                    () => setImageResetSignal((value) => value + 1),
+                    0,
+                  );
               }}
               showSavingOverlay={Boolean(record)}
               backgroundConcurrent={!record}
@@ -213,15 +212,18 @@ export function MockupAdminConsole({ data }: { data: Data }) {
                   <b>
                     {raw.name} · {side === "FRONT" ? "نمای جلو" : "نمای پشت"}
                   </b>
-                  <span>محدوده و نقاط پرسپکتیو را مستقیماً روی تصویر تنظیم کنید.</span>
+                  <span>
+                    نسبت محدوده: {printRatio.toFixed(3)} — این نسبت در سرور و
+                    پایگاه داده نیز قفل می‌شود.
+                  </span>
                 </div>
               </div>
               <MockupPlacementField
                 key={`${record?.id || "new"}:${rawId}:${side}`}
                 label={side === "FRONT" ? "موکاپ نمای جلو" : "موکاپ نمای پشت"}
+                ratio={printRatio}
                 initial={initialView}
                 initialImage={initialView?.backgroundUrl}
-                initialTestImage={data.testImageUrl}
                 resetImageSignal={record ? 0 : imageResetSignal}
               />
               <button className="admin-primary mockup-save-button">

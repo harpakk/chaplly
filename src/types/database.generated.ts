@@ -2167,30 +2167,6 @@ export type Database = {
           { foreignKeyName: "raw_product_media_raw_product_id_fkey"; columns: ["raw_product_id"]; isOneToOne: false; referencedRelation: "raw_products"; referencedColumns: ["id"] },
         ];
       };
-      "admin_mockup_test_assets": {
-        Row: {
-          "singleton": boolean;
-          "file_id": string;
-          "updated_by": string | null;
-          "updated_at": string;
-        };
-        Insert: {
-          "singleton"?: boolean;
-          "file_id": string;
-          "updated_by"?: string | null;
-          "updated_at"?: string;
-        };
-        Update: {
-          "singleton"?: boolean;
-          "file_id"?: string;
-          "updated_by"?: string | null;
-          "updated_at"?: string;
-        };
-        Relationships: [
-          { foreignKeyName: "admin_mockup_test_assets_file_id_fkey"; columns: ["file_id"]; isOneToOne: false; referencedRelation: "storage_files"; referencedColumns: ["id"] },
-          { foreignKeyName: "admin_mockup_test_assets_updated_by_fkey"; columns: ["updated_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
-        ];
-      };
       "raw_product_mockup_views": {
         Row: {
           "id": string;
@@ -3300,29 +3276,6 @@ export type Database = {
           { foreignKeyName: "store_domains_store_id_fkey"; columns: ["store_id"]; isOneToOne: false; referencedRelation: "stores"; referencedColumns: ["id"] },
         ];
       };
-      "storefront_unique_visits": {
-        Row: {
-          "store_id": string;
-          "visitor_hash": string;
-          "day": string;
-          "first_seen_at": string;
-        };
-        Insert: {
-          "store_id": string;
-          "visitor_hash": string;
-          "day"?: string;
-          "first_seen_at"?: string;
-        };
-        Update: {
-          "store_id"?: string;
-          "visitor_hash"?: string;
-          "day"?: string;
-          "first_seen_at"?: string;
-        };
-        Relationships: [
-          { foreignKeyName: "storefront_unique_visits_store_id_fkey"; columns: ["store_id"]; isOneToOne: false; referencedRelation: "stores"; referencedColumns: ["id"] },
-        ];
-      };
       "stores": {
         Row: {
           "id": string;
@@ -4191,7 +4144,7 @@ export type Database = {
       "service_save_raw_product_media": { Args: { p_raw_product_id: string; p_main_file_id: string | null; p_main_alt_text: string; p_front_background_id: string | null; p_front_overlay_id: string | null; p_front_mockup_id: string | null; p_back_background_id: string | null; p_back_overlay_id: string | null; p_back_mockup_id: string | null }; Returns: undefined };
       "service_supplier_catalog_stats": { Args: Record<PropertyKey, never>; Returns: Array<{ supplier_organization_id: string; product_count: number; review_count: number; rating_average: number }> };
       "service_upsert_raw_product": { Args: { p_payload: Json; p_actor_id: string; p_color_names: string[]; p_size_names: string[]; p_variant_keys: string[] }; Returns: string };
-      "service_upsert_raw_product_mockup": { Args: { p_id: string; p_raw_product_id: string; p_name: string; p_side: string; p_background_file_id: string | null; p_area_x: number; p_area_y: number; p_area_width: number; p_area_height: number; p_rotation_degrees: number; p_actor_id: string; p_color_id: string; p_gender: string; p_perspective_points: Json | null; p_artwork_clip: string }; Returns: string };
+      "service_upsert_raw_product_mockup": { Args: { p_id: string; p_raw_product_id: string; p_name: string; p_side: string; p_background_file_id: string | null; p_area_x: number; p_area_y: number; p_area_width: number; p_rotation_degrees: number; p_actor_id: string; p_color_id: string; p_gender: string; p_perspective_points: Json | null; p_artwork_clip: string }; Returns: string };
       "supplier_submit_inventory": { Args: Record<string, unknown>; Returns: unknown };
       "supplier_submit_offer": { Args: Record<string, unknown>; Returns: unknown };
       "sync_buyer_cart": { Args: Record<string, unknown>; Returns: unknown };
