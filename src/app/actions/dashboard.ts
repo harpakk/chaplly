@@ -1611,6 +1611,8 @@ export async function upsertRawProductAction(
       originalName: file.name,
       mimeType: uploaded.mimeType,
       sizeBytes: uploaded.sizeBytes,
+      width: uploaded.width,
+      height: uploaded.height,
     });
   }
   try {
@@ -1904,6 +1906,8 @@ export async function saveRawProductMockupAction(
       return fail("بخش قابل نمایش طرح معتبر نیست.");
     if (!rawProductId || name.length < 2 || !["FRONT", "BACK"].includes(side))
       return fail("نام، محصول خام و نمای موکاپ الزامی است.");
+    if (String(formData.get("ratioReady") || "") !== "1")
+      return fail("محاسبه نسبت تصویر هنوز کامل نشده است؛ چند لحظه صبر کنید و دوباره ذخیره بزنید.");
     if (!["MALE", "FEMALE", "UNISEX"].includes(gender))
       return fail("جنسیت موکاپ معتبر نیست.");
     const { data: color } = await db
@@ -1944,6 +1948,8 @@ export async function saveRawProductMockupAction(
         originalName: file.name,
         mimeType: uploaded.mimeType,
         sizeBytes: uploaded.sizeBytes,
+        width: uploaded.width,
+        height: uploaded.height,
       });
     }
     const { error } = await db.rpc("service_upsert_raw_product_mockup", {
@@ -1955,6 +1961,7 @@ export async function saveRawProductMockupAction(
       p_area_x: number("areaX", 0.3),
       p_area_y: number("areaY", 0.2),
       p_area_width: number("areaWidth", 0.4),
+      p_area_height: number("areaHeight", 0.4),
       p_rotation_degrees: number("rotation", 0),
       p_actor_id: admin.id,
       p_color_id: colorId,
@@ -1972,6 +1979,54 @@ export async function saveRawProductMockupAction(
         ? `ذخیره موکاپ انجام نشد: ${error.message}`
         : "ذخیره موکاپ انجام نشد.",
     );
+  }
+}
+
+export async function saveAdminMockupTestImageAction(
+  formData: FormData,
+): Promise<ActionResult & { url?: string }> {
+  try {
+    const admin = await requireAdmin();
+    const file = formData.get("testImage");
+    if (!(file instanceof File) || !file.size)
+      return fail("تصویر تست انتخاب نشده است.");
+    if (!file.type.startsWith("image/")) return fail("فایل تست باید تصویر باشد.");
+    if (file.size > 15 * 1024 * 1024)
+      return fail("تصویر تست باید کمتر از ۱۵ مگابایت باشد.");
+    const path = `${admin.id}/mockup-test/${randomUUID()}-${file.name.replace(/[^\w.-]+/g, "-")}`;
+    const uploaded = await uploadStorageImage(file, "variant-mockups", path, {
+      lossless: true,
+    });
+    const fileId = await insertStorageFileDirect({
+      ownerUserId: admin.id,
+      bucket: "variant-mockups",
+      path: uploaded.path,
+      kind: "VARIANT_MOCKUP",
+      originalName: file.name,
+      mimeType: uploaded.mimeType,
+      sizeBytes: uploaded.sizeBytes,
+      width: uploaded.width,
+      height: uploaded.height,
+    });
+    const db = createSupabaseAdmin();
+    const { error } = await db.from("admin_mockup_test_assets").upsert({
+      singleton: true,
+      file_id: fileId,
+      updated_by: admin.id,
+      updated_at: new Date().toISOString(),
+    });
+    if (error) return fail(error.message);
+    const { data } = db.storage.from("variant-mockups").getPublicUrl(uploaded.path);
+    revalidatePath("/admin/mockups");
+    return {
+      ok: true,
+      message: "تصویر تست ذخیره شد و از این پس خودکار استفاده می‌شود.",
+      id: fileId,
+      url: data.publicUrl,
+    };
+  } catch (error) {
+    console.error("Mockup test image upload failed", error);
+    return fail(errorMessage(error, "ذخیره تصویر تست انجام نشد."));
   }
 }
 

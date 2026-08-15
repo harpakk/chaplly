@@ -22,6 +22,8 @@ export async function insertStorageFileDirect(input: {
   originalName: string;
   mimeType: string;
   sizeBytes: number;
+  width?: number;
+  height?: number;
 }) {
   const { data, error } = await createSupabaseAdmin()
     .from("storage_files")
@@ -34,6 +36,8 @@ export async function insertStorageFileDirect(input: {
         original_name: input.originalName,
         mime_type: input.mimeType,
         size_bytes: input.sizeBytes,
+        width: input.width,
+        height: input.height,
         state: "READY",
       },
       { onConflict: "bucket,path" },

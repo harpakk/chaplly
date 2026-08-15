@@ -5,6 +5,8 @@ type UploadedStorageImage = {
   path: string;
   mimeType: "image/webp";
   sizeBytes: number;
+  width: number;
+  height: number;
 };
 
 function storageObjectUrls(bucket: string, objectPath: string) {
@@ -143,14 +145,14 @@ export async function uploadStorageImage(
       fit: "inside",
       withoutEnlargement: true,
     });
-  const optimized = await pipeline
+  const { data: optimized, info } = await pipeline
     .webp(options.lossless ? { lossless: true, effort: 6 } : { quality: options.quality ?? 80, effort: 4 })
-    .toBuffer();
+    .toBuffer({ resolveWithObject: true });
 
   const path = webpPath(objectPath);
   try {
     await uploadResumable(optimized, bucket, path, secretKey);
-    return { path, mimeType: "image/webp", sizeBytes: optimized.length };
+    return { path, mimeType: "image/webp", sizeBytes: optimized.length, width: info.width, height: info.height };
   } catch (resumableError) {
     // Keep the standard endpoint as a compatibility fallback for projects
     // where resumable uploads are disabled.
@@ -181,7 +183,7 @@ export async function uploadStorageImage(
         signal: AbortSignal.timeout(120_000),
       });
       if (response.ok) {
-        return { path, mimeType: "image/webp", sizeBytes: optimized.length };
+        return { path, mimeType: "image/webp", sizeBytes: optimized.length, width: info.width, height: info.height };
       }
       const detail = (await response.text()).slice(0, 300);
       throw new Error(`Storage upload failed (${response.status}): ${detail}`);

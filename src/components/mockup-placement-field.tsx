@@ -7,9 +7,11 @@ import {
   useEffect,
   useRef,
   useState,
+  useTransition,
 } from "react";
-import { ImagePlus, RotateCw } from "lucide-react";
+import { CheckCircle2, Eye, ImagePlus, LoaderCircle, RotateCw, TestTube2 } from "lucide-react";
 import { DEFAULT_WARP_POINTS, parseArtworkClip, parseWarpPoints, type ArtworkClip, type WarpPoint } from "@/components/warped-artwork";
+import { saveAdminMockupTestImageAction } from "@/app/actions/dashboard";
 
 type Placement = {
   area_x: number;
@@ -25,22 +27,31 @@ export function MockupPlacementField({
   label,
   ratio,
   initialImage,
+  rawBackgroundImage,
+  initialTestImage,
   initial,
   resetImageSignal = 0,
 }: {
   label: string;
   ratio: number;
   initialImage?: string | null;
+  rawBackgroundImage?: string | null;
+  initialTestImage?: string | null;
   initial?: Placement;
   resetImageSignal?: number;
 }) {
   const safeRatio = Number.isFinite(ratio) && ratio > 0 ? ratio : 1;
-  const maxWidth = Math.min(1.8, 1.8 * safeRatio);
+  const [rawImageAspect, setRawImageAspect] = useState(1);
+  const [mockupImageAspect, setMockupImageAspect] = useState(1);
+  const [rawRatioReady, setRawRatioReady] = useState(!rawBackgroundImage);
+  const [mockupRatioReady, setMockupRatioReady] = useState(false);
+  const targetArtworkRatio = Math.max(0.01, safeRatio * rawImageAspect);
+  const maxWidth = Math.min(1.8, (1.8 * targetArtworkRatio) / mockupImageAspect);
   const initialWidth = Math.min(
     maxWidth,
     Math.max(Math.min(0.08, maxWidth), Number(initial?.area_width || 0.4)),
   );
-  const initialHeight = initialWidth / safeRatio;
+  const initialHeight = Number(initial?.area_height || initialWidth / safeRatio);
   const [rect, setRect] = useState({
     x: Math.max(-initialWidth, Math.min(Number(initial?.area_x ?? 0.3), 1)),
     y: Math.max(-initialHeight, Math.min(Number(initial?.area_y ?? 0.2), 1)),
@@ -48,6 +59,10 @@ export function MockupPlacementField({
     height: initialHeight,
   });
   const [preview, setPreview] = useState(initialImage || "");
+  const [testImage, setTestImage] = useState(initialTestImage || "");
+  const [showTest, setShowTest] = useState(Boolean(initialTestImage));
+  const [testMessage, setTestMessage] = useState("");
+  const [savingTest, startSavingTest] = useTransition();
   const [rotation, setRotation] = useState(
     Number(initial?.rotation_degrees || 0),
   );
@@ -61,9 +76,34 @@ export function MockupPlacementField({
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (!rawBackgroundImage) {
+      setRawImageAspect(1);
+      setRawRatioReady(true);
+      return;
+    }
+    setRawRatioReady(false);
+    const image = new window.Image();
+    image.onload = () => {
+      if (image.naturalWidth && image.naturalHeight)
+        setRawImageAspect(image.naturalWidth / image.naturalHeight);
+      setRawRatioReady(true);
+    };
+    image.src = rawBackgroundImage;
+  }, [rawBackgroundImage]);
+
+  useEffect(() => {
+    setRect((current) => {
+      const width = Math.min(current.width, maxWidth);
+      const height = Math.max(0.02, (width * mockupImageAspect) / targetArtworkRatio);
+      return { ...current, width, height, x: Math.max(-width, Math.min(current.x, 1)), y: Math.max(-height, Math.min(current.y, 1)) };
+    });
+  }, [maxWidth, mockupImageAspect, targetArtworkRatio]);
+
+  useEffect(() => {
     if (!resetImageSignal) return;
     if (preview.startsWith("blob:")) URL.revokeObjectURL(preview);
     setPreview("");
+    setMockupRatioReady(false);
     if (fileRef.current) fileRef.current.value = "";
   }, [resetImageSignal]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -72,7 +112,29 @@ export function MockupPlacementField({
     if (file) {
       if (preview.startsWith("blob:")) URL.revokeObjectURL(preview);
       setPreview(URL.createObjectURL(file));
+      setMockupRatioReady(false);
     }
+  };
+  const pickTest = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const temporary = URL.createObjectURL(file);
+    setTestImage(temporary);
+    setShowTest(true);
+    setTestMessage("در حال ذخیره تصویر تست…");
+    const formData = new FormData();
+    formData.set("testImage", file);
+    startSavingTest(async () => {
+      const result = await saveAdminMockupTestImageAction(formData);
+      if (result.ok && result.url) {
+        setTestImage(result.url);
+        setTestMessage(result.message);
+        URL.revokeObjectURL(temporary);
+      } else {
+        setTestMessage(result.message);
+      }
+    });
+    event.target.value = "";
   };
   const drag = (event: ReactPointerEvent) => {
     const box = ref.current;
@@ -112,7 +174,7 @@ export function MockupPlacementField({
       Math.min(0.08, maxWidth),
       Math.min(maxWidth, width),
     );
-    const nextHeight = nextWidth / safeRatio;
+    const nextHeight = (nextWidth * mockupImageAspect) / targetArtworkRatio;
     setRect((current) => ({
       ...current,
       width: nextWidth,
@@ -144,26 +206,43 @@ export function MockupPlacementField({
             نسبت دقیق محدوده چاپ محصول قفل است؛ فقط جابه‌جا یا بزرگ و کوچک کن.
           </small>
         </div>
-        <label>
-          <ImagePlus /> انتخاب تصویر موکاپ
-          <input
-            ref={fileRef}
-            name="mockupImage"
-            type="file"
-            accept="image/*"
-            required={!initialImage}
-            onChange={pick}
-          />
-        </label>
+        <div className="mockup-upload-actions">
+          <label>
+            <ImagePlus /> انتخاب تصویر موکاپ
+            <input
+              ref={fileRef}
+              name="mockupImage"
+              type="file"
+              accept="image/*"
+              required={!initialImage}
+              onChange={pick}
+            />
+          </label>
+          <label className="mockup-test-picker">
+            {savingTest ? <LoaderCircle className="spin" /> : <TestTube2 />} تصویر تست
+            <input type="file" accept="image/*" onChange={pickTest} disabled={savingTest} />
+          </label>
+        </div>
       </header>
+      <div className="mockup-ratio-status">
+        <span><b>نسبت نهایی طرح:</b> {rawRatioReady && mockupRatioReady ? targetArtworkRatio.toFixed(3) : "در حال محاسبه…"}</span>
+        <span>تصویر خام {rawImageAspect.toFixed(3)} × محدوده {safeRatio.toFixed(3)}</span>
+        {testImage && <button type="button" onClick={() => setShowTest((value) => !value)}><Eye /> {showTest ? "پنهان‌کردن تست" : "نمایش تست"}</button>}
+        {testMessage && <small>{savingTest ? <LoaderCircle className="spin" /> : <CheckCircle2 />}{testMessage}</small>}
+      </div>
       <div className="mockup-placement-canvas" ref={ref}>
         {preview ? (
-          <img src={preview} alt={label} />
+          <img src={preview} alt={label} onLoad={(event) => {
+            const image = event.currentTarget;
+            if (image.naturalWidth && image.naturalHeight)
+              setMockupImageAspect(image.naturalWidth / image.naturalHeight);
+            setMockupRatioReady(true);
+          }} />
         ) : (
           <span>تصویر موکاپ را انتخاب کن</span>
         )}
         <div
-          className="mockup-placement-area"
+          className={`mockup-placement-area ${showTest && testImage ? "has-test" : ""}`}
           onPointerDown={drag}
           style={{
             left: `${rect.x * 100}%`,
@@ -180,7 +259,7 @@ export function MockupPlacementField({
             }[artworkClip],
           }}
         >
-          محل طرح
+          {showTest && testImage ? <img src={testImage} alt="پیش‌نمایش تصویر تست در محدوده طرح" /> : "محل طرح"}
         </div>
         <div className="mockup-warp-controls" style={{left:`${rect.x*100}%`,top:`${rect.y*100}%`,width:`${rect.width*100}%`,height:`${rect.height*100}%`,transform:`rotate(${rotation}deg)`}}>
           <svg viewBox="0 0 100 100" preserveAspectRatio="none"><path d={path}/></svg>
@@ -234,6 +313,8 @@ export function MockupPlacementField({
       <input type="hidden" name="areaX" value={rect.x} />
       <input type="hidden" name="areaY" value={rect.y} />
       <input type="hidden" name="areaWidth" value={rect.width} />
+      <input type="hidden" name="areaHeight" value={rect.height} />
+      <input type="hidden" name="ratioReady" value={rawRatioReady && mockupRatioReady ? "1" : "0"} />
       <input type="hidden" name="rotation" value={rotation} />
       <input type="hidden" name="perspectivePoints" value={JSON.stringify(points)} />
       <input type="hidden" name="artworkClip" value={artworkClip} />

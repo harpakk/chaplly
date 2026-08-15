@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { ImageIcon, Pencil, Plus, Trash2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ImageIcon, Pencil, Plus, Trash2, X } from "lucide-react";
 import type { getAdminMockupData } from "@/lib/dashboard-data";
 import { ActionForm } from "@/components/action-form";
 import { MockupPlacementField } from "@/components/mockup-placement-field";
@@ -77,6 +77,12 @@ export function MockupAdminConsole({ data }: { data: Data }) {
     );
     if (!nextRaw?.has_back) setSide("FRONT");
   };
+  const navigateEdit = (direction: -1 | 1) => {
+    if (!record || !filteredMockups.length) return;
+    const currentIndex = filteredMockups.findIndex((item) => item.id === record.id);
+    const nextIndex = (currentIndex + direction + filteredMockups.length) % filteredMockups.length;
+    openEdit(filteredMockups[nextIndex].id);
+  };
 
   return (
     <div className="admin-page mockup-admin">
@@ -101,6 +107,11 @@ export function MockupAdminConsole({ data }: { data: Data }) {
       {editing && raw && (
         <div className="raw-edit-backdrop">
           <div className="raw-edit-dialog mockup-dialog">
+            {record && filteredMockups.length > 1 && <div className="mockup-edit-navigation">
+              <button type="button" onClick={() => navigateEdit(-1)}><ChevronRight /> قبلی</button>
+              <span>{(filteredMockups.findIndex((item) => item.id === record.id) + 1).toLocaleString("fa-IR")} از {filteredMockups.length.toLocaleString("fa-IR")}</span>
+              <button type="button" onClick={() => navigateEdit(1)}>بعدی <ChevronLeft /></button>
+            </div>}
             <button
               className="raw-edit-close"
               onClick={() => setEditing(null)}
@@ -112,9 +123,6 @@ export function MockupAdminConsole({ data }: { data: Data }) {
               key={record?.id || `new:${rawId}:${side}`}
               action={saveRawProductMockupAction}
               className="admin-card mockup-form"
-              onSuccess={() => {
-                if (record) setEditing(null);
-              }}
               onSubmit={() => {
                 if (!record)
                   window.setTimeout(
@@ -213,8 +221,8 @@ export function MockupAdminConsole({ data }: { data: Data }) {
                     {raw.name} · {side === "FRONT" ? "نمای جلو" : "نمای پشت"}
                   </b>
                   <span>
-                    نسبت محدوده: {printRatio.toFixed(3)} — این نسبت در سرور و
-                    پایگاه داده نیز قفل می‌شود.
+                    نسبت نرمال محدوده خام: {printRatio.toFixed(3)} — نسبت واقعی
+                    با ابعاد تصویر خام و تصویر موکاپ محاسبه می‌شود.
                   </span>
                 </div>
               </div>
@@ -224,6 +232,8 @@ export function MockupAdminConsole({ data }: { data: Data }) {
                 ratio={printRatio}
                 initial={initialView}
                 initialImage={initialView?.backgroundUrl}
+                rawBackgroundImage={rawView?.backgroundUrl}
+                initialTestImage={data.testImageUrl}
                 resetImageSignal={record ? 0 : imageResetSignal}
               />
               <button className="admin-primary mockup-save-button">
