@@ -1,6 +1,10 @@
-import Link from "next/link";
-import { Sparkles } from "lucide-react";
+import { requireSeller } from "@/lib/auth";
+import { getSellerReelUploadData } from "@/lib/dashboard-data";
+import { SellerReelUploader } from "@/components/seller-reel-uploader";
 
-export default function SellerReelsPage() {
-  return <div className="coming-soon-backdrop"><section className="coming-soon-dialog" role="dialog" aria-modal="true"><Sparkles/><span>قابلیت جدید چاپلی</span><h1>آپلود ریلز به‌زودی</h1><p>در حال آماده‌سازی تجربه‌ای بهتر برای ویدیوهای فروشندگان هستیم. فعلاً امکان مشاهده یا آپلود ریلز فعال نیست.</p><Link href="/seller/dashboard?section=products">بازگشت به محصولات</Link></section></div>;
+export default async function SellerReelsPage() {
+  const context = await requireSeller();
+  const store = context.membership.organization.stores[0];
+  const data = store ? await getSellerReelUploadData(store.id) : { products: [], reels: [] };
+  return <div className="sd-page"><div className="sd-page-head"><span>محتوای ویدیویی</span><h1>ریلز محصولات</h1><p>ویدیوهای کوتاه محصولاتتان را برای نمایش در چاپلی ارسال کنید.</p></div><SellerReelUploader products={data.products} reels={data.reels}/></div>;
 }

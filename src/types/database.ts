@@ -20,6 +20,12 @@ type AdditionalTables = {
     id: string; coupon_id: string; order_id: string; buyer_user_id: string | null;
     discount_amount: number; redeemed_at: string;
   }, "coupon_id" | "order_id" | "discount_amount">;
+  reel_products: Table<{
+    reel_id: string; seller_product_id: string; sort_order: number;
+  }, "reel_id" | "seller_product_id">;
+  reel_view_events: Table<{
+    id: string; reel_id: string; viewer_key: string; viewed_on: string; viewed_at: string;
+  }, "reel_id" | "viewer_key">;
   sms_event_configs: Table<{
     event_type: string; name: string; recipient_role: string; description: string;
     pattern_id: number | null; variable_keys: string[]; enabled: boolean;
@@ -93,6 +99,8 @@ type AdditionalFunctions = {
   service_quote_coupon: { Args: { p_code: string; p_items: Json }; Returns: Json };
   service_apply_coupon_to_order: { Args: { p_order_id: string; p_code: string; p_buyer_user_id: string | null }; Returns: number };
   service_save_seller_onboarding_answers: { Args: { p_user_id: string; p_answers: Json }; Returns: undefined };
+  service_record_reel_view: { Args: { p_reel_id: string; p_viewer_key: string }; Returns: boolean };
+  public_top_reels: { Args: { p_days?: number; p_limit?: number }; Returns: Json };
   create_support_ai_user_message: {
     Args: { p_user_id: string; p_user_role: string; p_conversation_id: string | null; p_body: string };
     Returns: { message_id: string; conversation_id: string; remaining: number }[];
@@ -134,6 +142,17 @@ type SellerProfiles = Omit<GeneratedSellerProfiles, "Row" | "Insert" | "Update">
   Insert: GeneratedSellerProfiles["Insert"] & { onboarding_answers?: Json };
   Update: GeneratedSellerProfiles["Update"] & { onboarding_answers?: Json };
 };
+type GeneratedReelPosts = GeneratedDatabase["public"]["Tables"]["reel_posts"];
+type ReelPostFields = {
+  tags: string[]; social_url: string | null; duration_seconds: number | null;
+  width: number | null; height: number | null; view_count: number;
+  reviewed_by: string | null; reviewed_at: string | null; rejection_reason: string | null;
+};
+type ReelPosts = Omit<GeneratedReelPosts, "Row" | "Insert" | "Update"> & {
+  Row: GeneratedReelPosts["Row"] & ReelPostFields;
+  Insert: GeneratedReelPosts["Insert"] & Partial<ReelPostFields>;
+  Update: GeneratedReelPosts["Update"] & Partial<ReelPostFields>;
+};
 type GeneratedSupportKnowledgeBase = GeneratedDatabase["public"]["Tables"]["support_knowledge_base"];
 type SupportKnowledgeBaseFields = { source_type: string; file_name: string | null };
 type SupportKnowledgeBase = Omit<GeneratedSupportKnowledgeBase, "Row" | "Insert" | "Update"> & {
@@ -167,10 +186,11 @@ type AssetKind = GeneratedDatabase["public"]["Enums"]["asset_kind"] | "CATEGORY_
 
 export type Database = {
   public: Omit<GeneratedDatabase["public"], "Tables" | "Functions" | "Enums"> & {
-    Tables: Omit<GeneratedDatabase["public"]["Tables"], "orders" | "profiles" | "seller_profiles" | "support_knowledge_base" | "free_designs" | "refunds"> & AdditionalTables & {
+    Tables: Omit<GeneratedDatabase["public"]["Tables"], "orders" | "profiles" | "seller_profiles" | "reel_posts" | "support_knowledge_base" | "free_designs" | "refunds"> & AdditionalTables & {
       orders: Orders;
       profiles: Profiles;
       seller_profiles: SellerProfiles;
+      reel_posts: ReelPosts;
       support_knowledge_base: SupportKnowledgeBase;
       free_designs: FreeDesigns;
       refunds: Refunds;

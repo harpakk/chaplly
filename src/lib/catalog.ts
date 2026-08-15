@@ -81,10 +81,14 @@ export type Reel = {
   shopName: string;
   handle: string;
   productSlug: string;
+  products: Array<{ id: string; title: string; slug: string }>;
   caption: string;
+  tags: string[];
+  socialUrl?: string;
   media: string;
   likes: number;
   saves: number;
+  views: number;
 };
 export type CategorySummary = {
   id: string;

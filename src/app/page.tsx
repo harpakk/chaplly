@@ -6,6 +6,8 @@ import { getMarketplaceData } from "@/lib/catalog-data";
 import { getCurrentUser } from "@/lib/auth";
 import { getWishlistProductIds } from "@/lib/dashboard-data";
 import { SiteViewTracker } from "@/components/site-view-tracker";
+import { ReelsGallery } from "@/components/reels-gallery";
+import { getReelInteractionIds } from "@/lib/dashboard-data";
 
 const marqueeMessages = [
   "اوریجینال، نه کپی",
@@ -22,8 +24,8 @@ const marqueeMessages = [
 
 export default async function MarketplaceHome() {
   const [marketplace,user]=await Promise.all([getMarketplaceData(),getCurrentUser()]);
-  const {graphicStyles,products,shops,categories}=marketplace;
-  const likedProductIds=await getWishlistProductIds(user?.id);
+  const {graphicStyles,products,shops,categories,reels}=marketplace;
+  const [likedProductIds,reelInteractions]=await Promise.all([getWishlistProductIds(user?.id),getReelInteractionIds(user?.id)]);
   return (
     <main>
       <SiteViewTracker kind="index" />
@@ -53,6 +55,7 @@ export default async function MarketplaceHome() {
         </div>
       </section>
       <div className="trend-marquee" aria-label="ارزش‌های چاپلی"><div>{[...marqueeMessages,...marqueeMessages].map((message,index)=><span key={`${message}-${index}`}>{message}<i>✦</i></span>)}</div></div>
+      {reels.length>0&&<section className="home-reels-section"><div className="shop-container"><div className="section-title-row"><div><span>پربازدیدهای ۱۰ روز اخیر</span><h2>ریلز محصولات</h2></div></div><ReelsGallery reels={reels} initialLiked={reelInteractions.liked} initialSaved={reelInteractions.saved}/></div></section>}
       <section className="category-section" id="categories">
         <div className="shop-container">
           <div className="section-title-row"><div><span>برای هر سلیقه</span><h2>از کجا شروع کنیم؟</h2></div><a href="#products">مشاهده همه <ArrowLeft size={17} /></a></div>

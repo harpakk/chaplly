@@ -21,6 +21,7 @@ import {
   ShoppingCart,
   X,
   BadgePercent,
+  Video,
 } from "lucide-react";
 import { adminLogoutAction } from "@/app/admin/actions";
 const links = [
@@ -33,6 +34,7 @@ const links = [
   ["/admin/tutorials", "آموزش‌ها", BookOpen],
   ["/admin/pending-products", "محصولات در انتظار", ClipboardCheck],
   ["/admin/reviews", "بررسی دیدگاه‌ها", MessageSquareText],
+  ["/admin/reels", "بررسی ریلز", Video],
   ["/admin/orders", "سفارش‌ها", ShoppingCart],
   ["/admin/coupons", "کدهای تخفیف", BadgePercent],
   ["/admin/tickets", "پشتیبانی", Headphones],

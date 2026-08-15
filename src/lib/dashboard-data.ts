@@ -273,10 +273,13 @@ export async function getBuyerAccountData(userId: string) {
           shopName: store?.name || "چاپلی",
           handle: `@${store?.slug || "chapli"}`,
           productSlug: product?.slug || "",
+          products: product?.slug ? [{ id: "", title: "محصول", slug: product.slug }] : [],
           caption: reel.caption,
+          tags: [],
           media: publicUrl(reel.storage_files),
           likes: Number(reel.like_count),
           saves: Number(reel.save_count),
+          views: 0,
         },
       ];
     }),
@@ -356,25 +359,36 @@ export async function getWishlistProductIds(userId?: string) {
 }
 
 export async function getProductReels(productId: string) {
-  const { data, error } = await createSupabaseAdmin()
-    .from("reel_posts")
-    .select("id,caption,like_count,save_count,stores(name,slug),seller_products(slug),storage_files(bucket,path)")
-    .eq("seller_product_id", productId)
-    .eq("status", "PUBLISHED")
-    .order("published_at", { ascending: false });
-  if (error) throw new Error(error.message);
-  return (data || []).map((reel) => {
-    const store = one(reel.stores), product = one(reel.seller_products);
+  const db = createSupabaseAdmin();
+  const { data: matching, error: matchingError } = await db.from("reel_products").select("reel_id").eq("seller_product_id", productId);
+  if (matchingError) throw new Error(matchingError.message);
+  const reelIds = (matching || []).map((item) => item.reel_id);
+  if (!reelIds.length) return [];
+  const [reelsResult, linksResult] = await Promise.all([
+    db.from("reel_posts").select("id,caption,tags,social_url,like_count,save_count,view_count,stores(name,slug),storage_files(bucket,path)").in("id", reelIds).eq("status", "PUBLISHED").order("published_at", { ascending: false }),
+    db.from("reel_products").select("reel_id,seller_product_id,sort_order").in("reel_id", reelIds).order("sort_order"),
+  ]);
+  if (reelsResult.error || linksResult.error) throw new Error(reelsResult.error?.message || linksResult.error?.message);
+  const productIds = [...new Set((linksResult.data || []).map((link) => link.seller_product_id))];
+  const { data: linkedProducts, error: linkedProductsError } = productIds.length ? await db.from("seller_products").select("id,title,slug").in("id", productIds) : { data: [], error: null };
+  if (linkedProductsError) throw new Error(linkedProductsError.message);
+  return (reelsResult.data || []).map((reel) => {
+    const store = one(reel.stores);
+    const products = (linksResult.data || []).filter((link) => link.reel_id === reel.id).flatMap((link) => { const product = (linkedProducts || []).find((item) => item.id === link.seller_product_id); return product ? [{ id: product.id, title: product.title, slug: product.slug }] : []; });
     return {
       id: reel.id,
       shopSlug: store?.slug || "",
       shopName: store?.name || "چاپلی",
       handle: `@${store?.slug || "chapli"}`,
-      productSlug: product?.slug || "",
+      productSlug: products[0]?.slug || "",
+      products,
       caption: reel.caption,
+      tags: reel.tags || [],
+      socialUrl: reel.social_url || undefined,
       media: publicUrl(reel.storage_files),
       likes: Number(reel.like_count),
       saves: Number(reel.save_count),
+      views: Number(reel.view_count),
     };
   });
 }
@@ -383,13 +397,26 @@ export async function getSellerReelUploadData(storeId: string) {
   const db = createSupabaseAdmin();
   const [products, reels] = await Promise.all([
     db.from("seller_products").select("id,title,slug").eq("store_id", storeId).eq("status", "PUBLISHED").eq("moderation_status", "APPROVED").order("title"),
-    db.from("reel_posts").select("id,caption,status,published_at,seller_products(title),storage_files(bucket,path)").eq("store_id", storeId).order("created_at", { ascending: false }),
+    db.from("reel_posts").select("id,caption,status,published_at,rejection_reason,seller_products(title),storage_files(bucket,path)").eq("store_id", storeId).order("created_at", { ascending: false }),
   ]);
   if (products.error || reels.error) throw new Error(products.error?.message || reels.error?.message);
   return {
     products: products.data || [],
     reels: (reels.data || []).map((reel) => ({ ...reel, media: publicUrl(reel.storage_files), productTitle: one(reel.seller_products)?.title || "محصول" })),
   };
+}
+
+export async function getAdminReelData() {
+  const db = createSupabaseAdmin();
+  const { data: reels, error } = await db.from("reel_posts").select("id,caption,tags,social_url,status,view_count,created_at,published_at,rejection_reason,video_file_id,stores(name,slug),storage_files(bucket,path)").in("status", ["PENDING", "PUBLISHED", "REJECTED"]).order("created_at", { ascending: false }).limit(200);
+  if (error) throw new Error(error.message);
+  const reelIds = (reels || []).map((reel) => reel.id);
+  const { data: links, error: linksError } = reelIds.length ? await db.from("reel_products").select("reel_id,seller_product_id,sort_order").in("reel_id", reelIds).order("sort_order") : { data: [], error: null };
+  if (linksError) throw new Error(linksError.message);
+  const productIds = [...new Set((links || []).map((link) => link.seller_product_id))];
+  const { data: products, error: productsError } = productIds.length ? await db.from("seller_products").select("id,title,slug").in("id", productIds) : { data: [], error: null };
+  if (productsError) throw new Error(productsError.message);
+  return (reels || []).map((reel) => ({ ...reel, media: publicUrl(reel.storage_files), storeName: one(reel.stores)?.name || "فروشگاه", products: (links || []).filter((link) => link.reel_id === reel.id).flatMap((link) => { const product = (products || []).find((item) => item.id === link.seller_product_id); return product ? [product] : []; }) }));
 }
 
 export async function getProductReviews(productId: string) {

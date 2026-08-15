@@ -555,10 +555,13 @@ async function getMarketplaceDataFromSeparateQueries() {
       shopName: store?.name || "چاپلی",
       handle: `@${store?.slug || "chapli"}`,
       productSlug: product?.slug || "",
+      products: product?.slug ? [{ id: "", title: "محصول", slug: product.slug }] : [],
       caption: row.caption,
+      tags: [],
       media: publicFileUrl(one(row.storage_files)),
       likes: row.like_count,
       saves: row.save_count,
+      views: 0,
     };
   });
   return { products, banners, shops, graphicStyles, categories, reels };
@@ -607,6 +610,10 @@ type MarketplaceContextPayload = {
     save_count: number;
     store: { name: string; slug: string; social_url: string | null } | null;
     product: { slug: string } | null;
+    products?: Array<{ id: string; title: string; slug: string }>;
+    tags?: string[];
+    social_url?: string | null;
+    view_count?: number;
     file: CatalogFile | null;
   }>;
 };
@@ -615,9 +622,10 @@ void getMarketplaceDataFromSeparateQueries;
 
 async function getMarketplaceDataOnce() {
   const db = createSupabasePublic();
-  const [products, contextResult] = await Promise.all([
+  const [products, contextResult, topReelsResult] = await Promise.all([
     getProducts(),
     db.rpc("service_marketplace_context"),
+    db.rpc("public_top_reels", { p_days: 10, p_limit: 12 }),
   ]);
   if (contextResult.error) throw new Error(contextResult.error.message);
   const context = (contextResult.data || {}) as MarketplaceContextPayload;
@@ -665,16 +673,21 @@ async function getMarketplaceDataOnce() {
       parentId: row.parent_id || undefined,
     }),
   );
-  const reels: Reel[] = (context.reels || []).map((row) => ({
+  const topReels = !topReelsResult.error && Array.isArray(topReelsResult.data) ? topReelsResult.data as unknown as MarketplaceContextPayload["reels"] : context.reels;
+  const reels: Reel[] = (topReels || []).map((row) => ({
     id: row.id,
     shopSlug: row.store?.slug || "",
     shopName: row.store?.name || "چاپلی",
     handle: `@${row.store?.slug || "chapli"}`,
     productSlug: row.product?.slug || "",
+    products: row.products || (row.product?.slug ? [{ id: "", title: "محصول", slug: row.product.slug }] : []),
     caption: row.caption,
+    tags: row.tags || [],
+    socialUrl: row.social_url || undefined,
     media: publicFileUrl(row.file),
     likes: row.like_count,
     saves: row.save_count,
+    views: Number(row.view_count || 0),
   }));
   return { products, banners, shops, graphicStyles, categories, reels };
 }

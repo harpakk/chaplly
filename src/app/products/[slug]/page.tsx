@@ -210,25 +210,9 @@ export default async function ProductPage({
           </div>
         </aside>
       </section>
-      {product.videos?.length ? (
-        <section className="shop-container product-video-section">
-          <div>
-            <span>نمایش واقعی محصول</span>
-            <h2>ویدئوی محصول</h2>
-            <p>
-              این ویدئو توسط فروشنده برای نمایش بهتر محصول بارگذاری شده است.
-            </p>
-          </div>
-          <video
-            src={product.videos[0]}
-            controls
-            preload="metadata"
-            playsInline
-          />
-        </section>
-      ) : null}
-      {reels.length ? <section className="shop-container product-reels-section"><div className="section-title-row"><div><span>ریلز این محصول</span><h2>محصول را در ویدیو ببین</h2></div></div><ReelsGallery reels={reels} initialLiked={reelInteractions.liked} initialSaved={reelInteractions.saved}/></section> : null}
       <ProductTabs product={product} reviews={reviews} />
+      {product.videos?.length ? <section className="shop-container product-video-section"><div><span>نمایش واقعی محصول</span><h2>ویدئوی محصول</h2><p>این ویدئو توسط فروشنده برای نمایش بهتر محصول بارگذاری شده است.</p></div><video src={product.videos[0]} controls preload="metadata" playsInline/></section> : null}
+      {reels.length ? <section className="shop-container product-reels-section"><div className="section-title-row"><div><span>ریلز این محصول</span><h2>محصول را در ویدیو ببین</h2></div></div><ReelsGallery reels={reels} initialLiked={reelInteractions.liked} initialSaved={reelInteractions.saved}/></section> : null}
       <SimilarityRow
         eyebrow="از همین دسته"
         title={`بیشتر از ${product.category}`}

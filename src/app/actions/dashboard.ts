@@ -1,6 +1,7 @@
 "use server";
 import { randomInt, randomUUID } from "node:crypto";
 import { revalidatePath, revalidateTag } from "next/cache";
+import { cookies } from "next/headers";
 import {
   requireAdmin,
   isAdminAuthenticated,
@@ -3386,33 +3387,45 @@ export async function toggleReelInteractionAction(input: {
   return ok("ذخیره شد.");
 }
 
-export async function uploadProductReelAction(_: ActionResult, formData: FormData): Promise<ActionResult> {
-  const context = await requireSeller();
-  const store = context.membership.organization.stores[0];
-  if (!store) return fail("فروشگاه فعالی پیدا نشد.");
-  const productId = String(formData.get("productId") || "");
-  const caption = String(formData.get("caption") || "").trim();
-  const video = formData.get("video");
-  if (!productId || caption.length < 3) return fail("محصول و کپشن الزامی است.");
-  if (!(video instanceof File) || !video.size || !video.type.startsWith("video/")) return fail("یک فایل ویدیویی معتبر انتخاب کن.");
-  if (video.size > 100 * 1024 * 1024) return fail("حجم ویدیو نباید بیشتر از ۱۰۰ مگابایت باشد.");
-  const db = createSupabaseAdmin();
-  const { data: product } = await db.from("seller_products").select("id,slug").eq("id", productId).eq("store_id", store.id).eq("status", "PUBLISHED").eq("moderation_status", "APPROVED").maybeSingle();
-  if (!product) return fail("محصول منتشرشده متعلق به این فروشگاه نیست.");
-  const safeName = video.name.replace(/[^\w.-]+/g, "-");
-  const path = `${context.user.id}/${store.id}/${randomUUID()}-${safeName}`;
-  const { error: uploadError } = await db.storage.from("reel-media").upload(path, video, { contentType: video.type, upsert: false });
-  if (uploadError) return fail(uploadError.message);
-  let fileId: string;
-  try {
-    fileId = await insertStorageFileDirect({ ownerUserId: context.user.id, bucket: "reel-media", path, kind: "REEL_VIDEO", originalName: video.name, mimeType: video.type, sizeBytes: video.size });
-  } catch (error) {
-    return fail(errorMessage(error, "ثبت فایل ویدیو ناموفق بود."));
+export async function recordReelViewAction(reelId: string): Promise<void> {
+  if (!/^[0-9a-f-]{36}$/i.test(reelId)) return;
+  const user = await getCurrentUser();
+  const cookieStore = await cookies();
+  let anonymous = cookieStore.get("chapli_reel_viewer")?.value;
+  if (!user && !anonymous) {
+    anonymous = randomUUID();
+    cookieStore.set("chapli_reel_viewer", anonymous, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", maxAge: 31_536_000, path: "/" });
   }
-  const { data, error } = await db.from("reel_posts").insert({ store_id: store.id, seller_product_id: productId, video_file_id: fileId, caption, status: "PUBLISHED", published_at: new Date().toISOString() }).select("id").single();
+  await createSupabaseAdmin().rpc("service_record_reel_view", { p_reel_id: reelId, p_viewer_key: user ? `u:${user.id}` : `a:${anonymous}` });
+}
+
+export async function moderateReelAction(_: ActionResult, formData: FormData): Promise<ActionResult> {
+  const adminUser = await requireAdmin();
+  const reelId = String(formData.get("reelId") || ""), decision = String(formData.get("decision") || "");
+  const reason = String(formData.get("reason") || "").trim().slice(0, 500);
+  if (!/^[0-9a-f-]{36}$/i.test(reelId) || !["PUBLISHED", "REJECTED"].includes(decision)) return fail("درخواست بررسی معتبر نیست.");
+  if (decision === "REJECTED" && reason.length < 3) return fail("دلیل رد ویدیو را بنویسید.");
+  const db = createSupabaseAdmin();
+  const { data: reel, error: reelError } = await db.from("reel_posts").select("id,video_file_id").eq("id", reelId).single();
+  if (reelError || !reel) return fail("ویدیو پیدا نشد.");
+  const { error } = await db.from("reel_posts").update({ status: decision, published_at: decision === "PUBLISHED" ? new Date().toISOString() : null, reviewed_by: adminUser.id, reviewed_at: new Date().toISOString(), rejection_reason: decision === "REJECTED" ? reason : null }).eq("id", reelId);
   if (error) return fail(error.message);
-  revalidatePath("/");
-  revalidatePath("/seller/dashboard/reels");
-  revalidatePath(`/products/${product.slug}`);
-  return ok("ریلز محصول منتشر شد.", data.id);
+  revalidatePath("/"); revalidatePath("/admin/reels"); revalidatePath("/seller/dashboard/reels"); revalidateTag("marketplace-home"); clearMarketplaceMemoryCache();
+  return ok(decision === "PUBLISHED" ? "ویدیو تأیید و منتشر شد." : "ویدیو رد شد.");
+}
+
+export async function deleteReelAction(_: ActionResult, formData: FormData): Promise<ActionResult> {
+  await requireAdmin();
+  const reelId = String(formData.get("reelId") || "");
+  if (!/^[0-9a-f-]{36}$/i.test(reelId)) return fail("ویدیو معتبر نیست.");
+  const db = createSupabaseAdmin();
+  const { data: reel, error } = await db.from("reel_posts").select("video_file_id,storage_files(bucket,path)").eq("id", reelId).single();
+  if (error || !reel) return fail("ویدیو پیدا نشد.");
+  const file = one(reel.storage_files);
+  const { error: deleteError } = await db.from("reel_posts").delete().eq("id", reelId);
+  if (deleteError) return fail(deleteError.message);
+  await db.from("storage_files").delete().eq("id", reel.video_file_id);
+  if (file?.bucket === "reel-media" && file.path) await db.storage.from("reel-media").remove([file.path]);
+  revalidatePath("/"); revalidatePath("/admin/reels"); revalidateTag("marketplace-home"); clearMarketplaceMemoryCache();
+  return ok("ویدیو و فایل آن حذف شد.");
 }
