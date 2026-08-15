@@ -28,6 +28,7 @@ import type {
 import { SavingOverlay } from "@/components/saving-overlay";
 import { formatRial } from "@/lib/catalog";
 import { WarpedArtwork } from "@/components/warped-artwork";
+import { croppedArtworkImageStyle, hasManualArtworkCrop } from "@/lib/design-artwork-style";
 
 type CreationData = Awaited<ReturnType<typeof getProductStartData>>;
 type EditorData = Awaited<ReturnType<typeof getDesignEditorData>>;
@@ -658,12 +659,13 @@ function FinalProduct({
                                   Boolean(object.src) && (
                                     <span
                                       className="cropped-artwork-image"
-                                      style={{
-                                        transform: `translate(${(50 - Number(object.cropX ?? 50)) * ((Number(object.cropScale ?? 100) / 100) - 1)}%, ${(50 - Number(object.cropY ?? 50)) * ((Number(object.cropScale ?? 100) / 100) - 1)}%) scale(${Number(object.cropScale ?? 100) / 100})`,
-                                        transformOrigin: "center",
-                                      }}
                                     >
-                                    <img src={String(object.src)} alt="طرح" />
+                                    <img
+                                      src={String(object.src)}
+                                      alt="طرح"
+                                      data-manual-crop={hasManualArtworkCrop(object) ? "true" : undefined}
+                                      style={croppedArtworkImageStyle(object)}
+                                    />
                                     </span>
                                   )}
                               </div>

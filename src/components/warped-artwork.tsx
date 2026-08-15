@@ -170,16 +170,36 @@ async function rasterizeArtwork(
       const response = await fetch(image.currentSrc || image.src);
       if (!response.ok) throw new Error("WARP_IMAGE_FETCH_FAILED");
       const bitmap = await createImageBitmap(await response.blob());
+      if (image.dataset.manualCrop === "true") {
+        context.beginPath();
+        context.rect(x, y, objectWidth, objectHeight);
+        context.clip();
+        context.filter = getComputedStyle(image).filter;
+        context.drawImage(
+          bitmap,
+          x + image.offsetLeft,
+          y + image.offsetTop,
+          image.offsetWidth,
+          image.offsetHeight,
+        );
+        bitmap.close();
+        context.restore();
+        continue;
+      }
       const fit = Math.min(objectWidth / bitmap.width, objectHeight / bitmap.height);
       const drawWidth = bitmap.width * fit;
       const drawHeight = bitmap.height * fit;
       const drawX = x + (objectWidth - drawWidth) / 2;
       const drawY = y + (objectHeight - drawHeight) / 2;
-      const transformNode = image.parentElement?.classList.contains(
+      const cropWrapper = image.parentElement?.classList.contains(
         "cropped-artwork-image",
       )
         ? image.parentElement
-        : image;
+        : null;
+      const transformNode =
+        cropWrapper && getComputedStyle(cropWrapper).transform !== "none"
+          ? cropWrapper
+          : image;
       const imageStyle = getComputedStyle(image);
       const transformStyle = getComputedStyle(transformNode).transform;
       context.filter = imageStyle.filter === "none" ? "none" : imageStyle.filter;

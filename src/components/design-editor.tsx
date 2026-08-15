@@ -50,6 +50,7 @@ import {
 import type { getDesignEditorData } from "@/lib/dashboard-data";
 import { SavingOverlay } from "@/components/saving-overlay";
 import { WarpedArtwork } from "@/components/warped-artwork";
+import { croppedArtworkImageStyle, hasManualArtworkCrop } from "@/lib/design-artwork-style";
 
 type EditorData = Awaited<ReturnType<typeof getDesignEditorData>>;
 type ObjectItem = {
@@ -70,6 +71,10 @@ type ObjectItem = {
   cropScale?: number;
   cropX?: number;
   cropY?: number;
+  cropLeft?: number;
+  cropTop?: number;
+  cropWidth?: number;
+  cropHeight?: number;
   locked: boolean;
 };
 
@@ -91,6 +96,12 @@ async function downloadDesignAsset(url: string, filename: string) {
 export function DesignEditor({ data }: { data: EditorData }) {
   const raw = data.rawProducts[0],
     existing = data.design;
+  const initialColorId =
+    raw.colors.find(
+      (color) =>
+        color.name.trim() === "سفید" ||
+        ["#fff", "#ffffff"].includes((color.hex || "").toLowerCase()),
+    )?.id || raw.colors[0]?.id || "";
   const initialObjects = Object.fromEntries(
     raw.views.flatMap((view) =>
       raw.colors.map((color) => {
@@ -129,13 +140,17 @@ export function DesignEditor({ data }: { data: EditorData }) {
     useState<Record<string, ObjectItem[]>>(initialObjects);
   const [localCanvasReady, setLocalCanvasReady] = useState(false);
   const [viewId, setViewId] = useState(raw.views[0]?.id || "");
-  const [colorId, setColorId] = useState(
-    raw.colors.find(
-      (color) =>
-        color.name.trim() === "سفید" ||
-        ["#fff", "#ffffff"].includes((color.hex || "").toLowerCase()),
-    )?.id || raw.colors[0]?.id || "",
+  const [colorId, setColorId] = useState(initialColorId);
+  const [sharedColorId] = useState(initialColorId);
+  const initialColorSettings = existing?.views[0]?.canvas_document as
+    | { independentColorIds?: string[] }
+    | undefined;
+  const [independentColorIds, setIndependentColorIds] = useState<string[]>(
+    initialColorSettings?.independentColorIds || [],
   );
+  const [reviewedSharedColorIds, setReviewedSharedColorIds] = useState<string[]>([
+    initialColorId,
+  ]);
   const [backgroundAspectRatio, setBackgroundAspectRatio] = useState(1.25);
   const [selected, setSelected] = useState<string | null>(null),
     [zoom, setZoom] = useState(140),
@@ -147,7 +162,8 @@ export function DesignEditor({ data }: { data: EditorData }) {
     [pan, setPan] = useState({ x: 0, y: 0 }),
     [undoByView, setUndoByView] = useState<Record<string, ObjectItem[][]>>({}),
     [redoByView, setRedoByView] = useState<Record<string, ObjectItem[][]>>({});
-  const [cropDraft, setCropDraft] = useState({ scale: 100, x: 50, y: 50 });
+  const [cropDraft, setCropDraft] = useState({ x: 0, y: 0, width: 100, height: 100 });
+  const [cropImageAspect, setCropImageAspect] = useState(1);
   const [selectedVariants, setSelectedVariants] = useState<string[]>(
     existing?.variantIds || [],
   );
@@ -185,8 +201,18 @@ export function DesignEditor({ data }: { data: EditorData }) {
     try {
       const saved = localStorage.getItem(`chapli-design-canvas:${raw.id}`);
       if (saved) setObjects(JSON.parse(saved) as Record<string, ObjectItem[]>);
+      const savedColorSettings = localStorage.getItem(`chapli-design-colors:${raw.id}`);
+      if (savedColorSettings) {
+        const parsed = JSON.parse(savedColorSettings) as {
+          independent?: string[];
+          reviewedShared?: string[];
+        };
+        if (Array.isArray(parsed.independent)) setIndependentColorIds(parsed.independent);
+        if (Array.isArray(parsed.reviewedShared)) setReviewedSharedColorIds(parsed.reviewedShared);
+      }
     } catch {
       localStorage.removeItem(`chapli-design-canvas:${raw.id}`);
+      localStorage.removeItem(`chapli-design-colors:${raw.id}`);
     } finally {
       setLocalCanvasReady(true);
     }
@@ -198,7 +224,20 @@ export function DesignEditor({ data }: { data: EditorData }) {
       JSON.stringify(objects),
     );
   }, [localCanvasReady, objects, raw.id]);
-  const activeKey = `${viewId}:${colorId}`;
+  useEffect(() => {
+    if (!localCanvasReady) return;
+    localStorage.setItem(
+      `chapli-design-colors:${raw.id}`,
+      JSON.stringify({
+        independent: independentColorIds,
+        reviewedShared: reviewedSharedColorIds,
+      }),
+    );
+  }, [independentColorIds, localCanvasReady, raw.id, reviewedSharedColorIds]);
+  const designColorId = independentColorIds.includes(colorId)
+    ? colorId
+    : sharedColorId;
+  const activeKey = `${viewId}:${designColorId}`;
   const active = objects[activeKey] || [];
   const selectedVariantColorIds = new Set(
     raw.variants
@@ -251,18 +290,19 @@ export function DesignEditor({ data }: { data: EditorData }) {
         rawProductViewId: view.id,
         canvas: {
           version: 2,
-          objects: objects[`${view.id}:${colorId}`] || [],
+          objects: objects[`${view.id}:${sharedColorId}`] || [],
+          independentColorIds,
           colorObjects: Object.fromEntries(
             raw.colors.map((color) => [
               color.id,
-              objects[`${view.id}:${color.id}`]?.length
-                ? objects[`${view.id}:${color.id}`]
-                : objects[`${view.id}:${colorId}`] || [],
+              independentColorIds.includes(color.id)
+                ? objects[`${view.id}:${color.id}`] || []
+                : objects[`${view.id}:${sharedColorId}`] || [],
             ]),
           ),
         },
       })),
-    [colorId, objects, raw.colors, raw.views],
+    [independentColorIds, objects, raw.colors, raw.views, sharedColorId],
   );
   const activeSave = useRef<Promise<string> | null>(null);
   const persist = useCallback(async () => {
@@ -391,9 +431,75 @@ export function DesignEditor({ data }: { data: EditorData }) {
   const scaleImage = (factor: number) => {
     if (!item || item.kind !== "image") return;
     const ratio = item.h / item.w;
-    const width = Math.max(12, Math.min(400, item.w * factor));
-    const height = Math.max(8, Math.min(400, width * ratio));
+    const width = Math.max(3, Math.min(2000, item.w * factor));
+    const height = Math.max(3, Math.min(2000, width * ratio));
     update({ w: width, h: height });
+  };
+  const chooseCanvasColor = (nextColorId: string) => {
+    if (nextColorId === colorId) return;
+    if (
+      independentColorIds.includes(nextColorId) ||
+      reviewedSharedColorIds.includes(nextColorId)
+    ) {
+      setColorId(nextColorId);
+      setSelected(null);
+      return;
+    }
+    const colorName = raw.colors.find((color) => color.id === nextColorId)?.name || "این رنگ";
+    const separate = window.confirm(
+      `برای «${colorName}» طرح جداگانه می‌خواهی؟\n\nتأیید: یک نسخه مستقل برای جلو و پشت این رنگ ساخته می‌شود.\nلغو: همین طرح فعلی برای این رنگ و سایر رنگ‌ها استفاده می‌شود.`,
+    );
+    if (separate) {
+      setObjects((current) => {
+        const next = { ...current };
+        for (const view of raw.views) {
+          const sourceColor = independentColorIds.includes(colorId)
+            ? colorId
+            : sharedColorId;
+          const source = current[`${view.id}:${sourceColor}`] || [];
+          next[`${view.id}:${nextColorId}`] = source.map((entry) => ({ ...entry }));
+        }
+        return next;
+      });
+      setIndependentColorIds((current) => [...new Set([...current, nextColorId])]);
+    } else {
+      setReviewedSharedColorIds((current) => [...new Set([...current, nextColorId])]);
+    }
+    setColorId(nextColorId);
+    setSelected(null);
+  };
+  const openCropEditor = (target: ObjectItem) => {
+    const width = target.cropWidth ?? Math.min(100, 10000 / (target.cropScale ?? 100));
+    const height = target.cropHeight ?? Math.min(100, 10000 / (target.cropScale ?? 100));
+    setCropDraft({
+      x: target.cropLeft ?? Math.max(0, Math.min(100 - width, (target.cropX ?? 50) - width / 2)),
+      y: target.cropTop ?? Math.max(0, Math.min(100 - height, (target.cropY ?? 50) - height / 2)),
+      width,
+      height,
+    });
+    setCropOpen(true);
+  };
+  const applyCrop = () => {
+    if (!item || item.kind !== "image") return;
+    const view = raw.views.find((entry) => entry.id === viewId);
+    const printAspect =
+      backgroundAspectRatio *
+      (Number(view?.print_area_width || 0.4) / Number(view?.print_area_height || 0.55));
+    const croppedAspect = Math.max(
+      0.05,
+      cropImageAspect * (cropDraft.width / cropDraft.height),
+    );
+    update({
+      cropLeft: cropDraft.x,
+      cropTop: cropDraft.y,
+      cropWidth: cropDraft.width,
+      cropHeight: cropDraft.height,
+      cropScale: 100,
+      cropX: 50,
+      cropY: 50,
+      h: Math.max(3, Math.min(2000, (item.w * printAspect) / croppedAspect)),
+    });
+    setCropOpen(false);
   };
   const upload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -462,20 +568,8 @@ export function DesignEditor({ data }: { data: EditorData }) {
           entry.id === target.id
             ? {
                 ...entry,
-                x: Math.max(
-                  0,
-                  Math.min(
-                    100 - target.w,
-                    ox + ((next.clientX - sx) / box.width) * 100,
-                  ),
-                ),
-                y: Math.max(
-                  0,
-                  Math.min(
-                    100 - target.h,
-                    oy + ((next.clientY - sy) / box.height) * 100,
-                  ),
-                ),
+                x: ox + ((next.clientX - sx) / box.width) * 100,
+                y: oy + ((next.clientY - sy) / box.height) * 100,
               }
             : entry,
         ),
@@ -511,8 +605,8 @@ export function DesignEditor({ data }: { data: EditorData }) {
         ((next.clientX - startX) / box.width +
           (next.clientY - startY) / box.height) /
           2;
-      const minimumScale = Math.max(12 / startW, 8 / startH);
-      const maximumScale = Math.min(400 / startW, 400 / startH);
+      const minimumScale = Math.max(3 / startW, 3 / startH);
+      const maximumScale = Math.min(2000 / startW, 2000 / startH);
       const scale = Math.max(
         minimumScale,
         Math.min(maximumScale, requestedScale),
@@ -555,27 +649,43 @@ export function DesignEditor({ data }: { data: EditorData }) {
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
   };
-  const dragCrop = (
-    event: ReactPointerEvent<HTMLSpanElement>,
-    target: ObjectItem,
+  const manipulateCrop = (
+    event: ReactPointerEvent<HTMLElement>,
+    mode: "move" | "northWest" | "southEast",
   ) => {
-    if (!cropOpen || selected !== target.id || target.kind !== "image") return;
     event.preventDefault();
     event.stopPropagation();
-    const box = event.currentTarget.getBoundingClientRect();
+    const stage = event.currentTarget.closest(".manual-crop-stage") as HTMLElement | null;
+    if (!stage) return;
+    const bounds = stage.getBoundingClientRect();
     const startX = event.clientX;
     const startY = event.clientY;
-    const originX = target.cropX ?? 50;
-    const originY = target.cropY ?? 50;
+    const origin = { ...cropDraft };
     const move = (next: PointerEvent) => {
-      const cropX = Math.max(0, Math.min(100, originX - ((next.clientX - startX) / box.width) * 100));
-      const cropY = Math.max(0, Math.min(100, originY - ((next.clientY - startY) / box.height) * 100));
-      setObjects((current) => ({
-        ...current,
-        [activeKey]: (current[activeKey] || []).map((entry) =>
-          entry.id === target.id ? { ...entry, cropX, cropY } : entry,
-        ),
-      }));
+      const dx = ((next.clientX - startX) / bounds.width) * 100;
+      const dy = ((next.clientY - startY) / bounds.height) * 100;
+      if (mode === "move") {
+        setCropDraft({
+          ...origin,
+          x: Math.max(0, Math.min(100 - origin.width, origin.x + dx)),
+          y: Math.max(0, Math.min(100 - origin.height, origin.y + dy)),
+        });
+      } else if (mode === "southEast") {
+        setCropDraft({
+          ...origin,
+          width: Math.max(8, Math.min(100 - origin.x, origin.width + dx)),
+          height: Math.max(8, Math.min(100 - origin.y, origin.height + dy)),
+        });
+      } else {
+        const x = Math.max(0, Math.min(origin.x + origin.width - 8, origin.x + dx));
+        const y = Math.max(0, Math.min(origin.y + origin.height - 8, origin.y + dy));
+        setCropDraft({
+          x,
+          y,
+          width: origin.width + origin.x - x,
+          height: origin.height + origin.y - y,
+        });
+      }
     };
     const up = () => {
       window.removeEventListener("pointermove", move);
@@ -675,10 +785,12 @@ export function DesignEditor({ data }: { data: EditorData }) {
             (view) => view.side === mockupView.side,
           );
           const requestedArtwork = rawView
-            ? objects[`${rawView.id}:${mockup.color_id || colorId}`]
+            ? objects[
+                `${rawView.id}:${mockup.color_id && independentColorIds.includes(mockup.color_id) ? mockup.color_id : sharedColorId}`
+              ]
             : undefined;
           const activeColorArtwork = rawView
-            ? objects[`${rawView.id}:${colorId}`]
+            ? objects[`${rawView.id}:${designColorId}`]
             : undefined;
           const artwork = rawView
             ? requestedArtwork?.length
@@ -729,10 +841,10 @@ export function DesignEditor({ data }: { data: EditorData }) {
                       <img
                         src={entry.src}
                         alt="طرح"
+                        data-manual-crop={hasManualArtworkCrop(entry) ? "true" : undefined}
                         style={{
                           filter: `saturate(${entry.saturation ?? 100}%)`,
-                          transform: `translate(${(50-(entry.cropX??50))*(((entry.cropScale??100)/100)-1)}%,${(50-(entry.cropY??50))*(((entry.cropScale??100)/100)-1)}%) scale(${(entry.cropScale??100)/100})`,
-                          transformOrigin: "center",
+                          ...croppedArtworkImageStyle(entry),
                         }}
                       />
                     )}
@@ -871,19 +983,11 @@ export function DesignEditor({ data }: { data: EditorData }) {
               </label>
               <button
                 className={cropOpen ? "active" : ""}
-                onClick={() => {
-                  setCropDraft({ scale: item.cropScale ?? 100, x: item.cropX ?? 50, y: item.cropY ?? 50 });
-                  setCropOpen(true);
-                }}
+                onClick={() => openCropEditor(item)}
                 title="برش تصویر"
               >
                 <Crop />
               </button>
-              {cropOpen && (
-                <div className="crop-controls crop-mouse-hint">
-                  تصویر را با ماوس روی بوم جابه‌جا کنید؛ برای بزرگ‌نمایی از چرخ ماوس استفاده کنید.
-                </div>
-              )}
             </>
           )}
           {item && (
@@ -895,8 +999,8 @@ export function DesignEditor({ data }: { data: EditorData }) {
                   void _id;
                   add(item.kind, {
                     ...copy,
-                    x: Math.min(100 - item.w, item.x + 3),
-                    y: Math.min(100 - item.h, item.y + 3),
+                    x: item.x + 3,
+                    y: item.y + 3,
                   });
                 }}
               >
@@ -1169,30 +1273,14 @@ export function DesignEditor({ data }: { data: EditorData }) {
                   {entry.kind === "image" && entry.src && (
                     <span
                       className="canvas-image-clip"
-                      onPointerDown={(event) => dragCrop(event, entry)}
-                      onWheel={(event) => {
-                        if (!cropOpen || selected !== entry.id) return;
-                        event.preventDefault();
-                        event.stopPropagation();
-                        const cropScale = Math.max(
-                          100,
-                          Math.min(300, (entry.cropScale ?? 120) - event.deltaY * 0.25),
-                        );
-                        setObjects((current) => ({
-                          ...current,
-                          [activeKey]: (current[activeKey] || []).map((object) =>
-                            object.id === entry.id ? { ...object, cropScale } : object,
-                          ),
-                        }));
-                      }}
                     >
                       <img
                         src={entry.src}
                         alt="design"
+                        data-manual-crop={hasManualArtworkCrop(entry) ? "true" : undefined}
                         style={{
                           filter: `saturate(${entry.saturation ?? 100}%)`,
-                          transform: `translate(${(50 - (entry.cropX ?? 50)) * (((entry.cropScale ?? 100) / 100) - 1)}%, ${(50 - (entry.cropY ?? 50)) * (((entry.cropScale ?? 100) / 100) - 1)}%) scale(${(entry.cropScale ?? 100) / 100})`,
-                          transformOrigin: "center",
+                          ...croppedArtworkImageStyle(entry),
                         }}
                       />
                     </span>
@@ -1241,7 +1329,7 @@ export function DesignEditor({ data }: { data: EditorData }) {
               {raw.colors.map((color) => (
                 <button
                   className={colorId === color.id ? "active" : ""}
-                  onClick={() => setColorId(color.id)}
+                  onClick={() => chooseCanvasColor(color.id)}
                   key={color.id}
                   title={color.name}
                   style={{ background: color.hex || "#ddd" }}
@@ -1269,13 +1357,26 @@ export function DesignEditor({ data }: { data: EditorData }) {
       </section>
       {cropOpen && item?.kind === "image" && item.src && (
         <div className="crop-dialog-backdrop" onPointerDown={()=>setCropOpen(false)}>
-          <section className="crop-dialog" onPointerDown={(event)=>event.stopPropagation()}>
+          <section className="crop-dialog manual-crop-dialog" onPointerDown={(event)=>event.stopPropagation()}>
             <header><div><Crop/><h2>برش تصویر</h2></div><button type="button" onClick={()=>setCropOpen(false)}>×</button></header>
-            <div className="crop-dialog-preview"><img src={item.src} alt="تصویر اصلی برای برش" style={{transform:`translate(${(50-cropDraft.x)*((cropDraft.scale/100)-1)}%,${(50-cropDraft.y)*((cropDraft.scale/100)-1)}%) scale(${cropDraft.scale/100})`}}/></div>
-            <label>بزرگ‌نمایی<input type="range" min="100" max="400" value={cropDraft.scale} onChange={e=>setCropDraft(value=>({...value,scale:Number(e.target.value)}))}/></label>
-            <label>جابه‌جایی افقی<input type="range" min="0" max="100" value={cropDraft.x} onChange={e=>setCropDraft(value=>({...value,x:Number(e.target.value)}))}/></label>
-            <label>جابه‌جایی عمودی<input type="range" min="0" max="100" value={cropDraft.y} onChange={e=>setCropDraft(value=>({...value,y:Number(e.target.value)}))}/></label>
-            <footer><button type="button" onClick={()=>setCropOpen(false)}>انصراف</button><button type="button" onClick={()=>{update({cropScale:cropDraft.scale,cropX:cropDraft.x,cropY:cropDraft.y});setCropOpen(false)}}>اعمال برش</button></footer>
+            <p>کادر روشن را جابه‌جا کن و از گوشه‌ها اندازه‌اش را آزادانه تغییر بده. نسبت نهایی تصویر همان نسبت کادر خواهد بود.</p>
+            <div className="manual-crop-stage" style={{ aspectRatio: cropImageAspect }}>
+              <img src={item.src} alt="تصویر اصلی برای برش" draggable={false} onLoad={(event)=>{
+                const image=event.currentTarget;
+                if(image.naturalWidth&&image.naturalHeight)setCropImageAspect(image.naturalWidth/image.naturalHeight);
+              }}/>
+              <div
+                className="manual-crop-frame"
+                style={{ left:`${cropDraft.x}%`,top:`${cropDraft.y}%`,width:`${cropDraft.width}%`,height:`${cropDraft.height}%` }}
+                onPointerDown={(event)=>manipulateCrop(event,"move")}
+              >
+                <i/><i/><i/><i/>
+                <button type="button" className="north-west" onPointerDown={(event)=>manipulateCrop(event,"northWest")} aria-label="تغییر اندازه از گوشه بالا" />
+                <button type="button" className="south-east" onPointerDown={(event)=>manipulateCrop(event,"southEast")} aria-label="تغییر اندازه از گوشه پایین" />
+                <span>{Math.round(cropDraft.width).toLocaleString("fa-IR")} × {Math.round(cropDraft.height).toLocaleString("fa-IR")}</span>
+              </div>
+            </div>
+            <footer><button type="button" onClick={()=>setCropOpen(false)}>انصراف</button><button type="button" onClick={applyCrop}>اعمال برش</button></footer>
           </section>
         </div>
       )}

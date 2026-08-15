@@ -87,7 +87,7 @@ export function SupportAiChat({
           ))}
           {pending && (
             <article className="assistant pending">
-              <span><Bot /></span><p>در حال بررسی و نوشتن پاسخ…</p>
+              <span><Bot /></span><p className="support-typing"><i/><i/><i/><small>در حال نوشتن</small></p>
             </article>
           )}
           <div ref={messagesEnd} />
