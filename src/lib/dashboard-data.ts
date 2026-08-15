@@ -2219,8 +2219,14 @@ export async function getAdminMockupData() {
       .eq("singleton", true)
       .maybeSingle(),
   ]);
-  for (const result of [raws, rawViews, mockups, views, files, testAsset])
+  for (const result of [raws, rawViews, mockups, views, files])
     if (result.error) throw new Error(result.error.message);
+  if (
+    testAsset.error &&
+    testAsset.error.code !== "PGRST205" &&
+    !testAsset.error.message.includes("admin_mockup_test_assets")
+  )
+    throw new Error(testAsset.error.message);
   const fileMap = new Map((files.data || []).map((file) => [file.id, file]));
   const rawProducts = (raws.data || []).map((raw) => ({
     ...raw,

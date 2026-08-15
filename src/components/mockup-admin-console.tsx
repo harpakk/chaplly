@@ -31,11 +31,7 @@ export function MockupAdminConsole({ data }: { data: Data }) {
   const [listGenderFilter, setListGenderFilter] = useState("ALL");
   const record = data.mockups.find((item) => item.id === editing);
   const raw = data.rawProducts.find((item) => item.id === rawId);
-  const rawView = raw?.views.find((item) => item.side === side);
   const initialView = record?.views[0];
-  const printRatio = rawView
-    ? Number(rawView.print_area_width) / Number(rawView.print_area_height)
-    : 1;
   const listColors = data.rawProducts
     .filter((item) => listRawFilter === "ALL" || item.id === listRawFilter)
     .flatMap((item) =>
@@ -123,12 +119,9 @@ export function MockupAdminConsole({ data }: { data: Data }) {
               key={record?.id || `new:${rawId}:${side}`}
               action={saveRawProductMockupAction}
               className="admin-card mockup-form"
-              onSubmit={() => {
+              onSuccess={() => {
                 if (!record)
-                  window.setTimeout(
-                    () => setImageResetSignal((value) => value + 1),
-                    0,
-                  );
+                  setImageResetSignal((value) => value + 1);
               }}
               showSavingOverlay={Boolean(record)}
               backgroundConcurrent={!record}
@@ -220,19 +213,14 @@ export function MockupAdminConsole({ data }: { data: Data }) {
                   <b>
                     {raw.name} · {side === "FRONT" ? "نمای جلو" : "نمای پشت"}
                   </b>
-                  <span>
-                    نسبت نرمال محدوده خام: {printRatio.toFixed(3)} — نسبت واقعی
-                    با ابعاد تصویر خام و تصویر موکاپ محاسبه می‌شود.
-                  </span>
+                  <span>محدوده و نقاط پرسپکتیو را مستقیماً روی تصویر تنظیم کنید.</span>
                 </div>
               </div>
               <MockupPlacementField
                 key={`${record?.id || "new"}:${rawId}:${side}`}
                 label={side === "FRONT" ? "موکاپ نمای جلو" : "موکاپ نمای پشت"}
-                ratio={printRatio}
                 initial={initialView}
                 initialImage={initialView?.backgroundUrl}
-                rawBackgroundImage={rawView?.backgroundUrl}
                 initialTestImage={data.testImageUrl}
                 resetImageSignal={record ? 0 : imageResetSignal}
               />
