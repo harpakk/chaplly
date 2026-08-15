@@ -4,6 +4,7 @@ import {
   CSSProperties,
   ReactNode,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -246,6 +247,83 @@ function drawCurvedSurface(
   const pixelRatio = Math.min(2, window.devicePixelRatio || 1);
   canvas.width = Math.max(1, Math.round(width * scale * pixelRatio));
   canvas.height = Math.max(1, Math.round(height * scale * pixelRatio));
+  const context = canvas.getContext("2d");
+  if (context) {
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    const divisions = 18;
+    const sourceWidth = textureCanvas.width;
+    const sourceHeight = textureCanvas.height;
+    const destination = (u: number, v: number) => {
+      const warped = surface(points, u, v);
+      return {
+        x: (warped.x + padding) * width * pixelRatio,
+        y: (warped.y + padding) * height * pixelRatio,
+      };
+    };
+    const drawTriangle = (
+      source: Array<{ x: number; y: number }>,
+      target: Array<{ x: number; y: number }>,
+    ) => {
+      const [s0, s1, s2] = source;
+      const [t0, t1, t2] = target;
+      const determinant =
+        s0.x * (s1.y - s2.y) +
+        s1.x * (s2.y - s0.y) +
+        s2.x * (s0.y - s1.y);
+      if (Math.abs(determinant) < 0.000001) return;
+      const a =
+        (t0.x * (s1.y - s2.y) + t1.x * (s2.y - s0.y) + t2.x * (s0.y - s1.y)) /
+        determinant;
+      const c =
+        (t0.x * (s2.x - s1.x) + t1.x * (s0.x - s2.x) + t2.x * (s1.x - s0.x)) /
+        determinant;
+      const e =
+        (t0.x * (s1.x * s2.y - s2.x * s1.y) +
+          t1.x * (s2.x * s0.y - s0.x * s2.y) +
+          t2.x * (s0.x * s1.y - s1.x * s0.y)) /
+        determinant;
+      const b =
+        (t0.y * (s1.y - s2.y) + t1.y * (s2.y - s0.y) + t2.y * (s0.y - s1.y)) /
+        determinant;
+      const d =
+        (t0.y * (s2.x - s1.x) + t1.y * (s0.x - s2.x) + t2.y * (s1.x - s0.x)) /
+        determinant;
+      const f =
+        (t0.y * (s1.x * s2.y - s2.x * s1.y) +
+          t1.y * (s2.x * s0.y - s0.x * s2.y) +
+          t2.y * (s0.x * s1.y - s1.x * s0.y)) /
+        determinant;
+      context.save();
+      context.beginPath();
+      context.moveTo(t0.x, t0.y);
+      context.lineTo(t1.x, t1.y);
+      context.lineTo(t2.x, t2.y);
+      context.closePath();
+      context.clip();
+      context.setTransform(a, b, c, d, e, f);
+      context.drawImage(textureCanvas, 0, 0);
+      context.restore();
+    };
+    for (let row = 0; row < divisions; row += 1) {
+      for (let column = 0; column < divisions; column += 1) {
+        const u0 = column / divisions;
+        const u1 = (column + 1) / divisions;
+        const v0 = row / divisions;
+        const v1 = (row + 1) / divisions;
+        const s00 = { x: u0 * sourceWidth, y: v0 * sourceHeight };
+        const s10 = { x: u1 * sourceWidth, y: v0 * sourceHeight };
+        const s01 = { x: u0 * sourceWidth, y: v1 * sourceHeight };
+        const s11 = { x: u1 * sourceWidth, y: v1 * sourceHeight };
+        const d00 = destination(u0, v0);
+        const d10 = destination(u1, v0);
+        const d01 = destination(u0, v1);
+        const d11 = destination(u1, v1);
+        drawTriangle([s00, s01, s10], [d00, d01, d10]);
+        drawTriangle([s10, s01, s11], [d10, d01, d11]);
+      }
+    }
+    return true;
+  }
   const gl = canvas.getContext("webgl", {
     alpha: true,
     antialias: true,
@@ -365,7 +443,12 @@ export function WarpedArtwork({
   style: CSSProperties;
   children: ReactNode;
 }) {
-  const points = parseWarpPoints(rawPoints);
+  const pointSignature = JSON.stringify(parseWarpPoints(rawPoints));
+  const points = useMemo(
+    () => parseWarpPoints(rawPoints),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pointSignature],
+  );
   const clip = parseArtworkClip(rawClip);
   const ref = useRef<HTMLDivElement>(null);
   const sourceRef = useRef<HTMLDivElement>(null);
@@ -373,7 +456,6 @@ export function WarpedArtwork({
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [ready, setReady] = useState(false);
   const warped = isWarped(points);
-  const pointSignature = JSON.stringify(points);
 
   useEffect(() => {
     const node = ref.current;
@@ -387,15 +469,16 @@ export function WarpedArtwork({
   }, []);
 
   useEffect(() => {
+    setReady(false);
     if (!warped || !size.width || !size.height) return;
     const source = sourceRef.current;
     const canvas = canvasRef.current;
     if (!source || !canvas) return;
     let cancelled = false;
-    let timer = 0;
+    let frame = 0;
     const render = () => {
-      window.clearTimeout(timer);
-      timer = window.setTimeout(async () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(async () => {
         try {
           const images = Array.from(source.querySelectorAll("img"));
           await Promise.all(images.map((image) => image.decode().catch(() => undefined)));
@@ -431,14 +514,14 @@ export function WarpedArtwork({
         } catch {
           if (!cancelled) setReady(false);
         }
-      }, 30);
+      });
     };
     render();
     const observer = new MutationObserver(render);
     observer.observe(source, { attributes: true, childList: true, subtree: true, characterData: true });
     return () => {
       cancelled = true;
-      window.clearTimeout(timer);
+      window.cancelAnimationFrame(frame);
       observer.disconnect();
     };
   }, [clip, pointSignature, points, size.height, size.width, warped]);
