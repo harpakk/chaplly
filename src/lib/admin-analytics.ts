@@ -4,7 +4,7 @@ export type AnalyticsPoint={day:string;indexViews:number;productViews:number;sal
 export type AttributionPoint={sourceKey:string;visits:number;uniqueVisits:number;signups:number;buys:number;visitPercentage:number};
 export type SellerAnswerChart={key:string;title:string;total:number;values:{label:string;count:number;percentage:number;color?:string}[]};
 export type SellerProfitRow={organizationId:string;name:string;itemsSold:number;lifetimeProfit:number};
-export type SellerFunnel={uniqueVisitors:number;allSellers:number;withSales:number;moreThanOne:number;moreThanFive:number;moreThanTen:number;exactlyOne:number;twoToFive:number;sixToTen:number;overTen:number;totalLifetimeProfit:number;averageLifetimeProfit:number;sellerRows:SellerProfitRow[]};
+export type SellerFunnel={uniqueVisitors:number;lifetimeUniqueVisitors:number;allSellers:number;createdProduct:number;withSales:number;moreThanOne:number;moreThanFive:number;moreThanTen:number;exactlyOne:number;twoToFive:number;sixToTen:number;overTen:number;totalLifetimeProfit:number;averageLifetimeProfit:number;sellerRows:SellerProfitRow[]};
 export type AdminAnalyticsData={series:AnalyticsPoint[];sellers:{all:number;moreThanFive:number;withSales:number};funnel:SellerFunnel;attribution:AttributionPoint[];sellerAnswers:SellerAnswerChart[]};
 const answerLabels:Record<string,Record<string,string>>={
  sellerType:{INFLUENCER:"اینفلوئنسر / تولیدکننده محتوا",DESIGNER:"گرافیست / طراح",BRAND:"برند یا شرکت",ENTREPRENEUR:"راه‌اندازی آنلاین‌شاپ"},
@@ -47,7 +47,7 @@ function normalizeFunnel(value:unknown):SellerFunnel{
   const seller=item as Record<string,unknown>;
   return{organizationId:String(seller.organizationId||""),name:String(seller.name||"بدون نام"),itemsSold:metric(seller.itemsSold),lifetimeProfit:metric(seller.lifetimeProfit)};
  }):[];
- return{uniqueVisitors:metric(row.uniqueVisitors),allSellers:metric(row.allSellers),withSales:metric(row.withSales),moreThanOne:metric(row.moreThanOne),moreThanFive:metric(row.moreThanFive),moreThanTen:metric(row.moreThanTen),exactlyOne:metric(row.exactlyOne),twoToFive:metric(row.twoToFive),sixToTen:metric(row.sixToTen),overTen:metric(row.overTen),totalLifetimeProfit:metric(row.totalLifetimeProfit),averageLifetimeProfit:metric(row.averageLifetimeProfit),sellerRows};
+ return{uniqueVisitors:metric(row.uniqueVisitors),lifetimeUniqueVisitors:metric(row.lifetimeUniqueVisitors),allSellers:metric(row.allSellers),createdProduct:metric(row.createdProduct),withSales:metric(row.withSales),moreThanOne:metric(row.moreThanOne),moreThanFive:metric(row.moreThanFive),moreThanTen:metric(row.moreThanTen),exactlyOne:metric(row.exactlyOne),twoToFive:metric(row.twoToFive),sixToTen:metric(row.sixToTen),overTen:metric(row.overTen),totalLifetimeProfit:metric(row.totalLifetimeProfit),averageLifetimeProfit:metric(row.averageLifetimeProfit),sellerRows};
 }
 export async function getAdminAnalytics(days:number):Promise<AdminAnalyticsData>{
  const db=createSupabaseAdmin();
