@@ -127,13 +127,32 @@ const primaryRawMediaUrls = async (
   );
 };
 export const getSellerStoreRecord = cache(async (storeId: string) => {
-  const result = await createSupabaseAdmin()
+  const db = createSupabaseAdmin();
+  const result = await db
     .from("stores")
     .select(
       "id,name,slug,status,description,support_email,support_phone,social_url,brand_color,brand_tone,follower_count,is_verified,storefront_config,logo:storage_files!stores_logo_file_id_fkey(bucket,path),banner:storage_files!stores_banner_file_id_fkey(bucket,path),store_domains(hostname,status,domain_type)",
     )
     .eq("id", storeId)
     .single();
+  if (
+    result.error?.code === "42703" &&
+    result.error.message.includes("storefront_config")
+  ) {
+    const fallback = await db
+      .from("stores")
+      .select(
+        "id,name,slug,status,description,support_email,support_phone,social_url,brand_color,brand_tone,follower_count,is_verified,logo:storage_files!stores_logo_file_id_fkey(bucket,path),banner:storage_files!stores_banner_file_id_fkey(bucket,path),store_domains(hostname,status,domain_type)",
+      )
+      .eq("id", storeId)
+      .single();
+    return {
+      ...fallback,
+      data: fallback.data
+        ? { ...fallback.data, storefront_config: null }
+        : null,
+    } as typeof result;
+  }
   return result;
 });
 

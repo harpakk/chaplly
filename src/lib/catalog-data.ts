@@ -847,7 +847,7 @@ export async function getBrowseData() {
 
 export async function getStorefrontData(slug: string) {
   const db = createSupabasePublic();
-  const { data: store, error } = await db
+  let storeResult = await db
     .from("stores")
     .select(
       "id,name,slug,description,support_phone,social_url,brand_color,accent_color,brand_tone,follower_count,is_verified,storefront_config,logo:storage_files!stores_logo_file_id_fkey(bucket,path),banner:storage_files!stores_banner_file_id_fkey(bucket,path)",
@@ -855,6 +855,26 @@ export async function getStorefrontData(slug: string) {
     .eq("slug", slug)
     .eq("status", "ACTIVE")
     .maybeSingle();
+  if (
+    storeResult.error?.code === "42703" &&
+    storeResult.error.message.includes("storefront_config")
+  ) {
+    const fallback = await db
+      .from("stores")
+      .select(
+        "id,name,slug,description,support_phone,social_url,brand_color,accent_color,brand_tone,follower_count,is_verified,logo:storage_files!stores_logo_file_id_fkey(bucket,path),banner:storage_files!stores_banner_file_id_fkey(bucket,path)",
+      )
+      .eq("slug", slug)
+      .eq("status", "ACTIVE")
+      .maybeSingle();
+    storeResult = {
+      ...fallback,
+      data: fallback.data
+        ? { ...fallback.data, storefront_config: null }
+        : null,
+    } as typeof storeResult;
+  }
+  const { data: store, error } = storeResult;
   if (error) throw new Error(error.message);
   if (!store) return null;
   const [browse, reelsResult] = await Promise.all([
