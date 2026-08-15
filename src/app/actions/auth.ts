@@ -5,7 +5,7 @@ import { z } from "zod";
 import { redirect } from "next/navigation";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { getUserByEmail, registerSeller, storeSlugExists, updateLastLogin } from "@/lib/database";
-import { destroySession } from "@/lib/auth";
+import { destroySession, requireSeller } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { clearMarketplaceMemoryCache } from "@/lib/catalog-data";
@@ -14,6 +14,7 @@ import { persistUserAttribution } from "@/lib/attribution";
 export type AuthState = { message?: string; errors?: Record<string,string[]|undefined> };
 
 const loginSchema=z.object({email:z.string().trim().toLowerCase().email("ایمیل معتبر نیست."),password:z.string().min(1,"رمز عبور را وارد کن.")});
+const quickRegisterSchema=z.object({email:z.string().trim().toLowerCase().email("ایمیل معتبر نیست."),password:z.string().min(8,"رمز عبور باید حداقل ۸ کاراکتر باشد.")});
 const optional=(max=300)=>z.string().trim().max(max).optional().default("");
 const registerSchema=z.object({
   firstName:z.string().trim().min(2,"نام باید حداقل ۲ حرف باشد.").max(100),
@@ -103,6 +104,41 @@ export async function registerAction(_:AuthState,formData:FormData):Promise<Auth
     console.error("Seller registration failed",{code,message:error instanceof Error?error.message:"Unknown error"});
     return{message:`ساخت حساب انجام نشد. خطای پایگاه‌داده: ${code}. اطلاعاتت نگه داشته شده؛ دوباره تلاش کن یا با پشتیبانی تماس بگیر.`};
   }
+}
+
+export async function quickSellerRegisterAction(_:AuthState,formData:FormData):Promise<AuthState>{
+ const parsed=quickRegisterSchema.safeParse(Object.fromEntries(formData));if(!parsed.success)return{errors:parsed.error.flatten().fieldErrors};
+ try{
+  const exists=await getUserByEmail(parsed.data.email);if(exists)return{errors:{email:["برای این ایمیل قبلاً حساب ساخته شده."]}};
+  const emailName=parsed.data.email.split("@")[0]||"shop";
+  const baseSlug=slugifyStore(emailName);let slug=baseSlug;let suffix=1;while(await storeSlugExists(slug))slug=`${baseSlug}-${suffix++}`;
+  const user=await registerSeller({email:parsed.data.email,password:parsed.data.password,firstName:"",lastName:"",phone:"",storeName:"فروشگاه من",slug,sellerType:"",experienceLevel:"",instagramHandle:"",websiteUrl:"",audienceSize:"",monthlyViews:"",sellerGoal:"",storeDescription:"",primaryCategory:"",brandTone:"",supportEmail:"",supportPhone:"",socialUrl:"",brandColor:"#ef5b4c"});
+  await persistUserAttribution(user.id).catch(error=>console.error("Seller attribution failed",error));
+  const supabase=await createSupabaseServerClient();
+  const {error}=await supabase.auth.signInWithPassword({email:parsed.data.email,password:parsed.data.password});if(error)throw error;
+  await updateLastLogin(user.id);redirect("/seller/onboarding");
+ }catch(error){
+  if(typeof error==="object"&&error!==null&&"digest" in error&&String(error.digest).startsWith("NEXT_REDIRECT"))throw error;
+  if(error instanceof Error&&error.message==="EMAIL_EXISTS")return{errors:{email:["برای این ایمیل قبلاً حساب ساخته شده."]}};
+  console.error("Quick seller registration failed",error);return{message:"ساخت حساب انجام نشد؛ دوباره تلاش کن یا وارد حساب قبلی شو."};
+ }
+}
+
+export async function completeSellerOnboardingAction(formData:FormData){
+ const context=await requireSeller();
+ const store=context.membership.organization.stores[0];if(!store)redirect("/seller/dashboard");
+ const clean=(name:string,max=500)=>String(formData.get(name)||"").trim().slice(0,max);
+ const db=createSupabaseAdmin();
+ const firstName=clean("firstName",100),lastName=clean("lastName",100),phone=clean("phone",32);
+ const storeName=clean("storeName",160),description=clean("storeDescription",1000),sellerType=clean("sellerType",40),experienceLevel=clean("experienceLevel",40),instagramHandle=clean("instagramHandle",100),primaryCategory=clean("primaryCategory",40),brandTone=clean("brandTone",40),brandColor=clean("brandColor",16);
+ const profileUpdate={first_name:firstName||undefined,last_name:lastName||undefined,phone:phone||undefined};
+ if(firstName||lastName||phone){const{error}=await db.from("profiles").update(profileUpdate).eq("id",context.user.id);if(error)throw error;}
+ const storeUpdate={name:storeName||undefined,description:description||undefined,primary_category:primaryCategory||undefined,brand_tone:brandTone||undefined,brand_color:/^#[0-9a-f]{6}$/i.test(brandColor)?brandColor:undefined};
+ if(storeName||description||primaryCategory||brandTone||brandColor){const{error}=await db.from("stores").update(storeUpdate).eq("id",store.id);if(error)throw error;}
+ const sellerUpdate={seller_type:sellerType||undefined,experience_level:experienceLevel||undefined,instagram_handle:instagramHandle||undefined};
+ if(sellerType||experienceLevel||instagramHandle){const{error}=await db.from("seller_profiles").update(sellerUpdate).eq("organization_id",context.membership.organization.id);if(error)throw error;}
+ await db.rpc("service_save_seller_onboarding_answers",{p_user_id:context.user.id,p_answers:{firstName,lastName,phone,storeName,storeDescription:description,sellerType,experienceLevel,instagramHandle,primaryCategory,brandTone,brandColor}});
+ clearMarketplaceMemoryCache();revalidatePath("/");revalidatePath("/seller/dashboard");redirect("/seller/dashboard");
 }
 
 export async function logoutAction(){await destroySession();redirect("/seller")}
