@@ -202,28 +202,11 @@ function FinalProduct({
       key: `${mockup.id}:${view.id}`,
     })),
   );
-  const renderedDesignViews = data.design!.views.flatMap((designView) => {
-    const rawView = raw.views.find((view) => view.id === designView.raw_product_view_id);
-    const document = designView.canvas_document as { objects?: Array<Record<string, unknown>> };
-    const renderableObjects = (document.objects || []).filter((object) =>
-      object.kind === "image"
-        ? Boolean(object.src)
-        : object.kind === "text"
-          ? Boolean(String(object.text || "").trim())
-          : object.kind === "shape",
-    );
-    return rawView && renderableObjects.length
-      ? [{ key: `design:${rawView.id}`, rawView, document: { ...document, objects: renderableObjects } }]
-      : [];
-  });
   const [visibleMockups, setVisibleMockups] = useState(
     renderedMockupViews.map((item) => item.key),
   );
-  const [visibleDesigns, setVisibleDesigns] = useState(
-    renderedDesignViews.map((item) => item.key),
-  );
   const [primaryImage, setPrimaryImage] = useState(
-    renderedMockupViews[0]?.key || renderedDesignViews[0]?.key || "",
+    renderedMockupViews[0]?.key || "",
   );
   const [customImages, setCustomImages] = useState<File[]>([]);
   const [prices, setPrices] = useState<Record<string, number>>(() => {
@@ -381,7 +364,7 @@ function FinalProduct({
     const prepared: { key: string; file: File }[] = [];
     let failedRenders = 0;
     try {
-      for (const id of [...visibleMockups, ...visibleDesigns]) {
+      for (const id of visibleMockups) {
         const node = mockupRefs.current[id];
         if (node) {
           try {
@@ -394,7 +377,7 @@ function FinalProduct({
                   canvas.dataset.warpReady === "true" || canvas.dataset.warpReady === "failed"
                     ? Promise.resolve()
                     : new Promise<void>((resolve) => {
-                        const timeout = window.setTimeout(resolve, 10000);
+                        const timeout = window.setTimeout(resolve, 2500);
                         canvas.addEventListener("warpready", () => {
                           window.clearTimeout(timeout);
                           resolve();
@@ -423,7 +406,7 @@ function FinalProduct({
               pixelRatio: 1,
               canvasWidth: targetWidth,
               canvasHeight: Math.round(targetWidth * ratio),
-              cacheBust: true,
+              cacheBust: false,
               backgroundColor: "transparent",
               skipFonts: true,
               filter: (candidate) =>
@@ -550,49 +533,6 @@ function FinalProduct({
               می‌توانید حذفشان کنید یا تصویر دیگری اضافه کنید.
             </p>
             <div className="final-product-images">
-              {renderedDesignViews
-                .filter((item) => visibleDesigns.includes(item.key))
-                .map(({ key, rawView, document }) => (
-                  <article key={key}>
-                    <div
-                      ref={(node) => { mockupRefs.current[key] = node; }}
-                      className="configured-mockup-canvas product-render-canvas standalone-design-render"
-                    >
-                      <div className="standalone-design-surface" style={{ aspectRatio: `${Number(rawView.print_area_width) || 1} / ${Number(rawView.print_area_height) || 1}` }}>
-                      {(document?.objects || []).map((object, index) => (
-                        <div
-                          className="configured-object"
-                          key={String(object.id || index)}
-                          style={{
-                            left: `${Number(object.x || 0)}%`,
-                            top: `${Number(object.y || 0)}%`,
-                            width: `${Number(object.w || 10)}%`,
-                            height: `${Number(object.h || 10)}%`,
-                            color: String(object.color || "#111"),
-                            background: object.kind === "shape" ? String(object.color || "#111") : "transparent",
-                            fontSize: `${Math.max(12, Number(object.fontSize || 20) * 0.7)}px`,
-                            fontFamily: String(object.fontFamily || "Vazirmatn"),
-                            opacity: Number(object.opacity ?? 100) / 100,
-                            transform: `rotate(${Number(object.rotation || 0)}deg)`,
-                          }}
-                        >
-                          {object.kind === "text" && String(object.text || "")}
-                          {object.kind === "image" && Boolean(object.src) && <img src={String(object.src)} alt="طرح" style={{ filter: `saturate(${Number(object.saturation ?? 100)}%)` }} />}
-                        </div>
-                      ))}
-                      </div>
-                    </div>
-                    <small className="mockup-side-label">طرح با پس‌زمینه شفاف · {rawView.side === "FRONT" ? "نمای جلو" : "نمای پشت"}</small>
-                    <button type="button" className={`choose-primary-image ${primaryImage === key ? "active" : ""}`} onClick={() => setPrimaryImage(key)}>
-                      {primaryImage === key ? "تصویر اصلی" : "انتخاب به‌عنوان تصویر اصلی"}
-                    </button>
-                    <button className="remove-product-image" type="button" onClick={() => setVisibleDesigns((current) => {
-                      const next = current.filter((id) => id !== key);
-                      if (primaryImage === key) setPrimaryImage(visibleMockups[0] || next[0] || (customImages.length ? "custom:0" : ""));
-                      return next;
-                    })}><Trash2 /> حذف</button>
-                  </article>
-                ))}
               {renderedMockupViews
                 .filter((item) => visibleMockups.includes(item.key))
                 .map(({ mockup, view: mockupView, key }) => {
@@ -702,7 +642,6 @@ function FinalProduct({
                             if (primaryImage === key)
                               setPrimaryImage(
                                 next[0] ||
-                                  visibleDesigns[0] ||
                                   (customImages.length ? "custom:0" : ""),
                               );
                             return next;
@@ -737,7 +676,6 @@ function FinalProduct({
                         if (primaryImage === `custom:${index}`)
                           setPrimaryImage(
                             visibleMockups[0] ||
-                              visibleDesigns[0] ||
                               (next.length ? "custom:0" : ""),
                           );
                         return next;

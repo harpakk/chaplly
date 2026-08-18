@@ -39,7 +39,7 @@ export const DEFAULT_WARP_POINTS: WarpPoint[] = [
   { x: 0, y: 0.5 },
 ];
 
-const MAX_CONCURRENT_MOCKUP_RENDERS = 4;
+const MAX_CONCURRENT_MOCKUP_RENDERS = 6;
 let activeMockupRenders = 0;
 const mockupRenderQueue: Array<() => void> = [];
 const acquireMockupRenderSlot = () =>
@@ -881,7 +881,7 @@ export function WarpedArtwork({
     update();
     const observer = new ResizeObserver(() => {
       window.clearTimeout(resizeTimer);
-      resizeTimer = window.setTimeout(update, 180);
+      resizeTimer = window.setTimeout(update, 60);
     });
     observer.observe(node);
     return () => {
@@ -905,7 +905,6 @@ export function WarpedArtwork({
       setRendering(true);
       setFailed(false);
       canvas.dataset.warpReady = "false";
-      const startedAt = performance.now();
       scheduleTimer = window.setTimeout(async () => {
         const release = await acquireMockupRenderSlot();
         try {
@@ -949,9 +948,6 @@ export function WarpedArtwork({
             if (fabricTextureUrl)
               await applyFabricShading(canvas, ref.current!, fabricTextureUrl);
             if (cancelled || version !== renderVersion) return;
-            const revealDelay = Math.max(0, 900 - (performance.now() - startedAt));
-            if (revealDelay)
-              await new Promise((resolve) => window.setTimeout(resolve, revealDelay));
             if (cancelled || version !== renderVersion) return;
             setReady(true);
             setRendering(false);
@@ -969,7 +965,7 @@ export function WarpedArtwork({
         } finally {
           release();
         }
-      }, 120);
+      }, 30);
     };
     render();
     const observer = new MutationObserver(render);
