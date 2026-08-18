@@ -52,6 +52,8 @@ import {
 } from "@/app/actions/dashboard";
 import type { getDesignEditorData } from "@/lib/dashboard-data";
 import { SavingOverlay } from "@/components/saving-overlay";
+import { SellerOnboardingTour, SellerTourReplayButton, type SellerTourStep } from "@/components/seller-onboarding-tour";
+import type { SellerTourState } from "@/lib/seller-tour-shared";
 import { WarpedArtwork } from "@/components/warped-artwork";
 import { croppedArtworkImageStyle, hasManualArtworkCrop } from "@/lib/design-artwork-style";
 
@@ -98,7 +100,18 @@ async function downloadDesignAsset(url: string, filename: string) {
   }
 }
 
-export function DesignEditor({ data }: { data: EditorData }) {
+const designTourSteps: SellerTourStep[] = [
+  { target: '[data-tour="design-tools"]', emoji: "🧰", title: "ابزارهای ساده، نتیجه حرفه‌ای", body: "تصویر خودت را آپلود کن، متن بنویس یا از طرح‌های آماده استفاده کن. برای شروع همین سه ابزار کافیه." },
+  { target: '[data-tour="free-designs"]', emoji: "🎁", title: "طرح رایگان هم داریم", body: "اگر فایل آماده نداری، اینجا کلی طرح آماده هست که با یک کلیک روی محصول می‌شینه." },
+  { target: '[data-tour="design-canvas"]', emoji: "🖼️", title: "این کادر محدوده چاپ است", body: "هر چیزی داخل کادر خط‌چین باشه چاپ می‌شه. طرح را بگیر و داخل همین محدوده جابه‌جا کن." },
+  { target: '[data-tour="design-canvas"]', emoji: "🤏", title: "اندازه و چرخش با خودت", body: "طرح را انتخاب کن؛ گوشه‌ها برای تغییر اندازه و دستگیره بالایی برای چرخاندنه." },
+  { target: '[data-tour="design-variants"]', emoji: "🎨", title: "جلو، پشت و رنگ‌ها", body: "پایین صفحه نما و رنگ محصول را عوض کن تا مطمئن شی طرحت روی همه حالت‌ها عالیه." },
+  { target: '[data-tour="layers"]', emoji: "🥞", title: "لایه‌ها نظم می‌دن", body: "از اینجا متن و تصویرها را دوباره انتخاب، مرتب یا قفل کن؛ مثل ورق‌های روی هم." },
+  { target: '[data-tour="top-tools"]', emoji: "🪄", title: "ابزار دقیق همین بالاست", body: "وقتی یک طرح یا متن را انتخاب کنی، شفافیت، برش، چرخش و ترتیب لایه‌ها همین بالا ظاهر می‌شه." },
+  { target: '[data-tour="design-continue"]', emoji: "✅", title: "ادامه یعنی ذخیره امن", body: "ادامه را بزن؛ بعد تأمین‌کننده، رنگ و سایزهای قابل فروش و در آخر موکاپ را انتخاب می‌کنی.", hint: "پیش‌نویست در مسیر ذخیره می‌شه؛ با خیال راحت جلو برو." },
+];
+
+export function DesignEditor({ data, tourState }: { data: EditorData; tourState: SellerTourState }) {
   const raw = data.rawProducts[0],
     existing = data.design;
   const initialColorId =
@@ -1088,6 +1101,7 @@ export function DesignEditor({ data }: { data: EditorData }) {
   );
   return (
     <main className="design-app" dir="rtl">
+      <SellerOnboardingTour tour="design" state={tourState} steps={designTourSteps} />
       <SavingOverlay visible={Boolean(blockingSave)} text={blockingSave} />
       <header className="design-top">
         <a href="/seller/dashboard/products/new">
@@ -1101,7 +1115,7 @@ export function DesignEditor({ data }: { data: EditorData }) {
             <small>{raw.has_back ? "جلو و پشت" : "نمای جلو"}</small>
           </div>
         </div>
-        <div className="design-context">
+        <div className="design-context" data-tour="top-tools">
           <button
             className={tool === "select" ? "active" : ""}
             title="انتخاب"
@@ -1271,13 +1285,14 @@ export function DesignEditor({ data }: { data: EditorData }) {
           <span>
             <Save /> {saveState}
           </span>
-          <button onClick={() => setPhase("supplier")}>
+          <SellerTourReplayButton tour="design" label="راهنما" />
+          <button data-tour="design-continue" onClick={() => setPhase("supplier")}>
             ادامه <ChevronLeft />
           </button>
         </div>
       </header>
       <aside className="design-side">
-        <div className="design-side-tools">
+        <div className="design-side-tools" data-tour="design-tools">
           <button onClick={() => uploadRef.current?.click()}>
             <Upload />
             <span>آپلود تصویر</span>
@@ -1303,6 +1318,7 @@ export function DesignEditor({ data }: { data: EditorData }) {
             <span>فایل‌ها</span>
           </button>
           <button
+            data-tour="free-designs"
             className={panel === "free" ? "active" : ""}
             onClick={() =>
               setPanel((value) => (value === "free" ? null : "free"))
@@ -1312,6 +1328,7 @@ export function DesignEditor({ data }: { data: EditorData }) {
             <span>طرح رایگان</span>
           </button>
           <button
+            data-tour="layers"
             className={panel === "layers" ? "active" : ""}
             onClick={() =>
               setPanel((value) => (value === "layers" ? null : "layers"))
@@ -1454,6 +1471,7 @@ export function DesignEditor({ data }: { data: EditorData }) {
         )}
       </aside>
       <section
+        data-tour="design-canvas"
         className={`design-stage ${tool === "pan" ? "is-panning" : ""}`}
         onPointerDown={panStage}
       >
@@ -1577,7 +1595,7 @@ export function DesignEditor({ data }: { data: EditorData }) {
             )}
           </div>
         </div>
-        <div className="design-bottom">
+        <div className="design-bottom" data-tour="design-variants">
           {raw.views.length > 1 && (
             <div className="view-switch">
               {raw.views.map((view) => (

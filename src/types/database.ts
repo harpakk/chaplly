@@ -8,6 +8,13 @@ type Table<Row, Required extends keyof Row> = {
 };
 
 type AdditionalTables = {
+  seller_tour_progress: Table<{
+    user_id: string; eligible: boolean; sidebar_step: number; product_step: number; design_step: number;
+    sidebar_completed_at: string | null; product_completed_at: string | null; design_completed_at: string | null;
+    sidebar_shown_count: number; product_shown_count: number; design_shown_count: number; skipped_count: number;
+    dismissed_login_count: number | null; dont_show_again: boolean; dont_show_again_at: string | null;
+    last_tour: string | null; last_seen_at: string | null; created_at: string; updated_at: string;
+  }, "user_id">;
   coupons: Table<{
     id: string; code: string; created_by: string; owner_organization_id: string | null;
     discount_type: string; discount_value: number; applies_to: string; all_stores: boolean;
@@ -96,6 +103,7 @@ type AdditionalTables = {
 };
 
 type AdditionalFunctions = {
+  service_record_profile_login: { Args: { p_user_id: string }; Returns: number };
   service_quote_coupon: { Args: { p_code: string; p_items: Json }; Returns: Json };
   service_apply_coupon_to_order: { Args: { p_order_id: string; p_code: string; p_buyer_user_id: string | null }; Returns: number };
   service_save_seller_onboarding_answers: { Args: { p_user_id: string; p_answers: Json }; Returns: undefined };
@@ -130,7 +138,7 @@ type Orders = Omit<GeneratedOrders, "Row" | "Insert" | "Update"> & {
   Update: Omit<GeneratedOrders["Update"], "status"> & Partial<AttributionFields> & { status?: OrderState };
 };
 type GeneratedProfiles = GeneratedDatabase["public"]["Tables"]["profiles"];
-type ProfileAttributionFields = AttributionFields & { attributed_at: string | null };
+type ProfileAttributionFields = AttributionFields & { attributed_at: string | null; login_count: number };
 type Profiles = Omit<GeneratedProfiles, "Row" | "Insert" | "Update"> & {
   Row: GeneratedProfiles["Row"] & ProfileAttributionFields;
   Insert: GeneratedProfiles["Insert"] & Partial<ProfileAttributionFields>;

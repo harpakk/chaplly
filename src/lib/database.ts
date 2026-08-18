@@ -165,10 +165,9 @@ async function hydrateUser(
 }
 
 export async function updateLastLogin(userId: string) {
-  const { error } = await createSupabaseAdmin()
-    .from("profiles")
-    .update({ last_login_at: new Date().toISOString() })
-    .eq("id", userId);
+  const { error } = await createSupabaseAdmin().rpc("service_record_profile_login", {
+    p_user_id: userId,
+  });
   if (error) throw error;
 }
 
@@ -302,6 +301,11 @@ export async function registerSeller(input: SellerInput) {
     p_answers: onboardingAnswers,
   });
   if (answersError) throw answersError;
+  const { error: tourError } = await db.from("seller_tour_progress").upsert({
+    user_id: userId,
+    eligible: true,
+  });
+  if (tourError) console.error("Seller tour enrollment failed", tourError);
   return { id: userId, result: data };
 }
 

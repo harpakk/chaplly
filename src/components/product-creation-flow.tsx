@@ -29,20 +29,31 @@ import { SavingOverlay } from "@/components/saving-overlay";
 import { formatRial } from "@/lib/catalog";
 import { WarpedArtwork } from "@/components/warped-artwork";
 import { croppedArtworkImageStyle, hasManualArtworkCrop } from "@/lib/design-artwork-style";
+import { SellerOnboardingTour, SellerTourReplayButton, type SellerTourStep } from "@/components/seller-onboarding-tour";
+import type { SellerTourState } from "@/lib/seller-tour-shared";
 
 type CreationData = Awaited<ReturnType<typeof getProductStartData>>;
 type EditorData = Awaited<ReturnType<typeof getDesignEditorData>>;
+
+const productTourSteps: SellerTourStep[] = [
+  { target: '[data-tour="product-intro"]', emoji: "🎯", title: "اول زمین بازی را انتخاب کن", body: "اینجا محصول پایه‌ای را انتخاب می‌کنی که طرحت قراره روی اون چاپ بشه." },
+  { target: '[data-tour="product-categories"]', emoji: "🗂️", title: "یک دسته انتخاب کن", body: "مثلاً پوشاک یا اکسسوری. با انتخاب دسته، محصول‌های مناسب پایین صفحه ظاهر می‌شن." },
+  { target: '[data-tour="raw-products"]', emoji: "👕", title: "حالا محصول خام را بردار", body: "هر کارت رنگ‌ها، اندازه‌ها و نمای قابل طراحی را نشون می‌ده. محصولی را انتخاب کن که به طرحت میاد." },
+  { target: '[data-tour="enter-design"]', emoji: "✨", title: "ورود به استودیو", body: "با این دکمه وارد طراحی می‌شی؛ هنوز چیزی منتشر نمی‌شه و هر وقت بخوای می‌تونی برگردی.", hint: "بعد از کلیک، راهنمای خود استودیو هم منتظرته." },
+];
 
 export function ProductCreationFlow({
   data,
   rawProductId,
   designId,
   supplierOfferId,
+  tourState,
 }: {
   data: CreationData | EditorData;
   rawProductId?: string;
   designId?: string;
   supplierOfferId?: string;
+  tourState: SellerTourState;
 }) {
   if (rawProductId && designId && "design" in data && data.design)
     return (
@@ -53,10 +64,10 @@ export function ProductCreationFlow({
         supplierOfferId={supplierOfferId}
       />
     );
-  return <StartProduct data={data} />;
+  return <StartProduct data={data} tourState={tourState} />;
 }
 
-function StartProduct({ data }: { data: CreationData | EditorData }) {
+function StartProduct({ data, tourState }: { data: CreationData | EditorData; tourState: SellerTourState }) {
   const parents = data.categories.filter(
     (category) =>
       !category.parent_id &&
@@ -76,7 +87,8 @@ function StartProduct({ data }: { data: CreationData | EditorData }) {
   }, [category, data]);
   return (
     <div className="product-wizard-page">
-      <header className="wizard-head">
+      <SellerOnboardingTour tour="product" state={tourState} steps={productTourSteps} />
+      <header className="wizard-head" data-tour="product-intro">
         <div>
           <span>ساخت محصول جدید / مرحله ۱</span>
           <h1>اول محصول پایه را انتخاب کن</h1>
@@ -85,9 +97,10 @@ function StartProduct({ data }: { data: CreationData | EditorData }) {
             بنشیند.
           </p>
         </div>
+        <SellerTourReplayButton tour="product" label="راهنمای این مرحله" />
       </header>
       <main className="wizard-main">
-        <section className="wizard-section">
+        <section className="wizard-section" data-tour="product-categories">
           <span>دسته‌بندی رسمی</span>
           <h2>چه چیزی می‌سازی؟</h2>
           <div className="category-cards">
@@ -103,7 +116,7 @@ function StartProduct({ data }: { data: CreationData | EditorData }) {
             ))}
           </div>
         </section>
-        <section className="wizard-section">
+        <section className="wizard-section" data-tour="raw-products">
           <span>محصول خام / زیر‌دسته</span>
           <h2>پایه تولید را انتخاب کن</h2>
           {rawProducts.length ? (
@@ -135,6 +148,7 @@ function StartProduct({ data }: { data: CreationData | EditorData }) {
                   </div>
                   <Link
                     className="next"
+                    data-tour="enter-design"
                     href={`/seller/dashboard/products/new/design?raw=${raw.id}`}
                   >
                     ورود به صفحه طراحی <ChevronLeft />

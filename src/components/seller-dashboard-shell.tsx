@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 import { Brand } from "./brand";
 import { SupportAiChat } from "./support-ai-chat";
+import { SellerOnboardingTour, SellerTourReplayButton, type SellerTourStep } from "./seller-onboarding-tour";
+import { shouldAutoShowSellerTour, type SellerTourState } from "@/lib/seller-tour-shared";
 
 const items = [
   ["finance", "مالی", BarChart3],
@@ -33,14 +35,23 @@ const items = [
   ["tutorials", "آموزش", BookOpen],
 ] as const;
 
+const sidebarTourSteps: SellerTourStep[] = [
+  { target: '[data-tour="seller-home"]', emoji: "👋", title: "سلام، آماده‌ای اولین محصولت را بسازی؟", body: "این پنل فرمان فروشگاه توست؛ فعلاً فقط یک مقصد مهم داریم و بقیه گزینه‌ها می‌تونن منتظر بمونن." },
+  { target: '[data-tour="create-product"]', emoji: "🚀", title: "از همین‌جا شروع کن", body: "روی «ساخت محصول جدید» بزن تا محصول خام، طرح و موکاپ را قدم‌به‌قدم آماده کنیم.", hint: "هیچ‌چیز تا تأیید نهایی تو منتشر نمی‌شه." },
+  { target: '[data-tour="seller-nav"]', emoji: "🧭", title: "این منو برای بعد است", body: "محصولات، فروشگاه، امور مالی و ابزارهای فروش همیشه اینجا هستند؛ برای شروع لازم نیست همه را یاد بگیری." },
+  { target: '[data-tour="seller-help"]', emoji: "💬", title: "اگر گیر کردی، تنها نیستی", body: "آموزش و پشتیبانی همیشه در دسترس‌اند. حالا وقتشه اولین محصولت رو بسازی!" },
+];
+
 export function SellerDashboardShell({
   children,
   storeName,
   logoUrl,
+  tourState,
 }: {
   children: ReactNode;
   storeName: string;
   logoUrl: string | null;
+  tourState: SellerTourState;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobile, setMobile] = useState(false);
@@ -54,6 +65,12 @@ export function SellerDashboardShell({
     () => setCollapsed(localStorage.getItem("chapli-sidebar") === "collapsed"),
     [],
   );
+  useEffect(() => {
+    if (pathname !== "/seller/dashboard" || !shouldAutoShowSellerTour(tourState, "sidebar")) return;
+    setCollapsed(false);
+    localStorage.setItem("chapli-sidebar", "open");
+    if (window.innerWidth <= 900) setMobile(true);
+  }, [pathname, tourState]);
   useEffect(() => {
     const next = params.get("section") || "finance";
     setSection(next);
@@ -97,7 +114,7 @@ export function SellerDashboardShell({
               <X />
             </button>
           </div>
-          <div className="sd-store-chip">
+          <div className="sd-store-chip" data-tour="seller-home">
             <span
               className={logoUrl ? "has-logo" : ""}
               style={
@@ -113,6 +130,7 @@ export function SellerDashboardShell({
           </div>
           <Link
             className="sd-sidebar-create"
+            data-tour="create-product"
             href="/seller/dashboard/products/new"
             prefetch={false}
             onClick={() => setMobile(false)}
@@ -120,7 +138,7 @@ export function SellerDashboardShell({
             <Plus />
             <span>ساخت محصول جدید</span>
           </Link>
-          <nav>
+          <nav data-tour="seller-nav">
             {items.map(([key, label, Icon]) => (
               <Link
                 href={`/seller/dashboard?section=${key}`}
@@ -165,6 +183,7 @@ export function SellerDashboardShell({
               <span>آپلود ریلز</span>
             </Link>
             <Link
+              data-tour="seller-help"
               className={pathname.includes("/support") ? "active" : ""}
               href="/seller/dashboard/support"
               prefetch={false}
@@ -174,6 +193,7 @@ export function SellerDashboardShell({
               <span>پشتیبانی</span>
             </Link>
           </nav>
+          <SellerTourReplayButton tour="sidebar" />
           <button className="sd-collapse" onClick={toggle}>
             {collapsed ? <PanelRightOpen /> : <PanelRightClose />}
             <span>جمع‌کردن منو</span>
@@ -195,6 +215,9 @@ export function SellerDashboardShell({
           window.location.assign("/seller/dashboard/support?new=1");
         }}
       />
+      {pathname === "/seller/dashboard" && (
+        <SellerOnboardingTour tour="sidebar" state={tourState} steps={sidebarTourSteps} />
+      )}
     </main>
   );
 }
