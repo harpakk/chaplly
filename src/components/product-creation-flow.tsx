@@ -32,9 +32,9 @@ import { SavingOverlay } from "@/components/saving-overlay";
 import { ActionForm } from "@/components/action-form";
 import { WarpedArtwork } from "@/components/warped-artwork";
 import {
-  createPropertyMarkups,
-  expandPropertyMarkups,
-  serializePropertyMarkups,
+  createPropertyPrices,
+  expandPropertyPrices,
+  serializePropertyPrices,
   VariantPropertyPricing,
 } from "@/components/variant-property-pricing";
 import { croppedArtworkImageStyle, hasManualArtworkCrop } from "@/lib/design-artwork-style";
@@ -264,11 +264,11 @@ function FinalProduct({
       sizeId: variant.size_id,
       sizeName: raw.sizes.find((item) => item.id === variant.size_id)?.name || "سایز استاندارد",
       supplierCost,
-      markupPercentage: savedVariantMarkups.get(id) || 30,
+      markupPercentage: savedVariantMarkups.get(id) ?? 30,
     }];
   });
-  const [propertyMarkups, setPropertyMarkups] = useState(() => createPropertyMarkups(pricingVariants, draft?.propertyMarkups));
-  const variantMarkups = expandPropertyMarkups(pricingVariants, propertyMarkups);
+  const [propertyPrices, setPropertyPrices] = useState(() => createPropertyPrices(pricingVariants, draft?.propertyMarkups));
+  const variantPrices = expandPropertyPrices(pricingVariants, propertyPrices);
   const mockupRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const fileInput = useRef<HTMLInputElement>(null);
   const errorAlert = useRef<HTMLDivElement>(null);
@@ -301,7 +301,7 @@ function FinalProduct({
   const errorPlace = errorField
     ? ({
         productImages: "بخش تصاویر محصول",
-        variantMarkups: "بخش درصد افزایش قیمت رنگ‌ها و سایزها",
+        variantPrices: "بخش قیمت فروش رنگ‌ها و سایزها",
         title: "فیلد عنوان رسمی",
         description: "فیلد توضیحات کامل",
         primarySupplierOfferId: "انتخاب تأمین‌کننده اصلی",
@@ -349,11 +349,11 @@ function FinalProduct({
       );
       return;
     }
-    const belowMinimumMargin = variantMarkups.some((variant) => variant.markupPercentage < 10);
-    if (belowMinimumMargin) {
+    const belowSupplierCost = variantPrices.some((variant) => variant.consumerPrice < (pricingVariants.find((item) => item.rawProductVariantId === variant.rawProductVariantId)?.supplierCost || 0));
+    if (belowSupplierCost) {
       showClientError(
-        "درصد افزایش قیمت هر تنوع باید حداقل ۱۰ درصد باشد.",
-        "variantMarkups",
+        "قیمت فروش هیچ تنوعی نمی‌تواند از قیمت تأمین‌کننده کمتر باشد.",
+        "variantPrices",
       );
       return;
     }
@@ -532,10 +532,10 @@ function FinalProduct({
           />
           <input
             type="hidden"
-            name="variantMarkups"
-            value={JSON.stringify(variantMarkups)}
+            name="variantPrices"
+            value={JSON.stringify(variantPrices)}
           />
-          <input type="hidden" name="propertyMarkups" value={JSON.stringify(serializePropertyMarkups(pricingVariants, propertyMarkups))} />
+          <input type="hidden" name="propertyPrices" value={JSON.stringify(serializePropertyPrices(pricingVariants, propertyPrices))} />
           {(clientError || (!pending && !state.ok && state.message)) && (
             <div
               className="product-submit-alert"
@@ -809,16 +809,16 @@ function FinalProduct({
                 </div>
               </details>
             </div>
-            <div data-error-field="variantMarkups" tabIndex={-1}>
+            <div data-error-field="variantPrices" tabIndex={-1}>
               <VariantPropertyPricing
                 variants={pricingVariants}
-                value={propertyMarkups}
-                onChange={setPropertyMarkups}
+                value={propertyPrices}
+                onChange={setPropertyPrices}
               />
             </div>
-            {fieldError("variantMarkups") && (
+            {fieldError("variantPrices") && (
               <small className="field-error product-section-error">
-                {fieldError("variantMarkups")}
+                {fieldError("variantPrices")}
               </small>
             )}
           </section>

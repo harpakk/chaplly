@@ -821,7 +821,9 @@ function RawProducts({ data }: { data: SupplierData }) {
   );
   const [selectedVariants, setSelectedVariants] = useState<string[]>([]);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [costs, setCosts] = useState<Record<string, number>>({});
   const [bulkQuantity, setBulkQuantity] = useState("");
+  const [bulkCost, setBulkCost] = useState("");
   const raw = data.rawProducts.find((item) => item.id === selected);
   const openInventory = (product: SupplierData["rawProducts"][number]) => {
     const current = product.offer?.variants || [];
@@ -839,7 +841,18 @@ function RawProducts({ data }: { data: SupplierData }) {
         ]),
       ),
     );
+    const defaultCost = Math.max(1, product.offer?.base_cost || product.base_cost || 1);
+    setCosts(
+      Object.fromEntries(
+        product.variants.map((variant) => [
+          variant.id,
+          current.find((item) => item.raw_product_variant_id === variant.id)
+            ?.unit_cost || defaultCost,
+        ]),
+      ),
+    );
     setBulkQuantity("");
+    setBulkCost("");
     setSelected(product.id);
   };
   return (
@@ -967,6 +980,31 @@ function RawProducts({ data }: { data: SupplierData }) {
                 اعمال موجودی
               </button>
             </div>
+            <div className="supply-bulk-inventory supply-bulk-cost">
+              <label>
+                قیمت تأمین یکسان برای تنوع‌های انتخاب‌شده (ریال)
+                <input
+                  type="number"
+                  min="1"
+                  value={bulkCost}
+                  onChange={(event) => setBulkCost(event.target.value)}
+                  placeholder="مثلاً ۵۰۰۰۰۰"
+                />
+              </label>
+              <button
+                type="button"
+                disabled={!selectedVariants.length || Number(bulkCost) < 1}
+                onClick={() => {
+                  const cost = Math.max(1, Math.floor(Number(bulkCost)));
+                  setCosts((current) => ({
+                    ...current,
+                    ...Object.fromEntries(selectedVariants.map((id) => [id, cost])),
+                  }));
+                }}
+              >
+                کپی قیمت برای انتخاب‌ها
+              </button>
+            </div>
             <div className="supply-inventory-grid">
               {raw.variants.map((variant) => {
                 const color = raw.colors.find(
@@ -993,38 +1031,47 @@ function RawProducts({ data }: { data: SupplierData }) {
                     <span>
                       {color?.name} · {size?.name}
                     </span>
-                    <input
-                      aria-label={`موجودی ${color?.name} ${size?.name}`}
-                      name={`quantity_${variant.id}`}
-                      type="number"
-                      min="0"
-                      value={quantities[variant.id] || 0}
-                      onChange={(event) =>
-                        setQuantities((items) => ({
-                          ...items,
-                          [variant.id]: Math.max(
-                            0,
-                            Math.floor(Number(event.target.value)),
-                          ),
-                        }))
-                      }
-                      disabled={!selectedVariants.includes(variant.id)}
-                    />
+                    <div className="supply-variant-number">
+                      <small>موجودی</small>
+                      <input
+                        aria-label={`موجودی ${color?.name} ${size?.name}`}
+                        name={`quantity_${variant.id}`}
+                        type="number"
+                        min="0"
+                        value={quantities[variant.id] || 0}
+                        onChange={(event) =>
+                          setQuantities((items) => ({
+                            ...items,
+                            [variant.id]: Math.max(0, Math.floor(Number(event.target.value))),
+                          }))
+                        }
+                        disabled={!selectedVariants.includes(variant.id)}
+                      />
+                    </div>
+                    <div className="supply-variant-number">
+                      <small>قیمت تأمین (ریال)</small>
+                      <input
+                        aria-label={`قیمت تأمین ${color?.name} ${size?.name}`}
+                        name={`cost_${variant.id}`}
+                        type="number"
+                        min="1"
+                        step="1"
+                        required={selectedVariants.includes(variant.id)}
+                        value={costs[variant.id] || 1}
+                        onChange={(event) =>
+                          setCosts((items) => ({
+                            ...items,
+                            [variant.id]: Math.max(1, Math.floor(Number(event.target.value))),
+                          }))
+                        }
+                        disabled={!selectedVariants.includes(variant.id)}
+                      />
+                    </div>
                   </label>
                 );
               })}
             </div>
             <div className="supply-fields">
-              <label>
-                هزینه پایه (ریال)
-                <input
-                  name="baseCost"
-                  type="number"
-                  min="0"
-                  defaultValue={raw.offer?.base_cost || raw.base_cost}
-                  required
-                />
-              </label>
               <label>
                 زمان آماده‌سازی (روز)
                 <input

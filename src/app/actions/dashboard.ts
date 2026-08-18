@@ -2207,15 +2207,18 @@ export async function supplierSubmitOfferAction(
       0,
       Math.floor(Number(formData.get(`quantity_${variantId}`) || 0)),
     ),
+    unitCost: Math.floor(Number(formData.get(`cost_${variantId}`) || 0)),
   }));
   if (!variants.length) return fail("حداقل یک تنوع را انتخاب کنید.");
   if (variants.every((variant) => variant.quantity < 1))
     return fail("موجودی حداقل یک تنوع انتخاب‌شده باید حداقل یک عدد باشد.");
+  if (variants.some((variant) => !Number.isFinite(variant.unitCost) || variant.unitCost < 1))
+    return fail("برای همه تنوع‌های انتخاب‌شده، قیمت تأمین بیشتر از صفر وارد کنید.");
   const { data, error } = await db.rpc("supplier_submit_inventory", {
     p_organization_id: context.membership.organization.id,
     p_raw_product_id: String(formData.get("rawProductId") || ""),
     p_variants: variants,
-    p_base_cost: Number(formData.get("baseCost") || 0),
+    p_base_cost: Math.min(...variants.map((variant) => variant.unitCost)),
     p_lead_time_days: Number(formData.get("leadTimeDays") || 4),
     p_capacity_per_day: Number(formData.get("capacityPerDay") || 1),
   });
@@ -3298,74 +3301,105 @@ export async function saveSellerProductAction(
       productAlreadyExists ? productId : undefined,
     );
 
-  let variantMarkups: { rawProductVariantId: string; markupPercentage: number }[] = [];
-  let propertyMarkups: { dimension: "COLOR" | "SIZE"; propertyId: string; markupPercentage: number }[] = [];
+  let submittedVariantPrices: { rawProductVariantId: string; consumerPrice: number }[] = [];
+  let submittedPropertyPrices: { dimension: "COLOR" | "SIZE"; propertyId: string; consumerPrice: number }[] = [];
   try {
-    const parsed: unknown = JSON.parse(String(formData.get("variantMarkups") || "[]"));
-    const parsedProperties: unknown = JSON.parse(String(formData.get("propertyMarkups") || "[]"));
-    if (!Array.isArray(parsed) || !Array.isArray(parsedProperties)) throw new Error("INVALID_MARKUPS");
-    variantMarkups = parsed.map((item) => ({
+    const parsed: unknown = JSON.parse(String(formData.get("variantPrices") || "[]"));
+    const parsedProperties: unknown = JSON.parse(String(formData.get("propertyPrices") || "[]"));
+    if (!Array.isArray(parsed) || !Array.isArray(parsedProperties)) throw new Error("INVALID_PRICES");
+    submittedVariantPrices = parsed.map((item) => ({
       rawProductVariantId: String(
         (item as { rawProductVariantId?: unknown }).rawProductVariantId || "",
       ),
-      markupPercentage: Number((item as { markupPercentage?: unknown }).markupPercentage),
+      consumerPrice: Math.floor(Number((item as { consumerPrice?: unknown }).consumerPrice)),
     }));
-    propertyMarkups = parsedProperties.map((item) => ({
+    submittedPropertyPrices = parsedProperties.map((item) => ({
       dimension: String((item as { dimension?: unknown }).dimension || "") as "COLOR" | "SIZE",
       propertyId: String((item as { propertyId?: unknown }).propertyId || ""),
-      markupPercentage: Number((item as { markupPercentage?: unknown }).markupPercentage),
+      consumerPrice: Math.floor(Number((item as { consumerPrice?: unknown }).consumerPrice)),
     }));
   } catch {
     return fail(
-      "درصد افزایش قیمت تنوع‌ها معتبر نیست.",
-      { variantMarkups: "درصد همه رنگ‌ها و سایزها را بررسی کنید." },
+      "قیمت فروش تنوع‌ها معتبر نیست.",
+      { variantPrices: "قیمت فروش همه رنگ‌ها و سایزها را بررسی کنید." },
       productAlreadyExists ? productId : undefined,
     );
   }
   if (
-    !variantMarkups.length || !propertyMarkups.length ||
-    variantMarkups.some(
+    !submittedVariantPrices.length || !submittedPropertyPrices.length ||
+    submittedVariantPrices.some(
       (variant) =>
         !variant.rawProductVariantId ||
-        !Number.isFinite(variant.markupPercentage) ||
-        variant.markupPercentage < 10 || variant.markupPercentage > 10000,
-    ) || propertyMarkups.some((item) => !["COLOR", "SIZE"].includes(item.dimension) || !item.propertyId || !Number.isFinite(item.markupPercentage) || item.markupPercentage < 10 || item.markupPercentage > 10000)
+        !Number.isFinite(variant.consumerPrice) || variant.consumerPrice < 1,
+    ) || submittedPropertyPrices.some((item) => !["COLOR", "SIZE"].includes(item.dimension) || !item.propertyId || !Number.isFinite(item.consumerPrice) || item.consumerPrice < 1)
   )
     return fail(
-      "برای همه رنگ‌ها و سایزها درصد افزایش معتبر وارد کنید.",
-      { variantMarkups: "حداقل درصد افزایش مجاز ۱۰٪ است." },
+      "برای همه رنگ‌ها و سایزها قیمت فروش معتبر وارد کنید.",
+      { variantPrices: "قیمت فروش باید یک مبلغ مثبت و معتبر باشد." },
       productAlreadyExists ? productId : undefined,
     );
 
-  const selectedVariantIds = variantMarkups.map(
+  const selectedVariantIds = submittedVariantPrices.map(
     (variant) => variant.rawProductVariantId,
   );
   const { data: offerVariants, error: offerVariantError } = await admin
     .from("supplier_offer_variants")
-    .select("raw_product_variant_id,unit_cost")
+    .select("raw_product_variant_id,unit_cost,raw_product_variants(color_id,size_id)")
     .eq("supplier_offer_id", primarySupplierOfferId)
     .in("raw_product_variant_id", selectedVariantIds);
   if (offerVariantError)
     return fail(offerVariantError.message, undefined, productAlreadyExists ? productId : undefined);
-  const supplierCosts = new Map(
-    (offerVariants || []).map((variant) => [
-      variant.raw_product_variant_id,
-      Number(variant.unit_cost),
-    ]),
-  );
+  const supplierCosts = new Map((offerVariants || []).map((variant) => [variant.raw_product_variant_id, Number(variant.unit_cost)]));
+  const variantDimensions = new Map((offerVariants || []).map((variant) => {
+    const relation = Array.isArray(variant.raw_product_variants) ? variant.raw_product_variants[0] : variant.raw_product_variants;
+    return [variant.raw_product_variant_id, { colorId: relation?.color_id || "", sizeId: relation?.size_id || "" }];
+  }));
   if (
-    variantMarkups.some(
-      (variant) => !supplierCosts.has(variant.rawProductVariantId),
-    )
+    new Set(selectedVariantIds).size !== selectedVariantIds.length ||
+    submittedVariantPrices.some((variant) => (supplierCosts.get(variant.rawProductVariantId) || 0) < 1)
   )
     return fail(
-      "هزینه تأمین یکی از تنوع‌ها پیدا نشد.",
-      { variantMarkups: "تأمین‌کننده باید برای همه تنوع‌ها هزینه معتبر داشته باشد." },
+      "قیمت تأمین یکی از تنوع‌ها پیدا نشد یا معتبر نیست.",
+      { variantPrices: "تأمین‌کننده باید برای همه تنوع‌ها قیمت بیشتر از صفر ثبت کرده باشد." },
       productAlreadyExists ? productId : undefined,
     );
-  const price = Math.min(...variantMarkups.map((variant) =>
-    Math.ceil((supplierCosts.get(variant.rawProductVariantId) || 0) * (1 + variant.markupPercentage / 100)),
-  ));
+  if (submittedVariantPrices.some((variant) => variant.consumerPrice < (supplierCosts.get(variant.rawProductVariantId) || 0)))
+    return fail(
+      "قیمت فروش نمی‌تواند از قیمت تأمین‌کننده کمتر باشد.",
+      { variantPrices: "قیمت هر تنوع را برابر یا بیشتر از قیمت تأمین آن وارد کنید." },
+      productAlreadyExists ? productId : undefined,
+    );
+  const toMarkup = (cost: number, consumerPrice: number) =>
+    Math.ceil(Math.max(0, (consumerPrice / cost - 1) * 100) * 100_000_000) / 100_000_000;
+  const variantMarkups = submittedVariantPrices.map((variant) => ({
+    rawProductVariantId: variant.rawProductVariantId,
+    markupPercentage: toMarkup(supplierCosts.get(variant.rawProductVariantId)!, variant.consumerPrice),
+  }));
+  const expectedProperties = new Set([...variantDimensions.values()].flatMap((item) => [`COLOR:${item.colorId}`, `SIZE:${item.sizeId}`]));
+  const submittedPropertyKeys = submittedPropertyPrices.map((item) => `${item.dimension}:${item.propertyId}`);
+  if (new Set(submittedPropertyKeys).size !== submittedPropertyKeys.length || submittedPropertyKeys.length !== expectedProperties.size || submittedPropertyKeys.some((key) => !expectedProperties.has(key)))
+    return fail(
+      "قیمت بعضی رنگ‌ها یا سایزها کامل نیست.",
+      { variantPrices: "برای هر رنگ و هر سایز دقیقاً یک قیمت فروش وارد کنید." },
+      productAlreadyExists ? productId : undefined,
+    );
+  const propertyMarkups = submittedPropertyPrices.map((item) => {
+    const relatedCosts = [...variantDimensions].flatMap(([variantId, dimensions]) =>
+      (item.dimension === "COLOR" ? dimensions.colorId : dimensions.sizeId) === item.propertyId
+        ? [supplierCosts.get(variantId) || 0]
+        : [],
+    );
+    const highestCost = Math.max(0, ...relatedCosts);
+    return { ...item, highestCost, markupPercentage: highestCost > 0 ? toMarkup(highestCost, item.consumerPrice) : -1 };
+  });
+  if (variantMarkups.some((item) => item.markupPercentage > 10000) || propertyMarkups.some((item) => item.highestCost < 1 || item.consumerPrice < item.highestCost || item.markupPercentage > 10000))
+    return fail(
+      "قیمت فروش یکی از رنگ‌ها یا سایزها خارج از محدوده مجاز است.",
+      { variantPrices: "قیمت باید حداقل برابر قیمت تأمین باشد و از محدوده مجاز سامانه بیشتر نباشد." },
+      productAlreadyExists ? productId : undefined,
+    );
+  const propertyMarkupPayload = propertyMarkups.map(({ dimension, propertyId, markupPercentage }) => ({ dimension, propertyId, markupPercentage }));
+  const price = Math.min(...submittedVariantPrices.map((variant) => variant.consumerPrice));
 
   const { data: duplicateSlug, error: duplicateSlugError } = await admin
     .from("seller_products")
@@ -3447,13 +3481,13 @@ export async function saveSellerProductAction(
         p_product_id: productId,
         p_graphic_style_ids: graphicStyleIds,
         p_variant_markups: variantMarkups,
-        p_property_markups: propertyMarkups,
+        p_property_markups: propertyMarkupPayload,
       },
     );
     if (metadataError)
       return fail(
         "محصول ذخیره شد، اما ذخیره قیمت تنوع‌ها و سبک‌های گرافیکی کامل نشد. دوباره تلاش کنید.",
-        { variantMarkups: "درصد افزایش تنوع‌ها را بررسی کنید." },
+        { variantPrices: "قیمت فروش تنوع‌ها را بررسی کنید." },
         productId,
         metadataError.message,
       );
@@ -3461,7 +3495,7 @@ export async function saveSellerProductAction(
     console.error("Product metadata bulk save failed", metadataError);
     return fail(
       "محصول ذخیره شد، اما ذخیره قیمت تنوع‌ها و سبک‌های گرافیکی کامل نشد. دوباره تلاش کنید.",
-      { variantMarkups: "درصد افزایش تنوع‌ها را بررسی کنید." },
+      { variantPrices: "قیمت فروش تنوع‌ها را بررسی کنید." },
       productId,
       errorMessage(metadataError, "خطای ناشناخته ذخیره مشخصات"),
     );
