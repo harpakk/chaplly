@@ -1498,6 +1498,15 @@ export async function upsertRawProductAction(
   } catch {
     return fail("جدول راهنمای سایز معتبر نیست.");
   }
+  const qualityDescriptions = formData
+    .getAll("qualityDescription")
+    .map((value) => String(value).trim())
+    .filter(Boolean);
+  if (
+    qualityDescriptions.length > 20 ||
+    qualityDescriptions.some((description) => description.length < 3 || description.length > 1000)
+  )
+    return fail("هر توضیح کیفیت باید بین ۳ تا ۱۰۰۰ نویسه باشد و حداکثر ۲۰ مورد مجاز است.");
   const colorNames = formData.getAll("colorName").map(String);
   const colorHexes = formData.getAll("colorHex").map(String);
   const colors = colorNames
@@ -1576,6 +1585,15 @@ export async function upsertRawProductAction(
       guideError.code !== "PGRST204"
     )
       throw guideError;
+    const { error: qualityError } = await createSupabaseAdmin().rpc(
+      "service_set_raw_product_quality_descriptions",
+      {
+        p_raw_product_id: rawId,
+        p_descriptions: qualityDescriptions,
+        p_actor_id: adminUser.id,
+      },
+    );
+    if (qualityError) throw qualityError;
   } catch (error) {
     console.error("Direct raw product write failed", error);
     return fail(errorMessage(error, "ذخیره محصول خام ناموفق بود."));
@@ -3213,8 +3231,6 @@ export async function saveSellerProductAction(
     .toLowerCase()
     .replace(/[^a-z0-9-]+/g, "-")
     .replace(/^-+|-+$/g, "");
-  const price = Number(formData.get("price") || 0);
-  const discountedPrice = String(formData.get("discountedPrice") || "").trim();
   const primarySupplierOfferId = String(
     formData.get("primarySupplierOfferId") || "",
   );
@@ -3240,23 +3256,6 @@ export async function saveSellerProductAction(
     return fail(
       "توضیحات کامل محصول را وارد کنید.",
       { description: "توضیحات محصول الزامی است." },
-      productAlreadyExists ? productId : undefined,
-    );
-  if (!Number.isFinite(price) || price <= 0)
-    return fail(
-      "قیمت فروش معتبر نیست.",
-      { price: "قیمت باید بیشتر از صفر باشد." },
-      productAlreadyExists ? productId : undefined,
-    );
-  if (
-    discountedPrice &&
-    (!Number.isFinite(Number(discountedPrice)) ||
-      Number(discountedPrice) < 0 ||
-      Number(discountedPrice) >= price)
-  )
-    return fail(
-      "قیمت تخفیف‌خورده باید کمتر از قیمت فروش باشد.",
-      { discountedPrice: "یک مبلغ کمتر از قیمت فروش وارد کنید یا این فیلد را خالی بگذارید." },
       productAlreadyExists ? productId : undefined,
     );
   if (!primarySupplierOfferId)
@@ -3344,6 +3343,7 @@ export async function saveSellerProductAction(
       { variantPrices: "حاشیه سود کمتر از ۱۰ درصد مجاز نیست." },
       productAlreadyExists ? productId : undefined,
     );
+  const price = Math.min(...variantPrices.map((variant) => variant.price));
 
   const { data: duplicateSlug, error: duplicateSlugError } = await admin
     .from("seller_products")
@@ -3380,8 +3380,8 @@ export async function saveSellerProductAction(
     subtitle: String(formData.get("subtitle") || ""),
     description,
     price,
-    discountedPrice,
-    compareAtPrice: String(formData.get("compareAtPrice") || ""),
+    discountedPrice: "",
+    compareAtPrice: "",
     seoTitle: String(formData.get("seoTitle") || ""),
     seoDescription: String(formData.get("seoDescription") || ""),
     gender,

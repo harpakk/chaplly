@@ -23,6 +23,7 @@ import { formatPrice, type Product } from "@/lib/catalog";
 import {
   findProduct,
   getLiveProductInventory,
+  getProductQualityDescription,
   getProductSizeGuide,
   getProducts,
 } from "@/lib/catalog-data";
@@ -51,16 +52,18 @@ export default async function ProductPage({
   const products = await getProducts();
   const cachedProduct = products.find((item) => item.slug === slug);
   if (!cachedProduct) notFound();
-  const [inventory, reviews, reels, user, sizeGuide] = await Promise.all([
+  const [inventory, reviews, reels, user, sizeGuide, qualityDescription] = await Promise.all([
     getLiveProductInventory(cachedProduct.id),
     getProductReviews(cachedProduct.id),
     getProductReels(cachedProduct.id),
     getCurrentUser(),
     getProductSizeGuide(cachedProduct.id),
+    getProductQualityDescription(cachedProduct.id),
   ]);
   const reelInteractions = await getReelInteractionIds(user?.id);
   const product = {
     ...cachedProduct,
+    qualityDescription: qualityDescription || undefined,
     variants: cachedProduct.variants.map((variant) => ({
       ...variant,
       inventory: inventory.get(variant.id) || 0,
@@ -104,6 +107,12 @@ export default async function ProductPage({
           <span className="spine-eyebrow">درباره این محصول</span>
           <h2>{product.subtitle}</h2>
           <p>{product.description}</p>
+          {product.qualityDescription && (
+            <section className="pdp-quality-story">
+              <span>درباره کیفیت</span>
+              <p>{product.qualityDescription}</p>
+            </section>
+          )}
           <dl>
             <div>
               <dt>سبک طرح</dt>

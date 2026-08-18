@@ -42,6 +42,7 @@ export type Product = {
   variants: ProductVariant[];
   details: ProductDetail[];
   description: string;
+  qualityDescription?: string;
   delivery: string;
   productionDays: string;
   videos?: string[];

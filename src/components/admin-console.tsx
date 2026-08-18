@@ -541,6 +541,11 @@ function RawProductForm({
   const [sizesText, setSizesText] = useState(
     raw?.sizes.map((item) => item.name).join(", ") || "",
   );
+  const [qualityDescriptions, setQualityDescriptions] = useState<string[]>(
+    raw?.qualityDescriptions.length
+      ? raw.qualityDescriptions.map((item) => item.description)
+      : [""],
+  );
   const existingGuide = raw?.size_guide as { columns?: unknown; rows?: unknown } | null;
   const initialColumns = Array.isArray(existingGuide?.columns)
     ? existingGuide.columns.map(String)
@@ -679,6 +684,38 @@ function RawProductForm({
           توضیحات
           <textarea name="description" defaultValue={raw?.description || ""} />
         </label>
+        <div className="wide raw-quality-editor">
+          <div>
+            <span><b>توضیحات «درباره کیفیت»</b><small>در صفحه محصول یکی از این متن‌ها به‌صورت تصادفی نمایش داده می‌شود.</small></span>
+            <button
+              type="button"
+              disabled={qualityDescriptions.length >= 20}
+              onClick={() => setQualityDescriptions((current) => current.length < 20 ? [...current, ""] : current)}
+            >
+              <Plus /> افزودن توضیح
+            </button>
+          </div>
+          {qualityDescriptions.map((description, index) => (
+            <div key={index}>
+              <textarea
+                name="qualityDescription"
+                value={description}
+                maxLength={1000}
+                placeholder="مثلاً: پارچه پیش از چاپ بررسی می‌شود تا سطحی یکدست و مناسب چاپ داشته باشد."
+                onChange={(event) => setQualityDescriptions((current) =>
+                  current.map((item, itemIndex) => itemIndex === index ? event.target.value : item)
+                )}
+              />
+              <button
+                type="button"
+                aria-label="حذف توضیح کیفیت"
+                onClick={() => setQualityDescriptions((current) =>
+                  current.length === 1 ? [""] : current.filter((_, itemIndex) => itemIndex !== index)
+                )}
+              ><X /></button>
+            </div>
+          ))}
+        </div>
         <label className="wide">
           یادداشت تولید
           <textarea

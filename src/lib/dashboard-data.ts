@@ -635,7 +635,7 @@ export async function getSellerProductEditData(
       .limit(100),
     db.from("graphic_styles").select("id,name,caption").eq("status", "ACTIVE").order("sort_order"),
     db.from("product_graphic_styles").select("graphic_style_id").eq("seller_product_id", product.id),
-    db.from("seller_product_variants").select("raw_product_variant_id,price,raw_product_variants(raw_product_colors(name),raw_product_sizes(name))").eq("seller_product_id", product.id),
+    db.from("seller_product_variants").select("raw_product_variant_id,price,raw_product_variants(raw_product_colors(name),raw_product_sizes(name)),supplier:supplier_offer_variants!seller_product_variants_supplier_offer_variant_id_fkey(unit_cost)").eq("seller_product_id", product.id),
   ]);
   if (detailsResult.error || offersResult.error || stylesResult.error || selectedStylesResult.error || variantsResult.error)
     throw new Error(
@@ -656,7 +656,8 @@ export async function getSellerProductEditData(
       const rawVariant = Array.isArray(item.raw_product_variants) ? item.raw_product_variants[0] : item.raw_product_variants;
       const color = Array.isArray(rawVariant?.raw_product_colors) ? rawVariant.raw_product_colors[0] : rawVariant?.raw_product_colors;
       const size = Array.isArray(rawVariant?.raw_product_sizes) ? rawVariant.raw_product_sizes[0] : rawVariant?.raw_product_sizes;
-      return { rawProductVariantId: item.raw_product_variant_id, price: n(item.price), label: `${color?.name || "رنگ استاندارد"} · ${size?.name || "سایز استاندارد"}` };
+      const supplier = Array.isArray(item.supplier) ? item.supplier[0] : item.supplier;
+      return { rawProductVariantId: item.raw_product_variant_id, price: n(item.price), minimumPrice: Math.ceil(n(supplier?.unit_cost) * 1.1), label: `${color?.name || "رنگ استاندارد"} · ${size?.name || "سایز استاندارد"}` };
     }),
     suppliers: (offersResult.data || []).map((item) => ({
       ...item,
@@ -1248,6 +1249,7 @@ export async function getAdminDashboardData(
     rawVariantsResult,
     rawAssetsResult,
     rawMediaResult,
+    rawQualityDescriptionsResult,
     pendingResult,
     productsResult,
     storesResult,
@@ -1312,6 +1314,10 @@ export async function getAdminDashboardData(
         "raw_product_id,is_primary,sort_order,alt_text,file:storage_files!raw_product_media_file_id_fkey(bucket,path)",
       )
       .order("is_primary", { ascending: false })
+      .order("sort_order") : emptyMany,
+    needsRawProducts ? db
+      .from("raw_product_quality_descriptions")
+      .select("id,raw_product_id,description,sort_order")
       .order("sort_order") : emptyMany,
     needsModeration || needsOverview ? db
       .from("product_moderation_queue")
@@ -1391,6 +1397,7 @@ export async function getAdminDashboardData(
     rawVariantsResult,
     rawAssetsResult,
     rawMediaResult,
+    rawQualityDescriptionsResult,
     pendingResult,
     productsResult,
     storesResult,
@@ -1575,6 +1582,9 @@ export async function getAdminDashboardData(
       ),
       variants: (rawVariantsResult.data || []).filter(
         (row) => row.raw_product_id === item.id && row.status === "ACTIVE",
+      ),
+      qualityDescriptions: (rawQualityDescriptionsResult.data || []).filter(
+        (row) => row.raw_product_id === item.id,
       ),
       views: (rawViewsResult.data || [])
         .filter((row) => row.raw_product_id === item.id)

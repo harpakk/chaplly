@@ -8,6 +8,10 @@ type Table<Row, Required extends keyof Row> = {
 };
 
 type AdditionalTables = {
+  raw_product_quality_descriptions: Table<{
+    id: string; raw_product_id: string; description: string; sort_order: number;
+    created_at: string; updated_at: string;
+  }, "raw_product_id" | "description">;
   seller_tour_progress: Table<{
     user_id: string; eligible: boolean; sidebar_step: number; product_step: number; design_step: number;
     sidebar_completed_at: string | null; product_completed_at: string | null; design_completed_at: string | null;
@@ -103,6 +107,10 @@ type AdditionalTables = {
 };
 
 type AdditionalFunctions = {
+  service_set_raw_product_quality_descriptions: {
+    Args: { p_raw_product_id: string; p_descriptions: Json; p_actor_id: string };
+    Returns: undefined;
+  };
   service_record_profile_login: { Args: { p_user_id: string }; Returns: number };
   service_quote_coupon: { Args: { p_code: string; p_items: Json }; Returns: Json };
   service_apply_coupon_to_order: { Args: { p_order_id: string; p_code: string; p_buyer_user_id: string | null }; Returns: number };

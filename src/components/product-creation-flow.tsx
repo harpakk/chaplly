@@ -247,15 +247,26 @@ function FinalProduct({
       ]),
     );
   });
-  const [basePrice, setBasePrice] = useState(
-    Number(draft?.price || raw?.suggested_price || 1),
-  );
-  const setAllPrices = (price: number) => {
-    setBasePrice(price);
-    setPrices(
-      Object.fromEntries(data.design!.variantIds.map((id) => [id, price])),
+  const adjustAllPrices = (factor: number) =>
+    setPrices((current) =>
+      Object.fromEntries(
+        data.design!.variantIds.map((variantId) => {
+          const supplierCost = Number(
+            pricingOffer?.variants.find(
+              (item) => item.raw_product_variant_id === variantId,
+            )?.unit_cost || 0,
+          );
+          const minimumPrice = Math.ceil(supplierCost * 1.1);
+          return [
+            variantId,
+            Math.max(
+              minimumPrice,
+              Math.round((current[variantId] || minimumPrice || 1) * factor),
+            ),
+          ];
+        }),
+      ),
     );
-  };
   const mockupRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const fileInput = useRef<HTMLInputElement>(null);
   const errorAlert = useRef<HTMLDivElement>(null);
@@ -298,8 +309,6 @@ function FinalProduct({
     const title = String(form.get("title") || "").trim();
     const slug = String(form.get("slug") || "").trim();
     const description = String(form.get("description") || "").trim();
-    const price = Number(form.get("price") || 0);
-    const discountedPrice = String(form.get("discountedPrice") || "").trim();
     if (title.length < 3) {
       showClientError("عنوان محصول باید حداقل ۳ نویسه باشد.", "title");
       return;
@@ -313,22 +322,6 @@ function FinalProduct({
     }
     if (!description) {
       showClientError("توضیحات کامل محصول را وارد کنید.", "description");
-      return;
-    }
-    if (!Number.isFinite(price) || price <= 0) {
-      showClientError("قیمت فروش باید بیشتر از صفر باشد.", "price");
-      return;
-    }
-    if (
-      discountedPrice &&
-      (!Number.isFinite(Number(discountedPrice)) ||
-        Number(discountedPrice) < 0 ||
-        Number(discountedPrice) >= price)
-    ) {
-      showClientError(
-        "قیمت تخفیف‌خورده باید کمتر از قیمت فروش باشد.",
-        "discountedPrice",
-      );
       return;
     }
     if (!String(form.get("primarySupplierOfferId") || "")) {
@@ -728,10 +721,7 @@ function FinalProduct({
                   name="title"
                   required
                   minLength={3}
-                  defaultValue={
-                    draft?.title ||
-                    (raw?.name ? `${raw.name} با طرح اختصاصی` : "")
-                  }
+                  defaultValue={draft?.title || ""}
                   placeholder={`${raw?.name || "محصول"} — نام طرح`}
                   aria-invalid={Boolean(fieldError("title"))}
                 />
@@ -754,7 +744,7 @@ function FinalProduct({
                 زیرعنوان کوتاه
                 <input
                   name="subtitle"
-                  defaultValue={draft?.subtitle || raw?.name || ""}
+                  defaultValue={draft?.subtitle || ""}
                 />
               </label>
               <label className="wide">
@@ -763,11 +753,7 @@ function FinalProduct({
                   name="description"
                   required
                   rows={6}
-                  defaultValue={
-                    draft?.description || (raw?.description
-                      ? `${raw.description}\n\nاین نسخه با طراحی اختصاصی فروشگاه ارائه می‌شود.`
-                      : "")
-                  }
+                  defaultValue={draft?.description || ""}
                   aria-invalid={Boolean(fieldError("description"))}
                 />
                 {fieldError("description") && (
@@ -800,36 +786,13 @@ function FinalProduct({
                   )}
                 </div>
               </details>
-              <label>
-                قیمت فروش (ریال)
-                <input
-                  name="price"
-                  type="number"
-                  min="1"
-                  required
-                  value={basePrice}
-                  onChange={(event) => setAllPrices(Number(event.target.value))}
-                  aria-invalid={Boolean(fieldError("price"))}
-                />
-                {fieldError("price") && (
-                  <small className="field-error">{fieldError("price")}</small>
-                )}
-              </label>
-              <label>
-                قیمت تخفیف‌خورده
-                <input
-                  name="discountedPrice"
-                  type="number"
-                  min="0"
-                  defaultValue={draft?.discounted_price ?? ""}
-                  aria-invalid={Boolean(fieldError("discountedPrice"))}
-                />
-                {fieldError("discountedPrice") && (
-                  <small className="field-error">
-                    {fieldError("discountedPrice")}
-                  </small>
-                )}
-              </label>
+            </div>
+            <div className="variant-price-heading">
+              <div><h3>قیمت تنوع‌ها</h3><small>قیمت نهایی هر رنگ و سایز را جداگانه تعیین کن.</small></div>
+              <div className="variant-price-bulk-actions">
+                <button type="button" onClick={() => adjustAllPrices(0.9)}>−۱۰٪ همه</button>
+                <button type="button" onClick={() => adjustAllPrices(1.1)}>+۱۰٪ همه</button>
+              </div>
             </div>
             <div className="variant-price-grid">
               {data.design!.variantIds.map((variantId) => {

@@ -1,4 +1,5 @@
 import "server-only";
+import { randomInt } from "node:crypto";
 import { unstable_cache } from "next/cache";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { createSupabasePublic } from "@/lib/supabase/public";
@@ -446,6 +447,25 @@ export async function getProductSizeGuide(productId: string): Promise<ProductSiz
   const columns = guide.columns.map(String);
   const rows = guide.rows.filter(Array.isArray).map((row) => row.map(String));
   return columns.length && rows.length ? { columns, rows } : null;
+}
+
+export async function getProductQualityDescription(productId: string) {
+  const db = createSupabaseAdmin();
+  const { data: product, error: productError } = await db
+    .from("seller_products")
+    .select("raw_product_id")
+    .eq("id", productId)
+    .maybeSingle();
+  if (productError) throw new Error(`Quality description product query failed: ${productError.message}`);
+  if (!product) return null;
+  const { data, error } = await db
+    .from("raw_product_quality_descriptions")
+    .select("description")
+    .eq("raw_product_id", product.raw_product_id)
+    .order("sort_order");
+  if (error) throw new Error(`Quality description query failed: ${error.message}`);
+  const descriptions = (data || []).map((item) => item.description.trim()).filter(Boolean);
+  return descriptions.length ? descriptions[randomInt(descriptions.length)] : null;
 }
 
 async function getMarketplaceDataFromSeparateQueries() {
