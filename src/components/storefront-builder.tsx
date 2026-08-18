@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ImagePlus, Link2, Plus, Save, Trash2 } from "lucide-react";
 import { updateStorefrontAction } from "@/app/actions/dashboard";
 import { ActionForm } from "@/components/action-form";
@@ -18,6 +18,26 @@ export function StorefrontBuilder({
   );
   const [bannerMode, setBannerMode] = useState(config.bannerMode);
   const [faqCount, setFaqCount] = useState(Math.max(3, config.faqs.length));
+  const [bannerPreviews, setBannerPreviews] = useState<(string | null)[]>(() =>
+    [0, 1, 2].map((index) => config.banners[index]?.url || null),
+  );
+  useEffect(
+    () => () => {
+      bannerPreviews.forEach((url) => {
+        if (url?.startsWith("blob:")) URL.revokeObjectURL(url);
+      });
+    },
+    [bannerPreviews],
+  );
+  const previewBanner = (index: number, file?: File) => {
+    if (!file) return;
+    setBannerPreviews((current) => {
+      const next = [...current];
+      if (next[index]?.startsWith("blob:")) URL.revokeObjectURL(next[index]!);
+      next[index] = URL.createObjectURL(file);
+      return next;
+    });
+  };
   const faqs = Array.from({ length: faqCount }, (_, index) =>
     config.faqs[index] || { question: "", answer: "" },
   );
@@ -69,13 +89,14 @@ export function StorefrontBuilder({
         <div className="promo-banner-editors">
           {[0, 1, 2].map((index) => {
             const banner = config.banners[index];
+            const preview = bannerPreviews[index];
             return <section key={index} className={bannerMode === "STATIC" && index > 0 ? "secondary-banner" : ""}>
               <b>بنر {index + 1}</b>
               <input type="hidden" name={`currentBanner${index}`} value={banner?.url || ""} />
-              <label className="promo-image-input">
-                {banner?.url ? <Image src={banner.url} alt="" fill sizes="260px" unoptimized /> : <ImagePlus />}
-                <input type="file" name={`promoBanner${index}`} accept="image/png,image/jpeg,image/webp" />
-                <span>{banner?.url ? "جایگزینی تصویر" : "انتخاب تصویر"}</span>
+              <label className={`promo-image-input ${preview ? "has-preview" : ""}`}>
+                {preview ? <Image src={preview} alt={`پیش‌نمایش بنر ${index + 1}`} fill sizes="260px" unoptimized /> : <ImagePlus />}
+                <input type="file" name={`promoBanner${index}`} accept="image/png,image/jpeg,image/webp" onChange={(event) => previewBanner(index, event.target.files?.[0])} />
+                <span>{preview ? "تغییر تصویر" : "انتخاب تصویر"}</span>
               </label>
               <input name={`bannerTitle${index}`} defaultValue={banner?.title || ""} maxLength={90} placeholder="تیتر بنر (اختیاری)" />
               <textarea name={`bannerSubtitle${index}`} defaultValue={banner?.subtitle || ""} maxLength={180} placeholder="توضیح کوتاه (اختیاری)" />

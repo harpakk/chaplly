@@ -379,77 +379,77 @@ function FinalProduct({
     }
     const transfer = new DataTransfer();
     const prepared: { key: string; file: File }[] = [];
+    let failedRenders = 0;
     try {
       for (const id of [...visibleMockups, ...visibleDesigns]) {
         const node = mockupRefs.current[id];
         if (node) {
-          const warpedCanvases = Array.from(
-            node.querySelectorAll<HTMLCanvasElement>("canvas.artwork-warp-canvas"),
-          );
-          await Promise.all(
-            warpedCanvases.map(
-              (canvas) =>
-                canvas.dataset.warpReady === "true"
-                  ? Promise.resolve()
-                  : new Promise<void>((resolve) => {
-                      const timeout = window.setTimeout(resolve, 5000);
-                      canvas.addEventListener(
-                        "warpready",
-                        () => {
+          try {
+            const warpedCanvases = Array.from(
+              node.querySelectorAll<HTMLCanvasElement>("canvas.artwork-warp-canvas"),
+            );
+            await Promise.all(
+              warpedCanvases.map(
+                (canvas) =>
+                  canvas.dataset.warpReady === "true" || canvas.dataset.warpReady === "failed"
+                    ? Promise.resolve()
+                    : new Promise<void>((resolve) => {
+                        const timeout = window.setTimeout(resolve, 10000);
+                        canvas.addEventListener("warpready", () => {
                           window.clearTimeout(timeout);
                           resolve();
-                        },
-                        { once: true },
-                      );
-                    }),
-            ),
-          );
-          const images = Array.from(node.querySelectorAll("img"));
-          await Promise.all(
-            images.map(async (image) => {
-              if (!image.complete) {
-                await new Promise<void>((resolve, reject) => {
-                  image.addEventListener("load", () => resolve(), {
-                    once: true,
+                        }, { once: true });
+                      }),
+              ),
+            );
+            const images = Array.from(node.querySelectorAll("img"));
+            await Promise.all(
+              images.map(async (image) => {
+                if (!image.complete) {
+                  await new Promise<void>((resolve) => {
+                    image.addEventListener("load", () => resolve(), { once: true });
+                    image.addEventListener("error", () => resolve(), { once: true });
                   });
-                  image.addEventListener("error", () => reject(), {
-                    once: true,
-                  });
-                });
-              }
-              await image.decode().catch(() => undefined);
-            }),
-          );
-          await document.fonts.ready;
-          const background = images[0];
-          const sourceWidth = background?.naturalWidth || node.offsetWidth;
-          const targetWidth = Math.max(node.offsetWidth, sourceWidth);
-          const ratio = node.offsetHeight / Math.max(1, node.offsetWidth);
-          const blob = await toBlob(node, {
-            pixelRatio: 1,
-            canvasWidth: targetWidth,
-            canvasHeight: Math.round(targetWidth * ratio),
-            cacheBust: true,
-            backgroundColor: "transparent",
-          });
-          if (blob)
-            prepared.push({
-              key: id,
-              file: new File([blob], `mockup-${id}.png`, { type: "image/png" }),
+                }
+                await image.decode().catch(() => undefined);
+              }),
+            );
+            await document.fonts.ready;
+            const background = images[0];
+            const sourceWidth = background?.naturalWidth || node.offsetWidth;
+            const targetWidth = Math.max(node.offsetWidth, sourceWidth);
+            const ratio = node.offsetHeight / Math.max(1, node.offsetWidth);
+            const blob = await toBlob(node, {
+              pixelRatio: 1,
+              canvasWidth: targetWidth,
+              canvasHeight: Math.round(targetWidth * ratio),
+              cacheBust: true,
+              backgroundColor: "transparent",
+              skipFonts: true,
+              filter: (candidate) =>
+                !candidate.classList?.contains("artwork-warp-raster-source") &&
+                !candidate.classList?.contains("artwork-warp-loading"),
             });
+            if (blob) {
+              prepared.push({
+                key: id,
+                file: new File([blob], `mockup-${id}.png`, { type: "image/png" }),
+              });
+            } else {
+              failedRenders += 1;
+            }
+          } catch (error) {
+            failedRenders += 1;
+            console.error(`Mockup rasterization failed for ${id}`, error);
+          }
         }
       }
-      customImages.forEach((file, index) =>
-        prepared.push({ key: `custom:${index}`, file }),
-      );
     } catch (error) {
       console.error("Mockup rasterization failed", error);
-      showClientError(
-        "رندر تصویر موکاپ انجام نشد. تصاویر را دوباره بارگذاری یا صفحه را تازه‌سازی کنید.",
-        "productImages",
-      );
-      return;
     }
+    customImages.forEach((file, index) =>
+      prepared.push({ key: `custom:${index}`, file }),
+    );
     prepared
       .sort(
         (a, b) =>
@@ -457,7 +457,12 @@ function FinalProduct({
       )
       .forEach((item) => transfer.items.add(item.file));
     if (!transfer.files.length) {
-      showClientError("حداقل یک تصویر محصول لازم است.", "productImages");
+      showClientError(
+        failedRenders
+          ? "رندر موکاپ‌ها انجام نشد. یک تصویر دلخواه اضافه کنید یا موکاپ‌ها را دوباره انتخاب کنید."
+          : "حداقل یک تصویر محصول لازم است.",
+        "productImages",
+      );
       return;
     }
     if (fileInput.current) fileInput.current.files = transfer.files;
@@ -568,6 +573,7 @@ function FinalProduct({
                             fontSize: `${Math.max(12, Number(object.fontSize || 20) * 0.7)}px`,
                             fontFamily: String(object.fontFamily || "Vazirmatn"),
                             opacity: Number(object.opacity ?? 100) / 100,
+                            transform: `rotate(${Number(object.rotation || 0)}deg)`,
                           }}
                         >
                           {object.kind === "text" && String(object.text || "")}
@@ -625,6 +631,7 @@ function FinalProduct({
                           <WarpedArtwork
                             points={mockupView.perspective_points}
                             clip={mockupView.artwork_clip}
+                            fabricTextureUrl={mockupView.backgroundUrl}
                             style={{
                               left: `${Number(mockupView.area_x) * 100}%`,
                               top: `${Number(mockupView.area_y) * 100}%`,
@@ -649,8 +656,8 @@ function FinalProduct({
                                     object.fontFamily || "Vazirmatn",
                                   ),
                                   opacity:
-                                    (Number(object.opacity ?? 100) / 100) *
-                                    0.83,
+                                    Number(object.opacity ?? 100) / 100,
+                                  transform: `rotate(${Number(object.rotation || 0)}deg)`,
                                 }}
                               >
                                 {object.kind === "text" &&

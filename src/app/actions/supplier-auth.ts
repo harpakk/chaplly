@@ -145,8 +145,8 @@ async function persistSupplierMedia(
   const db = createSupabaseAdmin();
   const updates: { logo_file_id?: string; banner_file_id?: string } = {};
   for (const [field, kind, column, maxDimension] of [
-    ["supplierLogo", "SUPPLIER_LOGO", "logo_file_id", 1200],
-    ["supplierBanner", "SUPPLIER_BANNER", "banner_file_id", 2400],
+    ["supplierLogo", "STORE_LOGO", "logo_file_id", 1200],
+    ["supplierBanner", "STORE_BANNER", "banner_file_id", 2400],
   ] as const) {
     const file = formData.get(field);
     if (!(file instanceof File) || !file.size) continue;

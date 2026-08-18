@@ -12,6 +12,7 @@ import {
   CircleDollarSign,
   Download,
   Eye,
+  ImagePlus,
   Landmark,
   Package,
   Pencil,
@@ -22,6 +23,7 @@ import {
   Star,
   Trash2,
   TrendingUp,
+  Upload,
 } from "lucide-react";
 import { ActionForm } from "@/components/action-form";
 import { ExclusiveStoreControl } from "@/components/exclusive-store-control";
@@ -33,6 +35,7 @@ import {
   requestPayoutAction,
   saveBankAccountAction,
   updateStoreAction,
+  updateStoreMediaAction,
   updateTutorialProgressAction,
 } from "@/app/actions/dashboard";
 import { formatRial } from "@/lib/catalog";
@@ -434,6 +437,7 @@ function StorePanel({ data }: { data: SellerData }) {
           مشاهده فروشگاه
         </Link>
       </section>
+      <StoreMediaSettings store={data.store} />
       <ExclusiveStoreControl store={data.store} />
       <StorefrontBuilder store={data.store} />
       <section className="sd-ranks">
@@ -516,6 +520,46 @@ function StorePanel({ data }: { data: SellerData }) {
         </button>
       </ActionForm>
     </div>
+  );
+}
+
+function StoreMediaSettings({ store }: { store: SellerData["store"] }) {
+  const [logoPreview, setLogoPreview] = useState(store.logoUrl || "");
+  const [bannerPreview, setBannerPreview] = useState(store.bannerUrl || "");
+  useEffect(
+    () => () => {
+      if (logoPreview.startsWith("blob:")) URL.revokeObjectURL(logoPreview);
+      if (bannerPreview.startsWith("blob:")) URL.revokeObjectURL(bannerPreview);
+    },
+    [logoPreview, bannerPreview],
+  );
+  const selectPreview = (file: File | undefined, current: string, setter: (value: string) => void) => {
+    if (!file) return;
+    if (current.startsWith("blob:")) URL.revokeObjectURL(current);
+    setter(URL.createObjectURL(file));
+  };
+  return (
+    <ActionForm action={updateStoreMediaAction} className="sd-card store-media-manager" savingText="در حال بارگذاری هویت تصویری فروشگاه…">
+      <header className="store-media-manager-head">
+        <div><span>هویت تصویری</span><h2>لوگو و تصویر بالای فروشگاه</h2><p>پیش‌نمایش تغییرات را همان لحظه ببینید؛ ذخیره نهایی با دکمه پایین انجام می‌شود.</p></div>
+        <small>PNG، JPG یا WebP · حداکثر ۱۰ مگابایت</small>
+      </header>
+      <div className="store-media-manager-grid">
+        <label className="store-media-picker logo-picker">
+          <input type="file" name="storeLogo" accept="image/png,image/jpeg,image/webp" onChange={(event) => selectPreview(event.target.files?.[0], logoPreview, setLogoPreview)} />
+          <span className="store-media-preview">{logoPreview ? <Image src={logoPreview} alt="پیش‌نمایش لوگوی فروشگاه" fill sizes="180px" unoptimized /> : <ImagePlus />}</span>
+          <span className="store-media-picker-copy"><b>{logoPreview ? "تغییر لوگو" : "افزودن لوگو"}</b><small>تصویر مربعی، پیشنهاد: ۸۰۰ × ۸۰۰ پیکسل</small></span>
+          <i><Upload /></i>
+        </label>
+        <label className="store-media-picker banner-picker">
+          <input type="file" name="storeBanner" accept="image/png,image/jpeg,image/webp" onChange={(event) => selectPreview(event.target.files?.[0], bannerPreview, setBannerPreview)} />
+          <span className="store-media-preview">{bannerPreview ? <Image src={bannerPreview} alt="پیش‌نمایش بنر بالای فروشگاه" fill sizes="700px" unoptimized /> : <ImagePlus />}</span>
+          <span className="store-media-picker-copy"><b>{bannerPreview ? "تغییر تصویر کاور" : "افزودن تصویر کاور"}</b><small>تصویر عریض، پیشنهاد: ۲۴۰۰ × ۸۰۰ پیکسل</small></span>
+          <i><Upload /></i>
+        </label>
+      </div>
+      <footer className="store-media-manager-footer"><p>فقط فایل‌هایی که در این مرحله انتخاب کرده‌اید جایگزین می‌شوند.</p><button className="sd-primary"><Save /> ذخیره تصاویر فروشگاه</button></footer>
+    </ActionForm>
   );
 }
 

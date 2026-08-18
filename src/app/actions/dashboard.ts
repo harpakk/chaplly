@@ -2007,7 +2007,7 @@ export async function saveDesignMockupSelectionAction(
     .eq("owner_user_id", user.id)
     .maybeSingle();
   if (designError || !design) return fail("طرح پیدا نشد.");
-  const ids = [...new Set(mockupIds)].slice(0, 6);
+  const ids = [...new Set(mockupIds)].slice(0, 50);
   if (ids.length) {
     const [{ data: mockups, error: mockupError }, { data: views, error: viewError }] =
       await Promise.all([
@@ -2317,18 +2317,26 @@ export async function updateStoreAction(
   const context = await requireSeller();
   const storeId = context.membership.organization.stores[0]?.id;
   if (!storeId) return fail("فروشگاه پیدا نشد.");
-  const db = await createSupabaseServerClient();
-  const { error } = await db
+  const name = String(formData.get("name") || "").trim();
+  if (name.length < 2 || name.length > 160)
+    return fail("نام فروشگاه باید بین ۲ تا ۱۶۰ کاراکتر باشد.");
+  const db = createSupabaseAdmin();
+  const { data, error } = await db
     .from("stores")
     .update({
-      name: String(formData.get("name") || "").trim(),
+      name,
       description: String(formData.get("description") || "").trim(),
       support_phone: String(formData.get("supportPhone") || "").trim() || null,
       social_url: String(formData.get("socialUrl") || "").trim() || null,
       brand_color: String(formData.get("brandColor") || "#ef5b4c"),
+      updated_at: new Date().toISOString(),
     })
-    .eq("id", storeId);
+    .eq("id", storeId)
+    .eq("organization_id", context.membership.organization.id)
+    .select("id")
+    .maybeSingle();
   if (error) return fail(error.message);
+  if (!data) return fail("فروشگاه برای ذخیره‌سازی پیدا نشد.");
   revalidatePath("/seller/dashboard");
   revalidatePath("/");
   revalidateTag("marketplace-home");

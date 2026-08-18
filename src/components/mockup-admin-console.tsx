@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { ImageIcon, Pencil, Plus, Trash2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ImageIcon, Pencil, Plus, Trash2, X } from "lucide-react";
 import type { getAdminMockupData } from "@/lib/dashboard-data";
 import { ActionForm } from "@/components/action-form";
 import { MockupPlacementField } from "@/components/mockup-placement-field";
@@ -48,6 +48,9 @@ export function MockupAdminConsole({ data }: { data: Data }) {
       (listColorFilter === "ALL" || mockup.color_id === listColorFilter) &&
       (listGenderFilter === "ALL" || mockup.gender === listGenderFilter),
   );
+  const editingIndex = record
+    ? filteredMockups.findIndex((mockup) => mockup.id === record.id)
+    : -1;
 
   const openNew = () => {
     setRawId(firstRaw?.id || "");
@@ -101,6 +104,25 @@ export function MockupAdminConsole({ data }: { data: Data }) {
       {editing && raw && (
         <div className="raw-edit-backdrop">
           <div className="raw-edit-dialog mockup-dialog">
+            {record && (
+              <nav className="mockup-edit-navigation" aria-label="پیمایش موکاپ‌ها">
+                <button
+                  type="button"
+                  disabled={editingIndex <= 0}
+                  onClick={() => openEdit(filteredMockups[editingIndex - 1].id)}
+                >
+                  <ChevronRight /> قبلی
+                </button>
+                <span>{editingIndex + 1} از {filteredMockups.length}</span>
+                <button
+                  type="button"
+                  disabled={editingIndex < 0 || editingIndex >= filteredMockups.length - 1}
+                  onClick={() => openEdit(filteredMockups[editingIndex + 1].id)}
+                >
+                  بعدی <ChevronLeft />
+                </button>
+              </nav>
+            )}
             <button
               className="raw-edit-close"
               onClick={() => setEditing(null)}
@@ -112,9 +134,6 @@ export function MockupAdminConsole({ data }: { data: Data }) {
               key={record?.id || `new:${rawId}:${side}`}
               action={saveRawProductMockupAction}
               className="admin-card mockup-form"
-              onSuccess={() => {
-                if (record) setEditing(null);
-              }}
               onSubmit={() => {
                 if (!record)
                   window.setTimeout(
@@ -122,8 +141,8 @@ export function MockupAdminConsole({ data }: { data: Data }) {
                     0,
                   );
               }}
-              showSavingOverlay={Boolean(record)}
-              backgroundConcurrent={!record}
+              showSavingOverlay={false}
+              backgroundConcurrent
               savingText="در حال ذخیره موکاپ تک‌نما…"
             >
               {record && <input type="hidden" name="id" value={record.id} />}

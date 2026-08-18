@@ -24,6 +24,7 @@ import {
   Crop,
   FolderOpen,
   ImageIcon,
+  Keyboard,
   Layers3,
   Lock,
   MousePointer2,
@@ -31,7 +32,9 @@ import {
   Package,
   Palette,
   Redo2,
+  RotateCw,
   Save,
+  Search,
   Shapes,
   Sparkles,
   Trash2,
@@ -75,6 +78,8 @@ type ObjectItem = {
   cropTop?: number;
   cropWidth?: number;
   cropHeight?: number;
+  imageAspect?: number;
+  rotation?: number;
   locked: boolean;
 };
 
@@ -164,13 +169,31 @@ export function DesignEditor({ data }: { data: EditorData }) {
     [redoByView, setRedoByView] = useState<Record<string, ObjectItem[][]>>({});
   const [cropDraft, setCropDraft] = useState({ x: 0, y: 0, width: 100, height: 100 });
   const [cropImageAspect, setCropImageAspect] = useState(1);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [freeVisibleCount, setFreeVisibleCount] = useState(10);
+  const [freeSearch, setFreeSearch] = useState("");
+  const [freeStyle, setFreeStyle] = useState("ALL");
+  const [freeAccess, setFreeAccess] = useState("ALL");
+  const [freeSort, setFreeSort] = useState("DEFAULT");
   const [selectedVariants, setSelectedVariants] = useState<string[]>(
     existing?.variantIds || [],
   );
   const [selectedColorIds, setSelectedColorIds] = useState<string[]>(() => [...new Set(raw.variants.filter(variant=>(existing?.variantIds||[]).includes(variant.id)).map(variant=>variant.color_id))]);
   const [selectedSizeIds, setSelectedSizeIds] = useState<string[]>(() => [...new Set(raw.variants.filter(variant=>(existing?.variantIds||[]).includes(variant.id)).map(variant=>variant.size_id))]);
   const [variantStep, setVariantStep] = useState<"colors"|"sizes">("colors");
-  const [selectedSupplierOfferId, setSelectedSupplierOfferId] = useState("");
+  const [selectedSupplierOfferId, setSelectedSupplierOfferId] = useState(
+    () =>
+      data.suppliers.find(
+        (offer) =>
+          offer.id === data.productDraft?.primary_supplier_offer_id &&
+          offer.raw_product_id === raw.id &&
+          offer.variants.length > 0,
+      )?.id ||
+      data.suppliers.find(
+        (offer) => offer.raw_product_id === raw.id && offer.variants.length > 0,
+      )?.id ||
+      "",
+  );
   const selectedSupplier = data.suppliers.find(
     (offer) => offer.id === selectedSupplierOfferId,
   );
@@ -180,6 +203,20 @@ export function DesignEditor({ data }: { data: EditorData }) {
     ) || [],
   );
   const availableVariants = raw.variants.filter((variant) => supplierVariantIds.has(variant.id));
+  const availableColorIds = raw.colors
+    .filter((color) =>
+      availableVariants.some((variant) => variant.color_id === color.id),
+    )
+    .map((color) => color.id);
+  const availableSizeIds = raw.sizes
+    .filter((size) =>
+      availableVariants.some(
+        (variant) =>
+          selectedColorIds.includes(variant.color_id) &&
+          variant.size_id === size.id,
+      ),
+    )
+    .map((size) => size.id);
   const syncVariants = (colors:string[],sizes:string[]) => {
     setSelectedColorIds(colors); setSelectedSizeIds(sizes);
     setSelectedVariants(availableVariants.filter(variant=>colors.includes(variant.color_id)&&sizes.includes(variant.size_id)).map(variant=>variant.id));
@@ -196,6 +233,7 @@ export function DesignEditor({ data }: { data: EditorData }) {
     [chatGuideOpen, setChatGuideOpen] = useState(false),
     [blockingSave, setBlockingSave] = useState("");
   const uploadRef = useRef<HTMLInputElement>(null),
+    copiedObject = useRef<ObjectItem | null>(null),
     saving = useRef(false);
   useEffect(() => {
     try {
@@ -284,6 +322,53 @@ export function DesignEditor({ data }: { data: EditorData }) {
     ) || data.assets.find((asset) => asset.raw_product_view_id === viewId);
   const background = activeView?.backgroundUrl || currentAsset?.backgroundUrl,
     overlay = activeView?.overlayUrl || currentAsset?.overlayUrl;
+  const printAreaAspect =
+    backgroundAspectRatio *
+    (Number(activeView?.print_area_width || 0.4) /
+      Number(activeView?.print_area_height || 0.55));
+  useEffect(() => {
+    setObjects((current) => {
+      let changed = false;
+      const next = (current[activeKey] || []).map((entry) => {
+        if (entry.kind !== "image" || !entry.imageAspect) return entry;
+        const visibleAspect =
+          entry.imageAspect *
+          ((entry.cropWidth ?? 100) / Math.max(1, entry.cropHeight ?? 100));
+        const height = Math.max(
+          3,
+          Math.min(2000, (entry.w * printAreaAspect) / visibleAspect),
+        );
+        if (Math.abs(entry.h - height) < 0.01) return entry;
+        changed = true;
+        return { ...entry, h: height };
+      });
+      return changed ? { ...current, [activeKey]: next } : current;
+    });
+  }, [activeKey, printAreaAspect]);
+  const freeStyles = useMemo(
+    () => [...new Set(data.freeDesigns.map((file) => file.style_name).filter(Boolean))],
+    [data.freeDesigns],
+  );
+  const filteredFreeDesigns = useMemo(() => {
+    const search = freeSearch.trim().toLocaleLowerCase("fa");
+    const result = data.freeDesigns.filter(
+      (file) =>
+        (!search ||
+          file.title.toLocaleLowerCase("fa").includes(search) ||
+          file.style_name.toLocaleLowerCase("fa").includes(search)) &&
+        (freeStyle === "ALL" || file.style_name === freeStyle) &&
+        (freeAccess === "ALL" ||
+          (freeAccess === "FREE" ? !file.is_premium : file.is_premium)),
+    );
+    if (freeSort === "TITLE")
+      return [...result].sort((a, b) => a.title.localeCompare(b.title, "fa"));
+    if (freeSort === "STYLE")
+      return [...result].sort((a, b) =>
+        a.style_name.localeCompare(b.style_name, "fa"),
+      );
+    return result;
+  }, [data.freeDesigns, freeAccess, freeSearch, freeSort, freeStyle]);
+  useEffect(() => setFreeVisibleCount(10), [freeAccess, freeSearch, freeSort, freeStyle]);
   const canvasViews = useMemo(
     () =>
       raw.views.map((view) => ({
@@ -413,6 +498,47 @@ export function DesignEditor({ data }: { data: EditorData }) {
         entry.id === item.id ? { ...entry, ...patch } : entry,
       ),
     );
+  const duplicate = (target = item) => {
+    if (!target) return;
+    const { id: _id, ...copy } = target;
+    void _id;
+    add(target.kind, { ...copy, x: target.x + 3, y: target.y + 3 });
+  };
+  const copySelection = () => {
+    if (item) copiedObject.current = { ...item };
+  };
+  const pasteSelection = () => {
+    if (!copiedObject.current) return;
+    const copy = copiedObject.current;
+    add(copy.kind, { ...copy, x: copy.x + 3, y: copy.y + 3 });
+  };
+  const syncImageAspect = (
+    targetId: string,
+    naturalWidth: number,
+    naturalHeight: number,
+  ) => {
+    if (!naturalWidth || !naturalHeight) return;
+    const imageAspect = naturalWidth / naturalHeight;
+    setObjects((current) => ({
+      ...current,
+      [activeKey]: (current[activeKey] || []).map((entry) => {
+        if (entry.id !== targetId || entry.kind !== "image") return entry;
+        const visibleAspect =
+          imageAspect *
+          ((entry.cropWidth ?? 100) / Math.max(1, entry.cropHeight ?? 100));
+        const height = Math.max(
+          3,
+          Math.min(2000, (entry.w * printAreaAspect) / visibleAspect),
+        );
+        if (
+          Math.abs((entry.imageAspect || 0) - imageAspect) < 0.0001 &&
+          Math.abs(entry.h - height) < 0.01
+        )
+          return entry;
+        return { ...entry, imageAspect, h: height };
+      }),
+    }));
+  };
   const remove = () => {
     if (item) {
       commit(active.filter((entry) => entry.id !== item.id));
@@ -435,6 +561,8 @@ export function DesignEditor({ data }: { data: EditorData }) {
     const height = Math.max(3, Math.min(2000, width * ratio));
     update({ w: width, h: height });
   };
+  const rotateBy = (degrees: number) =>
+    item && update({ rotation: ((item.rotation || 0) + degrees) % 360 });
   const chooseCanvasColor = (nextColorId: string) => {
     if (nextColorId === colorId) return;
     if (
@@ -481,10 +609,6 @@ export function DesignEditor({ data }: { data: EditorData }) {
   };
   const applyCrop = () => {
     if (!item || item.kind !== "image") return;
-    const view = raw.views.find((entry) => entry.id === viewId);
-    const printAspect =
-      backgroundAspectRatio *
-      (Number(view?.print_area_width || 0.4) / Number(view?.print_area_height || 0.55));
     const croppedAspect = Math.max(
       0.05,
       cropImageAspect * (cropDraft.width / cropDraft.height),
@@ -497,7 +621,8 @@ export function DesignEditor({ data }: { data: EditorData }) {
       cropScale: 100,
       cropX: 50,
       cropY: 50,
-      h: Math.max(3, Math.min(2000, (item.w * printAspect) / croppedAspect)),
+      imageAspect: cropImageAspect,
+      h: Math.max(3, Math.min(2000, (item.w * printAreaAspect) / croppedAspect)),
     });
     setCropOpen(false);
   };
@@ -549,7 +674,11 @@ export function DesignEditor({ data }: { data: EditorData }) {
     event: ReactPointerEvent<HTMLDivElement>,
     target: ObjectItem,
   ) => {
-    if (target.locked || tool !== "select") return;
+    if (tool !== "select") return;
+    event.preventDefault();
+    event.stopPropagation();
+    setSelected(target.id);
+    if (target.locked) return;
     setUndoByView((current) => ({
       ...current,
       [activeKey]: [...(current[activeKey] || []), active].slice(-50),
@@ -584,6 +713,7 @@ export function DesignEditor({ data }: { data: EditorData }) {
   const resize = (
     event: ReactPointerEvent<HTMLButtonElement>,
     target: ObjectItem,
+    corner: "northWest" | "northEast" | "southEast" | "southWest",
   ) => {
     event.preventDefault();
     event.stopPropagation();
@@ -597,14 +727,16 @@ export function DesignEditor({ data }: { data: EditorData }) {
     setRedoByView((current) => ({ ...current, [activeKey]: [] }));
     const startX = event.clientX,
       startY = event.clientY,
+      startObjectX = target.x,
+      startObjectY = target.y,
       startW = target.w,
       startH = target.h;
     const move = (next: PointerEvent) => {
-      const requestedScale =
-        1 +
-        ((next.clientX - startX) / box.width +
-          (next.clientY - startY) / box.height) /
-          2;
+      const dx = ((next.clientX - startX) / box.width) * 100;
+      const dy = ((next.clientY - startY) / box.height) * 100;
+      const horizontal = corner.endsWith("East") ? dx / startW : -dx / startW;
+      const vertical = corner.startsWith("south") ? dy / startH : -dy / startH;
+      const requestedScale = 1 + (horizontal + vertical) / 2;
       const minimumScale = Math.max(3 / startW, 3 / startH);
       const maximumScale = Math.min(2000 / startW, 2000 / startH);
       const scale = Math.max(
@@ -615,10 +747,16 @@ export function DesignEditor({ data }: { data: EditorData }) {
         ...current,
         [activeKey]: (current[activeKey] || []).map((entry) =>
           entry.id === target.id
-            ? {
+              ? {
                 ...entry,
                 w: startW * scale,
                 h: startH * scale,
+                x: corner.endsWith("West")
+                  ? startObjectX + startW - startW * scale
+                  : startObjectX,
+                y: corner.startsWith("north")
+                  ? startObjectY + startH - startH * scale
+                  : startObjectY,
               }
             : entry,
         ),
@@ -651,7 +789,16 @@ export function DesignEditor({ data }: { data: EditorData }) {
   };
   const manipulateCrop = (
     event: ReactPointerEvent<HTMLElement>,
-    mode: "move" | "northWest" | "southEast",
+    mode:
+      | "move"
+      | "north"
+      | "northEast"
+      | "east"
+      | "southEast"
+      | "south"
+      | "southWest"
+      | "west"
+      | "northWest",
   ) => {
     event.preventDefault();
     event.stopPropagation();
@@ -670,22 +817,60 @@ export function DesignEditor({ data }: { data: EditorData }) {
           x: Math.max(0, Math.min(100 - origin.width, origin.x + dx)),
           y: Math.max(0, Math.min(100 - origin.height, origin.y + dy)),
         });
-      } else if (mode === "southEast") {
-        setCropDraft({
-          ...origin,
-          width: Math.max(8, Math.min(100 - origin.x, origin.width + dx)),
-          height: Math.max(8, Math.min(100 - origin.y, origin.height + dy)),
-        });
       } else {
-        const x = Math.max(0, Math.min(origin.x + origin.width - 8, origin.x + dx));
-        const y = Math.max(0, Math.min(origin.y + origin.height - 8, origin.y + dy));
-        setCropDraft({
-          x,
-          y,
-          width: origin.width + origin.x - x,
-          height: origin.height + origin.y - y,
-        });
+        let left = origin.x;
+        let top = origin.y;
+        let right = origin.x + origin.width;
+        let bottom = origin.y + origin.height;
+        if (mode.includes("West") || mode === "west")
+          left = Math.max(0, Math.min(right - 8, origin.x + dx));
+        if (mode.includes("East") || mode === "east")
+          right = Math.min(100, Math.max(left + 8, right + dx));
+        if (mode.startsWith("north"))
+          top = Math.max(0, Math.min(bottom - 8, origin.y + dy));
+        if (mode.startsWith("south"))
+          bottom = Math.min(100, Math.max(top + 8, bottom + dy));
+        setCropDraft({ x: left, y: top, width: right - left, height: bottom - top });
       }
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+  const rotate = (
+    event: ReactPointerEvent<HTMLButtonElement>,
+    target: ObjectItem,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const object = event.currentTarget.parentElement;
+    if (!object || target.locked) return;
+    const bounds = object.getBoundingClientRect();
+    const centerX = bounds.left + bounds.width / 2;
+    const centerY = bounds.top + bounds.height / 2;
+    const startPointerAngle = Math.atan2(
+      event.clientY - centerY,
+      event.clientX - centerX,
+    );
+    const startRotation = target.rotation || 0;
+    setUndoByView((current) => ({
+      ...current,
+      [activeKey]: [...(current[activeKey] || []), active].slice(-50),
+    }));
+    setRedoByView((current) => ({ ...current, [activeKey]: [] }));
+    const move = (next: PointerEvent) => {
+      const angle = Math.atan2(next.clientY - centerY, next.clientX - centerX);
+      let degrees = startRotation + ((angle - startPointerAngle) * 180) / Math.PI;
+      if (next.shiftKey) degrees = Math.round(degrees / 15) * 15;
+      setObjects((current) => ({
+        ...current,
+        [activeKey]: (current[activeKey] || []).map((entry) =>
+          entry.id === target.id ? { ...entry, rotation: degrees } : entry,
+        ),
+      }));
     };
     const up = () => {
       window.removeEventListener("pointermove", move);
@@ -700,15 +885,57 @@ export function DesignEditor({ data }: { data: EditorData }) {
       const editing =
         target?.tagName === "INPUT" ||
         target?.tagName === "TEXTAREA" ||
-        target?.tagName === "SELECT";
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
+        target?.tagName === "SELECT" ||
+        target?.isContentEditable;
+      const command = event.ctrlKey || event.metaKey;
+      const key = event.key.toLowerCase();
+      if (editing) return;
+      if (command && key === "z") {
         event.preventDefault();
         if (event.shiftKey) redo();
         else undo();
-      } else if (
-        !editing &&
-        (event.key === "Delete" || event.key === "Backspace")
-      ) {
+      } else if (command && key === "y") {
+        event.preventDefault();
+        redo();
+      } else if (command && (key === "d" || key === "j")) {
+        event.preventDefault();
+        duplicate();
+      } else if (command && key === "c") {
+        event.preventDefault();
+        copySelection();
+      } else if (command && key === "v") {
+        event.preventDefault();
+        pasteSelection();
+      } else if (command && key === "t" && item?.kind === "image") {
+        event.preventDefault();
+        openCropEditor(item);
+      } else if (command && key === "r" && item) {
+        event.preventDefault();
+        rotateBy(event.shiftKey ? -15 : 15);
+      } else if (command && event.key === "]") {
+        event.preventDefault();
+        moveLayer("up");
+      } else if (command && event.key === "[") {
+        event.preventDefault();
+        moveLayer("down");
+      } else if (event.key === "Escape") {
+        setCropOpen(false);
+        setShortcutsOpen(false);
+        setSelected(null);
+      } else if (item && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
+        event.preventDefault();
+        const amount = event.shiftKey ? 5 : 0.5;
+        update({
+          x: item.x + (event.key === "ArrowLeft" ? -amount : event.key === "ArrowRight" ? amount : 0),
+          y: item.y + (event.key === "ArrowUp" ? -amount : event.key === "ArrowDown" ? amount : 0),
+        });
+      } else if (event.key === "+" || event.key === "=") {
+        event.preventDefault();
+        setZoom((value) => Math.min(250, value + 10));
+      } else if (event.key === "-") {
+        event.preventDefault();
+        setZoom((value) => Math.max(30, value - 10));
+      } else if (event.key === "Delete" || event.key === "Backspace") {
         event.preventDefault();
         remove();
       }
@@ -811,6 +1038,7 @@ export function DesignEditor({ data }: { data: EditorData }) {
               <WarpedArtwork
                 points={mockupView.perspective_points}
                 clip={mockupView.artwork_clip}
+                fabricTextureUrl={mockupView.backgroundUrl}
                 style={{
                   left: `${Number(mockupView.area_x) * 100}%`,
                   top: `${Number(mockupView.area_y) * 100}%`,
@@ -833,7 +1061,8 @@ export function DesignEditor({ data }: { data: EditorData }) {
                         entry.kind === "shape" ? entry.color : "transparent",
                       fontSize: `${Math.max(7, entry.fontSize * 0.32)}px`,
                       fontFamily: entry.fontFamily || "Vazirmatn",
-                      opacity: ((entry.opacity ?? 100) / 100) * 0.83,
+                      opacity: (entry.opacity ?? 100) / 100,
+                      transform: `rotate(${entry.rotation || 0}deg)`,
                     }}
                   >
                     {entry.kind === "text" && entry.text}
@@ -900,6 +1129,12 @@ export function DesignEditor({ data }: { data: EditorData }) {
             disabled={!redoByView[activeKey]?.length}
           >
             <Redo2 />
+          </button>
+          <button
+            title="میانبرهای صفحه‌کلید"
+            onClick={() => setShortcutsOpen(true)}
+          >
+            <Keyboard />
           </button>
           {item?.kind === "text" && (
             <>
@@ -984,25 +1219,23 @@ export function DesignEditor({ data }: { data: EditorData }) {
               <button
                 className={cropOpen ? "active" : ""}
                 onClick={() => openCropEditor(item)}
-                title="برش تصویر"
+                title="برش تصویر (Ctrl/Cmd + T)"
               >
                 <Crop />
+              </button>
+              <button
+                onClick={() => rotateBy(15)}
+                title="چرخش ۱۵ درجه (Ctrl/Cmd + R)"
+              >
+                <RotateCw />
               </button>
             </>
           )}
           {item && (
             <>
               <button
-                title="تکثیر"
-                onClick={() => {
-                  const { id: _id, ...copy } = item;
-                  void _id;
-                  add(item.kind, {
-                    ...copy,
-                    x: item.x + 3,
-                    y: item.y + 3,
-                  });
-                }}
+                title="تکثیر (Ctrl/Cmd + D یا J)"
+                onClick={() => duplicate()}
               >
                 <Copy />
               </button>
@@ -1172,9 +1405,23 @@ export function DesignEditor({ data }: { data: EditorData }) {
           <div className="design-panel design-files-panel free-design-panel">
             <h3>طرح‌های رایگان چاپلی</h3>
             <p>برای افزودن مستقیم به بوم روی طرح کلیک کنید.</p>
-            {data.freeDesigns.length ? (
+            <div className="free-design-filters">
+              <label className="free-design-search"><Search/><input value={freeSearch} onChange={(event)=>setFreeSearch(event.target.value)} placeholder="جستجو در نام یا سبک…"/></label>
+              <select value={freeStyle} onChange={(event)=>setFreeStyle(event.target.value)} aria-label="فیلتر سبک">
+                <option value="ALL">همه سبک‌ها</option>
+                {freeStyles.map((style)=><option value={style} key={style}>{style}</option>)}
+              </select>
+              <select value={freeAccess} onChange={(event)=>setFreeAccess(event.target.value)} aria-label="فیلتر دسترسی">
+                <option value="ALL">همه دسترسی‌ها</option><option value="FREE">رایگان</option><option value="PREMIUM">ویژه</option>
+              </select>
+              <select value={freeSort} onChange={(event)=>setFreeSort(event.target.value)} aria-label="مرتب‌سازی">
+                <option value="DEFAULT">ترتیب پیشنهادی</option><option value="TITLE">نام طرح</option><option value="STYLE">نام سبک</option>
+              </select>
+            </div>
+            {filteredFreeDesigns.length ? (
+              <>
               <div className="design-file-grid">
-                {data.freeDesigns.map((file) => (
+                {filteredFreeDesigns.slice(0,freeVisibleCount).map((file) => (
                   <button
                     key={file.id}
                     title={`${file.title} · ${file.style_name}`}
@@ -1194,10 +1441,13 @@ export function DesignEditor({ data }: { data: EditorData }) {
                   </button>
                 ))}
               </div>
+              {freeVisibleCount<filteredFreeDesigns.length&&<button className="free-design-load-more" onClick={()=>setFreeVisibleCount(value=>value+10)}>نمایش ۱۰ طرح بیشتر</button>}
+              <small className="free-design-result-count">نمایش {Math.min(freeVisibleCount,filteredFreeDesigns.length).toLocaleString("fa-IR")} از {filteredFreeDesigns.length.toLocaleString("fa-IR")} طرح</small>
+              </>
             ) : (
               <div className="empty-files">
                 <Sparkles />
-                <p>هنوز طرح رایگانی منتشر نشده است.</p>
+                <p>{data.freeDesigns.length?"طرحی مطابق فیلترها پیدا نشد.":"هنوز طرح رایگانی منتشر نشده است."}</p>
               </div>
             )}
           </div>
@@ -1267,6 +1517,7 @@ export function DesignEditor({ data }: { data: EditorData }) {
                     fontSize: entry.fontSize,
                     fontFamily: entry.fontFamily || "Vazirmatn",
                     opacity: (entry.opacity ?? 100) / 100,
+                    transform: `rotate(${entry.rotation || 0}deg)`,
                   }}
                 >
                   {entry.kind === "text" && entry.text}
@@ -1277,6 +1528,14 @@ export function DesignEditor({ data }: { data: EditorData }) {
                       <img
                         src={entry.src}
                         alt="design"
+                        draggable={false}
+                        onLoad={(event) =>
+                          syncImageAspect(
+                            entry.id,
+                            event.currentTarget.naturalWidth,
+                            event.currentTarget.naturalHeight,
+                          )
+                        }
                         data-manual-crop={hasManualArtworkCrop(entry) ? "true" : undefined}
                         style={{
                           filter: `saturate(${entry.saturation ?? 100}%)`,
@@ -1288,12 +1547,23 @@ export function DesignEditor({ data }: { data: EditorData }) {
                   {selected === entry.id &&
                     (entry.kind === "text" || entry.kind === "image") &&
                     !entry.locked && (
-                      <button
-                        className="text-resize-handle"
-                        onPointerDown={(event) => resize(event, entry)}
-                        aria-label="تغییر اندازه کادر متن"
-                        title="تغییر اندازه کادر متن"
-                      />
+                      <>
+                        {(["northWest", "northEast", "southEast", "southWest"] as const).map((corner) => (
+                          <button
+                            className={`object-resize-handle ${corner}`}
+                            onPointerDown={(event) => resize(event, entry, corner)}
+                            aria-label="تغییر اندازه"
+                            title="تغییر اندازه"
+                            key={corner}
+                          />
+                        ))}
+                        <button
+                          className="object-rotate-handle"
+                          onPointerDown={(event) => rotate(event, entry)}
+                          aria-label="چرخاندن"
+                          title="برای چرخاندن بکش؛ Shift یعنی گام‌های ۱۵ درجه"
+                        ><RotateCw /></button>
+                      </>
                     )}
                 </div>
               ))}
@@ -1355,6 +1625,16 @@ export function DesignEditor({ data }: { data: EditorData }) {
           </div>
         </div>
       </section>
+      {shortcutsOpen && (
+        <div className="crop-dialog-backdrop" onPointerDown={()=>setShortcutsOpen(false)}>
+          <section className="design-shortcuts-dialog" onPointerDown={(event)=>event.stopPropagation()}>
+            <header><div><Keyboard/><h2>میانبرهای طراحی</h2></div><button type="button" onClick={()=>setShortcutsOpen(false)}>×</button></header>
+            <div>
+              {[["Ctrl/Cmd + D یا J","تکثیر"],["Ctrl/Cmd + C / V","کپی / چسباندن"],["Ctrl/Cmd + T","برش تصویر"],["Ctrl/Cmd + R","چرخش ۱۵ درجه"],["Ctrl/Cmd + Z","بازگشت"],["Ctrl/Cmd + Shift + Z یا Y","انجام دوباره"],["کلیدهای جهت","حرکت دقیق"],["Shift + جهت","حرکت ۵ واحدی"],["Ctrl/Cmd + [ یا ]","عقب / جلو بردن لایه"],["+ و −","بزرگ‌نمایی / کوچک‌نمایی"],["Delete","حذف"],["Escape","لغو انتخاب"]].map(([keys,label])=><p key={keys}><kbd>{keys}</kbd><span>{label}</span></p>)}
+            </div>
+          </section>
+        </div>
+      )}
       {cropOpen && item?.kind === "image" && item.src && (
         <div className="crop-dialog-backdrop" onPointerDown={()=>setCropOpen(false)}>
           <section className="crop-dialog manual-crop-dialog" onPointerDown={(event)=>event.stopPropagation()}>
@@ -1370,9 +1650,14 @@ export function DesignEditor({ data }: { data: EditorData }) {
                 style={{ left:`${cropDraft.x}%`,top:`${cropDraft.y}%`,width:`${cropDraft.width}%`,height:`${cropDraft.height}%` }}
                 onPointerDown={(event)=>manipulateCrop(event,"move")}
               >
-                <i/><i/><i/><i/>
-                <button type="button" className="north-west" onPointerDown={(event)=>manipulateCrop(event,"northWest")} aria-label="تغییر اندازه از گوشه بالا" />
-                <button type="button" className="south-east" onPointerDown={(event)=>manipulateCrop(event,"southEast")} aria-label="تغییر اندازه از گوشه پایین" />
+                <button type="button" className="north-west" onPointerDown={(event)=>manipulateCrop(event,"northWest")} aria-label="گوشه بالا چپ" />
+                <button type="button" className="north" onPointerDown={(event)=>manipulateCrop(event,"north")} aria-label="لبه بالا" />
+                <button type="button" className="north-east" onPointerDown={(event)=>manipulateCrop(event,"northEast")} aria-label="گوشه بالا راست" />
+                <button type="button" className="east" onPointerDown={(event)=>manipulateCrop(event,"east")} aria-label="لبه راست" />
+                <button type="button" className="south-east" onPointerDown={(event)=>manipulateCrop(event,"southEast")} aria-label="گوشه پایین راست" />
+                <button type="button" className="south" onPointerDown={(event)=>manipulateCrop(event,"south")} aria-label="لبه پایین" />
+                <button type="button" className="south-west" onPointerDown={(event)=>manipulateCrop(event,"southWest")} aria-label="گوشه پایین چپ" />
+                <button type="button" className="west" onPointerDown={(event)=>manipulateCrop(event,"west")} aria-label="لبه چپ" />
                 <span>{Math.round(cropDraft.width).toLocaleString("fa-IR")} × {Math.round(cropDraft.height).toLocaleString("fa-IR")}</span>
               </div>
             </div>
@@ -1456,11 +1741,11 @@ export function DesignEditor({ data }: { data: EditorData }) {
                   می‌کند.
                 </p>
                 {variantStep==="colors" ? <>
-                  <h3>۱. رنگ‌های موردنظر را انتخاب کنید</h3>
+                  <div className="variant-step-heading"><h3>۱. رنگ‌های موردنظر را انتخاب کنید</h3><button type="button" onClick={()=>syncVariants(availableColorIds,selectedSizeIds)}>انتخاب همه رنگ‌ها</button></div>
                   <div className="variant-choice-list fixed-variant-list">{raw.colors.filter(color=>availableVariants.some(variant=>variant.color_id===color.id)).map(color=><label key={color.id}><input type="checkbox" checked={selectedColorIds.includes(color.id)} onChange={()=>{const next=selectedColorIds.includes(color.id)?selectedColorIds.filter(id=>id!==color.id):[...selectedColorIds,color.id];syncVariants(next,selectedSizeIds)}}/><span><i style={{background:color.hex||"#ddd"}}/>{color.name}<Check/></span></label>)}</div>
                   <button disabled={!selectedColorIds.length} onClick={()=>setVariantStep("sizes")}>ادامه و انتخاب سایز <ChevronLeft/></button>
                 </> : <>
-                  <h3>۲. سایزهای موردنظر را انتخاب کنید</h3>
+                  <div className="variant-step-heading"><h3>۲. سایزهای موردنظر را انتخاب کنید</h3><button type="button" onClick={()=>syncVariants(selectedColorIds,availableSizeIds)}>انتخاب همه سایزها</button></div>
                   <div className="variant-choice-list fixed-variant-list">{raw.sizes.filter(size=>availableVariants.some(variant=>selectedColorIds.includes(variant.color_id)&&variant.size_id===size.id)).map(size=><label key={size.id}><input type="checkbox" checked={selectedSizeIds.includes(size.id)} onChange={()=>{const next=selectedSizeIds.includes(size.id)?selectedSizeIds.filter(id=>id!==size.id):[...selectedSizeIds,size.id];syncVariants(selectedColorIds,next)}}/><span>{size.name}<Check/></span></label>)}</div>
                   <button type="button" className="variant-back" onClick={()=>setVariantStep("colors")}>بازگشت به رنگ‌ها</button>
                   <button disabled={!selectedVariants.length} onClick={()=>setPhase("mockups")}>انتخاب موکاپ‌ها <ChevronLeft/></button>
@@ -1523,7 +1808,7 @@ export function DesignEditor({ data }: { data: EditorData }) {
               <>
                 <ImageIcon />
                 <span>انتخاب موکاپ</span>
-                <h2>حداکثر سه موکاپ تک‌نما انتخاب کن</h2>
+                <h2>حداکثر ۵۰ موکاپ تک‌نما انتخاب کن</h2>
                 <p>
                   هر کارت فقط جلو یا پشت است. طرح همان نما روی محدوده دقیق و
                   هم‌نسبت تعریف‌شده توسط مدیر قرار می‌گیرد.
@@ -1557,7 +1842,7 @@ export function DesignEditor({ data }: { data: EditorData }) {
                             setSelectedMockups((current) =>
                               current.includes(mockup.id)
                                 ? current.filter((id) => id !== mockup.id)
-                                : current.length < 6
+                                : current.length < 50
                                   ? [...current, mockup.id]
                                   : current,
                             )
