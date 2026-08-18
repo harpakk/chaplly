@@ -44,6 +44,19 @@ import type { SellerTourState } from "@/lib/seller-tour-shared";
 type CreationData = Awaited<ReturnType<typeof getProductStartData>>;
 type EditorData = Awaited<ReturnType<typeof getDesignEditorData>>;
 
+const exportSafeImageUrl = (source: string) => {
+  if (!source || source.startsWith("data:") || source.startsWith("blob:") || source.startsWith("/")) return source;
+  try {
+    const imageUrl = new URL(source);
+    const storageUrl = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL || "http://localhost");
+    return imageUrl.origin === storageUrl.origin && imageUrl.pathname.startsWith("/storage/v1/object/")
+      ? `/api/render-image?url=${encodeURIComponent(source)}`
+      : source;
+  } catch {
+    return source;
+  }
+};
+
 const productTourSteps: SellerTourStep[] = [
   { target: '[data-tour="product-intro"]', emoji: "🎯", title: "اول زمین بازی را انتخاب کن", body: "اینجا محصول پایه‌ای را انتخاب می‌کنی که طرحت قراره روی اون چاپ بشه." },
   { target: '[data-tour="product-categories"]', emoji: "🗂️", title: "یک دسته انتخاب کن", body: "مثلاً پوشاک یا اکسسوری. با انتخاب دسته، محصول‌های مناسب پایین صفحه ظاهر می‌شن." },
@@ -268,7 +281,7 @@ function FinalProduct({
     errorAlert.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     const firstField = Object.keys(state.fieldErrors || {})[0];
     if (!firstField) return;
-    const field = document.querySelector<HTMLElement>(`[name="${firstField}"]`);
+    const field = document.querySelector<HTMLElement>(`[data-error-field="${firstField}"]`) || document.querySelector<HTMLElement>(`[name="${firstField}"]`);
     field?.focus({ preventScroll: true });
   }, [pending, state.fieldErrors, state.message, state.ok]);
   const showClientError = (message: string, field?: string) => {
@@ -276,7 +289,7 @@ function FinalProduct({
     requestAnimationFrame(() => {
       errorAlert.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       if (!field) return;
-      const input = document.querySelector<HTMLElement>(`[name="${field}"]`);
+      const input = document.querySelector<HTMLElement>(`[data-error-field="${field}"]`) || document.querySelector<HTMLElement>(`[name="${field}"]`);
       input?.focus({ preventScroll: true });
     });
   };
@@ -284,6 +297,20 @@ function FinalProduct({
     clientError?.field === name
       ? clientError.message
       : state.fieldErrors?.[name];
+  const errorField = clientError?.field || Object.keys(state.fieldErrors || {})[0];
+  const errorPlace = errorField
+    ? ({
+        productImages: "بخش تصاویر محصول",
+        variantMarkups: "بخش درصد افزایش قیمت رنگ‌ها و سایزها",
+        title: "فیلد عنوان رسمی",
+        description: "فیلد توضیحات کامل",
+        primarySupplierOfferId: "انتخاب تأمین‌کننده اصلی",
+        backupSupplierOfferId: "انتخاب تأمین‌کننده پشتیبان",
+        gender: "انتخاب جنسیت محصول",
+        details: "بخش مشخصات ساختاریافته",
+        visibility: "بخش نحوه نمایش محصول",
+      } as Record<string, string>)[errorField]
+    : undefined;
   const prepareImages = async (event: React.FormEvent<HTMLFormElement>) => {
     if (preparing.current) return;
     event.preventDefault();
@@ -353,7 +380,13 @@ function FinalProduct({
     }
     const transfer = new DataTransfer();
     const prepared: { key: string; file: File }[] = [];
-    let failedRenders = 0;
+    const failedRenderLabels: string[] = [];
+    const mockupLabel = (key: string) => {
+      const item = renderedMockupViews.find((candidate) => candidate.key === key);
+      return item
+        ? `${item.mockup.name} (${item.view.side === "FRONT" ? "نمای جلو" : "نمای پشت"})`
+        : "موکاپ انتخاب‌شده";
+    };
     try {
       for (const id of visibleMockups) {
         const node = mockupRefs.current[id];
@@ -389,6 +422,8 @@ function FinalProduct({
               }),
             );
             await document.fonts.ready;
+            for (const canvas of warpedCanvases.filter((item) => item.dataset.warpReady === "true"))
+              canvas.toDataURL("image/png");
             const background = images[0];
             const sourceWidth = background?.naturalWidth || node.offsetWidth;
             const targetWidth = Math.max(node.offsetWidth, sourceWidth);
@@ -410,16 +445,17 @@ function FinalProduct({
                 file: new File([blob], `mockup-${id}.png`, { type: "image/png" }),
               });
             } else {
-              failedRenders += 1;
+              failedRenderLabels.push(mockupLabel(id));
             }
-          } catch (error) {
-            failedRenders += 1;
-            console.error(`Mockup rasterization failed for ${id}`, error);
+          } catch {
+            failedRenderLabels.push(mockupLabel(id));
           }
+        } else {
+          failedRenderLabels.push(mockupLabel(id));
         }
       }
-    } catch (error) {
-      console.error("Mockup rasterization failed", error);
+    } catch {
+      failedRenderLabels.push("تصاویر موکاپ");
     }
     customImages.forEach((file, index) =>
       prepared.push({ key: `custom:${index}`, file }),
@@ -430,11 +466,17 @@ function FinalProduct({
           Number(b.key === primaryImage) - Number(a.key === primaryImage),
       )
       .forEach((item) => transfer.items.add(item.file));
+    if (failedRenderLabels.length) {
+      const labels = [...new Set(failedRenderLabels)].slice(0, 3).join("، ");
+      showClientError(
+        `رندر ${labels} کامل نشد. در بخش «تصاویر محصول» همان موکاپ را حذف و دوباره انتخاب کنید؛ یا آن را حذف کنید و یک تصویر دلخواه اضافه کنید.`,
+        "productImages",
+      );
+      return;
+    }
     if (!transfer.files.length) {
       showClientError(
-        failedRenders
-          ? "رندر موکاپ‌ها انجام نشد. یک تصویر دلخواه اضافه کنید یا موکاپ‌ها را دوباره انتخاب کنید."
-          : "حداقل یک تصویر محصول لازم است.",
+        "در بخش «تصاویر محصول» حداقل یک موکاپ را نگه دارید یا از دکمه «افزودن تصویر» استفاده کنید.",
         "productImages",
       );
       return;
@@ -504,6 +546,7 @@ function FinalProduct({
               <AlertTriangle />
               <div>
                 <strong>محصول هنوز ارسال نشده است</strong>
+                {errorPlace && <b>محل اصلاح: {errorPlace}</b>}
                 <p>{clientError?.message || state.message}</p>
                 {!clientError && state.detail && (
                   <small>جزئیات خطا: {state.detail}</small>
@@ -512,7 +555,7 @@ function FinalProduct({
               </div>
             </div>
           )}
-          <section className="wizard-section product-image-section">
+          <section className="wizard-section product-image-section" data-error-field="productImages" tabIndex={-1}>
             <span>تصاویر محصول</span>
             <h2>موکاپ‌های نهایی و تصاویر دلخواه</h2>
             <p>
@@ -552,13 +595,14 @@ function FinalProduct({
                       >
                         <div key={mockupView.id}>
                           <img
-                            src={mockupView.backgroundUrl}
+                            src={exportSafeImageUrl(mockupView.backgroundUrl)}
                             alt={mockup.name}
+                            crossOrigin="anonymous"
                           />
                           <WarpedArtwork
                             points={mockupView.perspective_points}
                             clip={mockupView.artwork_clip}
-                            fabricTextureUrl={mockupView.backgroundUrl}
+                            fabricTextureUrl={exportSafeImageUrl(mockupView.backgroundUrl)}
                             style={{
                               left: `${Number(mockupView.area_x) * 100}%`,
                               top: `${Number(mockupView.area_y) * 100}%`,
@@ -595,8 +639,9 @@ function FinalProduct({
                                       className="cropped-artwork-image"
                                     >
                                     <img
-                                      src={String(object.src)}
+                                      src={exportSafeImageUrl(String(object.src))}
                                       alt="طرح"
+                                      crossOrigin="anonymous"
                                       data-manual-crop={hasManualArtworkCrop(object) ? "true" : undefined}
                                       style={croppedArtworkImageStyle(object)}
                                     />
@@ -764,11 +809,13 @@ function FinalProduct({
                 </div>
               </details>
             </div>
-            <VariantPropertyPricing
-              variants={pricingVariants}
-              value={propertyMarkups}
-              onChange={setPropertyMarkups}
-            />
+            <div data-error-field="variantMarkups" tabIndex={-1}>
+              <VariantPropertyPricing
+                variants={pricingVariants}
+                value={propertyMarkups}
+                onChange={setPropertyMarkups}
+              />
+            </div>
             {fieldError("variantMarkups") && (
               <small className="field-error product-section-error">
                 {fieldError("variantMarkups")}

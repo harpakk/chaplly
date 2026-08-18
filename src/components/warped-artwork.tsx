@@ -230,6 +230,15 @@ async function rasterizeArtwork(
         bitmap = fetchedBitmap;
         closeBitmap = () => fetchedBitmap.close();
       } catch {
+        const sourceUrl = image.currentSrc || image.src;
+        const safeDirectSource =
+          sourceUrl.startsWith("data:") ||
+          sourceUrl.startsWith("blob:") ||
+          new URL(sourceUrl, window.location.href).origin === window.location.origin;
+        if (!safeDirectSource) {
+          context.restore();
+          continue;
+        }
         await image.decode().catch(() => undefined);
       }
       const bitmapWidth =
