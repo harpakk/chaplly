@@ -15,7 +15,11 @@ export function ProductCard({ product, liked = false }: { product: Product; like
       <div className="product-card-body">
         <span className="product-seller">{product.seller}</span>
         <Link href={`/products/${product.slug}`} prefetch><h3>{product.title}</h3></Link>
-        <div className="rating"><Star size={14} fill="currentColor" /> {product.rating.toLocaleString("fa-IR")} <span>({product.reviewCount.toLocaleString("fa-IR")})</span></div>
+        {product.reviewCount > 0 ? (
+          <div className="rating"><Star size={14} fill="currentColor" /> {product.rating.toLocaleString("fa-IR")} <span>({product.reviewCount.toLocaleString("fa-IR")})</span></div>
+        ) : (
+          <span className="new-product-badge"><i>NEW</i></span>
+        )}
         <div className="price-row">
           <strong>{formatPrice(product.price)}</strong>
           {product.compareAtPrice && <del>{formatPrice(product.compareAtPrice)}</del>}

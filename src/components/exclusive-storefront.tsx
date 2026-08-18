@@ -35,7 +35,7 @@ function StoreProductCard({ product, storeSlug }: { product: Product; storeSlug:
       <p>{product.subtitle || product.description.slice(0, 110)}</p>
       <footer>
         <div><strong>{formatPrice(product.price)}</strong>{product.compareAtPrice && <del>{formatPrice(product.compareAtPrice)}</del>}</div>
-        <span><Star fill="currentColor" /> {product.rating.toLocaleString("fa-IR")}</span>
+        {product.reviewCount > 0 ? <span><Star fill="currentColor" /> {product.rating.toLocaleString("fa-IR")}</span> : <span className="new-product-badge"><i>NEW</i></span>}
         <Link href={href}>دیدن و خرید <ChevronLeft /></Link>
       </footer>
     </div>

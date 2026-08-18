@@ -59,7 +59,7 @@ async function getProductsFromSeparateQueries(slug?: string): Promise<Product[]>
     db
       .from("stores")
       .select(
-        "id,name,slug,follower_count,description,social_url,logo_file_id,banner_file_id",
+        "id,name,slug,follower_count,description,social_url,logo:storage_files!stores_logo_file_id_fkey(bucket,path)",
       )
       .eq("status", "ACTIVE")
       .limit(200),
@@ -131,6 +131,7 @@ async function getProductsFromSeparateQueries(slug?: string): Promise<Product[]>
   );
   return (productResult.data || []).map((row) => {
     const store = stores.get(row.store_id);
+    const storeLogo = one(store?.logo);
     const raw = raws.get(row.raw_product_id);
     const subcategory = raw ? categories.get(raw.category_id) : undefined;
     const category = subcategory?.parent_id
@@ -191,6 +192,7 @@ async function getProductsFromSeparateQueries(slug?: string): Promise<Product[]>
       title: row.title,
       subtitle: row.subtitle || "",
       seller: store?.name || "فروشگاه چاپلی",
+      sellerLogo: storeLogo ? publicFileUrl(storeLogo) : undefined,
       sellerDescription: store?.description || undefined,
       sellerSocialUrl: store?.social_url || undefined,
       category: category?.name || subcategory?.name || "محصولات",

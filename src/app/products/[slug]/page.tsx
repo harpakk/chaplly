@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -78,11 +79,23 @@ export default async function ProductPage({
     })),
   };
   const admin = createSupabaseAdmin();
-  const { data: supplier } = await admin
-    .from("seller_products")
-    .select("primary:supplier_offers!seller_products_primary_supplier_offer_id_fkey(supplier_organization_id,capacity_per_day)")
-    .eq("id", product.id)
-    .maybeSingle();
+  const [supplierResult, wishlistResult] = await Promise.all([
+    admin
+      .from("seller_products")
+      .select("primary:supplier_offers!seller_products_primary_supplier_offer_id_fkey(supplier_organization_id,capacity_per_day)")
+      .eq("id", product.id)
+      .maybeSingle(),
+    user
+      ? admin
+          .from("wishlist_items")
+          .select("seller_product_id")
+          .eq("user_id", user.id)
+          .eq("seller_product_id", product.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+  ]);
+  const supplier = supplierResult.data;
+  const initiallyLiked = Boolean(wishlistResult.data);
   const primary = Array.isArray(supplier?.primary)
     ? supplier.primary[0]
     : supplier?.primary;
@@ -112,10 +125,25 @@ export default async function ProductPage({
           {product.category}
         </Link>
         <ChevronLeft />
+        <Link href={`/category/${product.subcategorySlug}`}>
+          {product.subcategory}
+        </Link>
+        <ChevronLeft />
+        <Link href={`/search?style=${encodeURIComponent(product.graphicStyleSlug)}`}>
+          {product.graphicStyle}
+        </Link>
+        <ChevronLeft />
+        <Link href={`/stores/${product.shopSlug}`}>{product.seller}</Link>
+        <ChevronLeft />
         <b>{product.title}</b>
       </div>
       <section className="shop-container pdp-grid pdp-grid-wow">
-        <ProductGallery images={product.images} title={product.title} />
+        <ProductGallery
+          images={product.images}
+          title={product.title}
+          productId={product.id}
+          initialLiked={initiallyLiked}
+        />
         <div className="pdp-story-spine">
           <span className="spine-eyebrow">درباره این محصول</span>
           <h2>{product.subtitle}</h2>
@@ -124,6 +152,7 @@ export default async function ProductPage({
             <section className="pdp-quality-story">
               <span>درباره کیفیت</span>
               <p>{product.qualityDescription}</p>
+              <a href="#quality">بیشتر بخوانید</a>
             </section>
           )}
           <dl>
@@ -187,6 +216,16 @@ export default async function ProductPage({
         <aside className="pdp-info pdp-buy-card">
           {product.badge && <span className="pdp-badge">{product.badge}</span>}
           <p className="pdp-seller store-hover-card">
+            {product.sellerLogo && (
+              <Image
+                className="pdp-seller-logo"
+                src={product.sellerLogo}
+                alt={`لوگوی ${product.seller}`}
+                width={30}
+                height={30}
+                unoptimized
+              />
+            )}
             فروشنده: <strong>{product.seller}</strong>
             <ShieldCheck />
             <span>
@@ -196,15 +235,21 @@ export default async function ProductPage({
             </span>
           </p>
           <h1>{product.title}</h1>
-          <div className="pdp-rating">
-            <span>
-              <Star fill="currentColor" />
-              {product.rating.toLocaleString("fa-IR")}
-            </span>
-            <a href="#reviews">
-              {reviews.length.toLocaleString("fa-IR")} دیدگاه
-            </a>
-          </div>
+          {reviews.length > 0 ? (
+            <div className="pdp-rating">
+              <span>
+                <Star fill="currentColor" />
+                {product.rating.toLocaleString("fa-IR")}
+              </span>
+              <a href="#reviews">
+                {reviews.length.toLocaleString("fa-IR")} دیدگاه
+              </a>
+            </div>
+          ) : (
+            <div className="pdp-new-product">
+              <span className="new-product-badge"><i>NEW</i></span>
+            </div>
+          )}
           <div className="pdp-price">
             <strong>{formatPrice(product.price)}</strong>
             {product.compareAtPrice && (

@@ -906,20 +906,6 @@ function SupplierAssignments({ data }: { data: SellerData }) {
                       ))}
                     </select>
                   </label>
-                  <label>
-                    پشتیبان
-                    <select
-                      name="backupSupplierOfferId"
-                      defaultValue={product.backup_supplier_offer_id || ""}
-                    >
-                      <option value="">بدون پشتیبان</option>
-                      {offers.map((offer) => (
-                        <option value={offer.id} key={offer.id}>
-                          {offer.organization?.display_name || "شرکت تأمین"}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
                   <button className="sd-primary">
                     <Save /> ذخیره اتصال تأمین
                   </button>

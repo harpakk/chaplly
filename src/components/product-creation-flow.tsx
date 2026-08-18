@@ -218,9 +218,6 @@ function FinalProduct({
   const [primary, setPrimary] = useState(
     supplierOfferId || draft?.primary_supplier_offer_id || "",
   );
-  const [backup, setBackup] = useState(
-    draft?.backup_supplier_offer_id || "",
-  );
   const [clientError, setClientError] = useState<null | {
     message: string;
     field?: string;
@@ -303,8 +300,8 @@ function FinalProduct({
         variantPrices: "بخش قیمت فروش رنگ‌ها و سایزها",
         title: "فیلد عنوان رسمی",
         description: "فیلد توضیحات کامل",
+        graphicStyleIds: "بخش نوع طراحی محصول",
         primarySupplierOfferId: "انتخاب تأمین‌کننده اصلی",
-        backupSupplierOfferId: "انتخاب تأمین‌کننده پشتیبان",
         gender: "انتخاب جنسیت محصول",
         details: "بخش مشخصات ساختاریافته",
         visibility: "بخش نحوه نمایش محصول",
@@ -339,6 +336,13 @@ function FinalProduct({
     }
     if (!description) {
       showClientError("توضیحات کامل محصول را وارد کنید.", "description");
+      return;
+    }
+    if (!form.getAll("graphicStyleIds").some(Boolean)) {
+      showClientError(
+        "حداقل یک نوع طراحی برای محصول انتخاب کنید.",
+        "graphicStyleIds",
+      );
       return;
     }
     if (!String(form.get("primarySupplierOfferId") || "")) {
@@ -820,8 +824,12 @@ function FinalProduct({
                 )}
                 <small>توضیح اختصاصی محصول و طراحی خودت را اضافه کن.</small>
               </label>
-              <details className="wide graphic-style-picker">
-                <summary>سبک‌های گرافیکی محصول را انتخاب کنید</summary>
+              <details
+                className="wide graphic-style-picker"
+                data-error-field="graphicStyleIds"
+                open
+              >
+                <summary>نوع طراحی محصول را انتخاب کنید (حداقل یک مورد)</summary>
                 <div>
                   {data.graphicStyles.map((style) => (
                     <label key={style.id}>
@@ -842,6 +850,11 @@ function FinalProduct({
                     <p>هنوز سبک گرافیکی فعالی ثبت نشده است.</p>
                   )}
                 </div>
+                {fieldError("graphicStyleIds") && (
+                  <small className="field-error product-section-error">
+                    {fieldError("graphicStyleIds")}
+                  </small>
+                )}
               </details>
             </div>
             <div data-error-field="variantPrices" tabIndex={-1}>
@@ -905,7 +918,7 @@ function FinalProduct({
           </section>
           <section className="wizard-section">
             <span>تأمین تولید</span>
-            <h2>اصلی و پشتیبان را انتخاب کن</h2>
+            <h2>تأمین‌کننده محصول را انتخاب کن</h2>
             {eligible.length ? (
               <div className="final-suppliers">
                 <label>
@@ -914,9 +927,7 @@ function FinalProduct({
                     name="primarySupplierOfferId"
                     value={primary}
                     onChange={(event) => {
-                      const nextPrimary = event.target.value;
-                      setPrimary(nextPrimary);
-                      if (backup === nextPrimary) setBackup("");
+                      setPrimary(event.target.value);
                     }}
                     required
                     aria-invalid={Boolean(
@@ -938,31 +949,6 @@ function FinalProduct({
                     </small>
                   )}
                 </label>
-                <label>
-                  تأمین‌کننده پشتیبان
-                  <select
-                    name="backupSupplierOfferId"
-                    value={backup}
-                    onChange={(event) => setBackup(event.target.value)}
-                    aria-invalid={Boolean(
-                      fieldError("backupSupplierOfferId"),
-                    )}
-                  >
-                    <option value="">بدون پشتیبان</option>
-                    {eligible
-                      .filter((offer) => offer.id !== primary)
-                      .map((offer) => (
-                        <option value={offer.id} key={offer.id}>
-                          {offer.organization?.display_name}
-                        </option>
-                      ))}
-                  </select>
-                  {fieldError("backupSupplierOfferId") && (
-                    <small className="field-error">
-                      {fieldError("backupSupplierOfferId")}
-                    </small>
-                  )}
-                </label>
               </div>
             ) : (
               <div className="empty-state">
@@ -977,11 +963,11 @@ function FinalProduct({
             <label>
               وضعیت نمایش محصول
               <select name="visibility" required defaultValue={draft?.visibility || "VISIBLE"}>
-                <option value="VISIBLE">عمومی پس از تأیید مدیر</option>
+                <option value="VISIBLE">عمومی پس از تأیید</option>
                 <option value="PRIVATE">خصوصی؛ فقط با لینک مستقیم</option>
               </select>
               <small>
-                تا قبل از تأیید مدیر، هر دو گزینه فقط با لینک مستقیم قابل مشاهده و خرید هستند.
+                تا قبل از تأیید، هر دو گزینه فقط با لینک مستقیم قابل مشاهده و خرید هستند.
                 اگر «خصوصی» را انتخاب کنی، محصول حتی بعد از تأیید هم در خانه، فروشگاه و جست‌وجو نمایش داده نمی‌شود.
               </small>
             </label>
@@ -1026,7 +1012,7 @@ function FinalProduct({
             <span>🎉</span>
             <small>محصول با موفقیت ساخته شد</small>
             <h2>{state.message}</h2>
-            <p>تا زمان تأیید مدیر، محصول در ویترین‌ها دیده نمی‌شود؛ اما خریدار می‌تواند با این لینک آن را ببیند و بخرد.</p>
+            <p>تا زمان تأیید، محصول در ویترین‌ها دیده نمی‌شود؛ اما خریدار می‌تواند با این لینک آن را ببیند و بخرد.</p>
             <div className="publish-share-link" dir="ltr">
               <input readOnly value={`/products/${productSlug}`} aria-label="لینک مستقیم محصول" />
               <button type="button" onClick={async () => {

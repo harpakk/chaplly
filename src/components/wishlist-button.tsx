@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Heart } from "lucide-react";
 import { toggleWishlistAction } from "@/app/actions/dashboard";
 
-export function WishlistButton({ productId, title, initialLiked = false }: { productId: string; title: string; initialLiked?: boolean }) {
+export function WishlistButton({ productId, title, initialLiked = false, stopPropagation = false }: { productId: string; title: string; initialLiked?: boolean; stopPropagation?: boolean }) {
   const [liked, setLiked] = useState(initialLiked);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -16,7 +16,8 @@ export function WishlistButton({ productId, title, initialLiked = false }: { pro
       aria-label={`${liked ? "حذف" : "افزودن"} ${title} ${liked ? "از" : "به"} علاقه‌مندی‌ها`}
       aria-pressed={liked}
       disabled={pending}
-      onClick={() => {
+      onClick={(event) => {
+        if (stopPropagation) event.stopPropagation();
         const next = !liked;
         setLiked(next);
         startTransition(async () => {

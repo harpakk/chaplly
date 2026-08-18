@@ -174,7 +174,11 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
   const [selected, setSelected] = useState<string | null>(null),
     [zoom, setZoom] = useState(140),
     [designId, setDesignId] = useState(existing?.id || ""),
-    [designName, setDesignName] = useState(existing?.name || `طرح ${raw.name}`),
+    [designName] = useState(
+      () =>
+        existing?.name ||
+        `طرح-${raw.id.slice(0, 8)}-${crypto.randomUUID().slice(0, 8)}`,
+    ),
     [panel, setPanel] = useState<"layers" | "files" | "free" | null>(null),
     [cropOpen, setCropOpen] = useState(false),
     [uploads, setUploads] = useState(data.uploads),
@@ -1186,15 +1190,6 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
             <small>{raw.has_back ? "جلو و پشت" : "نمای جلو"}</small>
           </div>
         </div>
-        <label className="design-group-name">
-          <span>نام گروه طراحی</span>
-          <input
-            value={designName}
-            maxLength={160}
-            onChange={(event) => setDesignName(event.target.value)}
-            placeholder="مثلاً تی‌شرت تابستانی"
-          />
-        </label>
         <div className="design-context" data-tour="top-tools">
           <button
             className={tool === "select" ? "active" : ""}

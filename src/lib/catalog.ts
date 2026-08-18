@@ -16,6 +16,7 @@ export type Product = {
   title: string;
   subtitle: string;
   seller: string;
+  sellerLogo?: string;
   sellerDescription?: string;
   sellerSocialUrl?: string;
   category: string;

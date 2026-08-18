@@ -3253,6 +3253,9 @@ export async function saveSellerProductAction(
 
   const title = String(formData.get("title") || "").trim();
   const description = String(formData.get("description") || "").trim();
+  const graphicStyleIds = [
+    ...new Set(formData.getAll("graphicStyleIds").map(String).filter(Boolean)),
+  ];
   const slug = String(formData.get("slug") || "")
     .trim()
     .toLowerCase()
@@ -3325,6 +3328,28 @@ export async function saveSellerProductAction(
       productAlreadyExists ? productId : undefined,
     );
   }
+  if (!graphicStyleIds.length)
+    return fail(
+      "حداقل یک نوع طراحی برای محصول انتخاب کنید.",
+      { graphicStyleIds: "انتخاب حداقل یک نوع طراحی الزامی است." },
+      productAlreadyExists ? productId : undefined,
+    );
+  const { data: validGraphicStyles, error: graphicStyleError } = await admin
+    .from("graphic_styles")
+    .select("id")
+    .in("id", graphicStyleIds)
+    .eq("status", "ACTIVE");
+  if (graphicStyleError)
+    return databaseFailure(
+      graphicStyleError,
+      productAlreadyExists ? productId : undefined,
+    );
+  if ((validGraphicStyles || []).length !== graphicStyleIds.length)
+    return fail(
+      "یکی از نوع‌های طراحی انتخاب‌شده دیگر فعال نیست.",
+      { graphicStyleIds: "نوع طراحی را دوباره انتخاب کنید." },
+      productAlreadyExists ? productId : undefined,
+    );
   if (
     !submittedVariantPrices.length || !submittedPropertyPrices.length ||
     submittedVariantPrices.some(
@@ -3471,9 +3496,6 @@ export async function saveSellerProductAction(
   });
   if (error) return databaseFailure(error, productAlreadyExists ? productId : undefined);
   productId = String(data);
-  const graphicStyleIds = [
-    ...new Set(formData.getAll("graphicStyleIds").map(String).filter(Boolean)),
-  ];
   try {
     const { error: metadataError } = await admin.rpc(
       "service_save_product_metadata",
