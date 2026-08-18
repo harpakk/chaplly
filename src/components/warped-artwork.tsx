@@ -160,8 +160,8 @@ async function rasterizeArtwork(
   width: number,
   height: number,
   clip: ArtworkClip,
+  pixelRatio: number,
 ) {
-  const pixelRatio = Math.min(2, window.devicePixelRatio || 1);
   try {
     const snapshot = await toCanvas(source, {
       width,
@@ -319,10 +319,10 @@ function drawCurvedSurface(
   points: WarpPoint[],
   width: number,
   height: number,
+  pixelRatio: number,
 ) {
   const padding = 0.35;
   const scale = 1 + padding * 2;
-  const pixelRatio = Math.min(2, window.devicePixelRatio || 1);
   canvas.width = Math.max(1, Math.round(width * scale * pixelRatio));
   canvas.height = Math.max(1, Math.round(height * scale * pixelRatio));
   const context = canvas.getContext("2d");
@@ -847,12 +847,14 @@ export function WarpedArtwork({
   points: rawPoints,
   clip: rawClip,
   fabricTextureUrl,
+  renderPixelRatio,
   style,
   children,
 }: {
   points?: unknown;
   clip?: unknown;
   fabricTextureUrl?: string | null;
+  renderPixelRatio?: number;
   style: CSSProperties;
   children: ReactNode;
 }) {
@@ -922,11 +924,19 @@ export function WarpedArtwork({
           await Promise.all(images.map((image) => image.decode().catch(() => undefined)));
           await document.fonts.ready;
           if (cancelled || version !== renderVersion) return;
+          const pixelRatio = Math.max(
+            1,
+            Math.min(
+              4,
+              renderPixelRatio || Math.min(2, window.devicePixelRatio || 1),
+            ),
+          );
           const texture = await rasterizeArtwork(
             source,
             size.width,
             size.height,
             clip,
+            pixelRatio,
           );
           // Pixel inspection is only an empty-artwork guard. Cross-origin
           // images can taint a perfectly usable canvas, so that check must not
@@ -953,7 +963,16 @@ export function WarpedArtwork({
             // The raster can still be drawn by the eight-point canvas mesh.
           }
           if (!hasVisiblePixel) throw new Error("EMPTY_WARP_TEXTURE");
-          if (drawCurvedSurface(canvas, texture, points, size.width, size.height)) {
+          if (
+            drawCurvedSurface(
+              canvas,
+              texture,
+              points,
+              size.width,
+              size.height,
+              pixelRatio,
+            )
+          ) {
             if (fabricTextureUrl)
               await applyFabricShading(canvas, ref.current!, fabricTextureUrl);
             if (cancelled || version !== renderVersion) return;
@@ -985,7 +1004,7 @@ export function WarpedArtwork({
       window.clearTimeout(scheduleTimer);
       observer.disconnect();
     };
-  }, [clip, fabricTextureUrl, pointSignature, points, shouldRasterize, size.height, size.width]);
+  }, [clip, fabricTextureUrl, pointSignature, points, renderPixelRatio, shouldRasterize, size.height, size.width]);
 
   return (
     <div ref={ref} className="configured-artwork" style={style}>

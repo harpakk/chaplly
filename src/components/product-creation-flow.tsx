@@ -269,7 +269,6 @@ function FinalProduct({
   });
   const [propertyPrices, setPropertyPrices] = useState(() => createPropertyPrices(pricingVariants, draft?.propertyMarkups));
   const variantPrices = expandPropertyPrices(pricingVariants, propertyPrices);
-  const mockupRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const fileInput = useRef<HTMLInputElement>(null);
   const errorAlert = useRef<HTMLDivElement>(null);
   const preparing = useRef(false);
@@ -388,10 +387,23 @@ function FinalProduct({
         : "موکاپ انتخاب‌شده";
     };
     try {
-      for (const id of visibleMockups) {
-        const node = mockupRefs.current[id];
+      const captureItems = renderedMockupViews.filter((item) =>
+        visibleMockups.includes(item.key),
+      );
+      for (const item of captureItems) {
+        const id = item.key;
+        const node = document.getElementById(
+          `product-render-${item.mockup.id}-${item.view.id}`,
+        );
         if (node) {
           try {
+            if (
+              node.dataset.renderKey !== id ||
+              node.dataset.mockupId !== item.mockup.id ||
+              node.dataset.mockupViewId !== item.view.id
+            ) {
+              throw new Error("MOCKUP_CAPTURE_IDENTITY_MISMATCH");
+            }
             const warpedCanvases = Array.from(
               node.querySelectorAll<HTMLCanvasElement>("canvas.artwork-warp-canvas"),
             );
@@ -424,15 +436,26 @@ function FinalProduct({
             await document.fonts.ready;
             for (const canvas of warpedCanvases.filter((item) => item.dataset.warpReady === "true"))
               canvas.toDataURL("image/png");
-            const background = images[0];
+            const background = node.querySelector<HTMLImageElement>(
+              "img[data-mockup-background]",
+            );
+            if (
+              !background ||
+              background.dataset.mockupViewId !== item.view.id
+            ) {
+              throw new Error("MOCKUP_BACKGROUND_IDENTITY_MISMATCH");
+            }
             const sourceWidth = background?.naturalWidth || node.offsetWidth;
-            const targetWidth = Math.max(node.offsetWidth, sourceWidth);
-            const ratio = node.offsetHeight / Math.max(1, node.offsetWidth);
+            // Keep the preview's CSS box untouched so export geometry is
+            // identical. Raising pixelRatio adds real pixels without
+            // stretching the already-rendered artwork or reflowing the clone.
+            const outputPixelRatio = Math.max(
+              1,
+              Math.min(4, sourceWidth / Math.max(1, node.offsetWidth)),
+            );
             const blob = await toBlob(node, {
-              pixelRatio: 1,
-              canvasWidth: targetWidth,
-              canvasHeight: Math.round(targetWidth * ratio),
-              cacheBust: false,
+              pixelRatio: outputPixelRatio,
+              cacheBust: true,
               backgroundColor: "transparent",
               skipFonts: true,
               filter: (candidate) =>
@@ -442,7 +465,11 @@ function FinalProduct({
             if (blob) {
               prepared.push({
                 key: id,
-                file: new File([blob], `mockup-${id}.png`, { type: "image/png" }),
+                file: new File(
+                  [blob],
+                  `mockup-${item.mockup.id}-${item.view.id}.png`,
+                  { type: "image/png" },
+                ),
               });
             } else {
               failedRenderLabels.push(mockupLabel(id));
@@ -588,9 +615,10 @@ function FinalProduct({
                   return (
                     <article key={key}>
                       <div
-                        ref={(node) => {
-                          mockupRefs.current[key] = node;
-                        }}
+                        id={`product-render-${mockup.id}-${mockupView.id}`}
+                        data-render-key={key}
+                        data-mockup-id={mockup.id}
+                        data-mockup-view-id={mockupView.id}
                         className="configured-mockup-canvas product-render-canvas"
                       >
                         <div key={mockupView.id}>
@@ -598,11 +626,15 @@ function FinalProduct({
                             src={exportSafeImageUrl(mockupView.backgroundUrl)}
                             alt={mockup.name}
                             crossOrigin="anonymous"
+                            data-mockup-background
+                            data-mockup-view-id={mockupView.id}
                           />
                           <WarpedArtwork
+                            key={`${mockup.id}:${mockupView.id}:${mockup.color_id || "default"}`}
                             points={mockupView.perspective_points}
                             clip={mockupView.artwork_clip}
                             fabricTextureUrl={exportSafeImageUrl(mockupView.backgroundUrl)}
+                            renderPixelRatio={4}
                             style={{
                               left: `${Number(mockupView.area_x) * 100}%`,
                               top: `${Number(mockupView.area_y) * 100}%`,
@@ -643,7 +675,10 @@ function FinalProduct({
                                       alt="طرح"
                                       crossOrigin="anonymous"
                                       data-manual-crop={hasManualArtworkCrop(object) ? "true" : undefined}
-                                      style={croppedArtworkImageStyle(object)}
+                                      style={{
+                                        filter: `saturate(${Number(object.saturation ?? 100)}%)`,
+                                        ...croppedArtworkImageStyle(object),
+                                      }}
                                     />
                                     </span>
                                   )}
