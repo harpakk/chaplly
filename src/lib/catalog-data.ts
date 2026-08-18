@@ -26,18 +26,21 @@ function publicFileUrl(file: unknown) {
 const one = <T>(value: T | T[] | null | undefined): T | undefined =>
   Array.isArray(value) ? value[0] : (value ?? undefined);
 
-async function getProductsFromSeparateQueries(): Promise<Product[]> {
-  const db = createSupabasePublic();
-  const productResult = await db
+async function getProductsFromSeparateQueries(slug?: string): Promise<Product[]> {
+  const db = slug ? createSupabaseAdmin() : createSupabasePublic();
+  let productQuery = db
     .from("seller_products")
     .select(
-      "id,store_id,raw_product_id,slug,title,subtitle,description,price,discounted_price,rating_average,review_count,sales_count,view_count,is_featured,published_at",
+      "id,store_id,raw_product_id,slug,title,subtitle,description,price,discounted_price,rating_average,review_count,sales_count,view_count,is_featured,published_at,gender,visibility,moderation_status",
     )
-    .eq("status", "PUBLISHED")
-    .eq("moderation_status", "APPROVED")
+    .eq("status", "PUBLISHED");
+  productQuery = slug
+    ? productQuery.eq("slug", slug).limit(1)
+    : productQuery.eq("moderation_status", "APPROVED").eq("visibility", "VISIBLE")
     .order("published_at", { ascending: false })
     .order("id", { ascending: true })
     .limit(240);
+  const productResult = await productQuery;
   if (productResult.error)
     throw new Error(`Catalog query failed: ${productResult.error.message}`);
   const productIds = (productResult.data || []).map((row) => row.id);
@@ -232,7 +235,9 @@ async function getProductsFromSeparateQueries(): Promise<Product[]> {
       delivery: "ارسال حداکثر تا ۷۲ ساعت",
       productionDays: "ارسال حداکثر تا ۷۲ ساعت",
       videos: videos.length ? videos : undefined,
-      gender: "UNISEX" as Product["gender"],
+      gender: (row.gender || "UNISEX") as Product["gender"],
+      visibility: row.visibility as Product["visibility"],
+      moderationStatus: row.moderation_status as Product["moderationStatus"],
     } satisfies Product;
   });
 }
@@ -401,7 +406,7 @@ export async function getProducts(): Promise<Product[]> {
 }
 
 export async function findProduct(slug: string) {
-  return (await getProducts()).find((product) => product.slug === slug);
+  return (await getProductsFromSeparateQueries(slug))[0];
 }
 
 export async function getLiveProductInventory(productId: string) {
@@ -723,6 +728,7 @@ let marketplaceMemory:
   { expiresAt: number; data: Promise<MarketplaceData> } | undefined;
 export function clearMarketplaceMemoryCache() {
   marketplaceMemory = undefined;
+  productsMemory = undefined;
 }
 export async function getMarketplaceData() {
   const now = Date.now();

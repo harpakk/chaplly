@@ -2969,6 +2969,7 @@ export type Database = {
           "slug": string;
           "subtitle": string | null;
           "moderation_status": Database["public"]["Enums"]["moderation_state"];
+          "visibility": string;
           "seo_title": string | null;
           "seo_description": string | null;
           "rating_average": number;
@@ -2997,6 +2998,7 @@ export type Database = {
           "slug": string;
           "subtitle"?: string | null;
           "moderation_status"?: Database["public"]["Enums"]["moderation_state"];
+          "visibility"?: string;
           "seo_title"?: string | null;
           "seo_description"?: string | null;
           "rating_average"?: number;
@@ -3025,6 +3027,7 @@ export type Database = {
           "slug"?: string;
           "subtitle"?: string | null;
           "moderation_status"?: Database["public"]["Enums"]["moderation_state"];
+          "visibility"?: string;
           "seo_title"?: string | null;
           "seo_description"?: string | null;
           "rating_average"?: number;

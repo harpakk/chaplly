@@ -15070,6 +15070,61 @@ a:focus-visible {
   height: 18px;
   border-radius: 50%;
 }
+
+.product-visibility-section label {
+  display: grid;
+  gap: .55rem;
+  max-width: 680px;
+  font-weight: 800;
+}
+.direct-link-product-note {
+  margin-top: 1rem;
+  padding: .75rem 1rem;
+  border: 1px solid #e8d991;
+  border-radius: 12px;
+  background: #fff9db;
+  color: #6d5911;
+  font-size: .9rem;
+  font-weight: 700;
+}
+.product-visibility-section select {
+  min-height: 48px;
+  border: 1px solid #d8dce8;
+  border-radius: 12px;
+  padding: 0 .9rem;
+  background: #fff;
+}
+.product-visibility-section small {
+  color: #667085;
+  font-weight: 500;
+  line-height: 1.9;
+}
+.publish-share-link {
+  display: flex;
+  gap: .5rem;
+  margin: 1rem 0;
+}
+.publish-share-link input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid #d8dce8;
+  border-radius: 10px;
+  padding: .75rem;
+  background: #f8fafc;
+}
+.publish-share-link button,
+.publish-success-actions > * {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .35rem;
+}
+.publish-success-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .6rem;
+  justify-content: center;
+}
 .variant-step-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.variant-step-heading h3{margin:0}.variant-step-heading button{border:1px solid #d8d1e3;border-radius:8px;background:#fff;padding:6px 9px;color:#6044dc;font:inherit;font-size:8px;font-weight:850;cursor:pointer}
 .mockup-preview {
   display: grid;

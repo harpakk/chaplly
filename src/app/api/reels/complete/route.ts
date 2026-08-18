@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   if (!(size > 0 && size <= 100 * 1024 * 1024)) return NextResponse.json({ message: "حجم ویدیو معتبر نیست." }, { status: 400 });
   if (socialUrl && !/^https?:\/\/[^\s]+$/i.test(socialUrl)) return NextResponse.json({ message: "لینک شبکه اجتماعی معتبر نیست." }, { status: 400 });
   const db = createSupabaseAdmin();
-  const { data: products, error: productError } = await db.from("seller_products").select("id").in("id", productIds).eq("store_id", store.id).eq("status", "PUBLISHED").eq("moderation_status", "APPROVED");
+  const { data: products, error: productError } = await db.from("seller_products").select("id").in("id", productIds).eq("store_id", store.id).eq("status", "PUBLISHED").eq("moderation_status", "APPROVED").eq("visibility", "VISIBLE");
   if (productError || products?.length !== productIds.length) return NextResponse.json({ message: "یکی از محصولات انتخاب‌شده معتبر یا منتشرشده نیست." }, { status: 400 });
   const slash = path.lastIndexOf("/"), folder = path.slice(0, slash), name = path.slice(slash + 1);
   const { data: objects } = await db.storage.from("reel-media").list(folder, { search: name, limit: 2 });

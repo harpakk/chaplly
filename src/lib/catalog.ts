@@ -47,6 +47,8 @@ export type Product = {
   productionDays: string;
   videos?: string[];
   gender: "MALE" | "FEMALE" | "UNISEX";
+  visibility?: "VISIBLE" | "PRIVATE";
+  moderationStatus?: "PENDING" | "APPROVED" | "REJECTED";
 };
 
 export type MarketplaceBanner = {

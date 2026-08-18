@@ -37,7 +37,13 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const product = await findProduct((await params).slug);
-  return { title: product?.title ?? "محصول" };
+  return {
+    title: product?.title ?? "محصول",
+    robots:
+      product?.visibility === "PRIVATE" || product?.moderationStatus !== "APPROVED"
+        ? { index: false, follow: false }
+        : undefined,
+  };
 }
 
 export default async function ProductPage({
@@ -49,8 +55,10 @@ export default async function ProductPage({
 }) {
   const { slug } = await params;
   const fromStore = typeof (await searchParams).fromStore === "string";
-  const products = await getProducts();
-  const cachedProduct = products.find((item) => item.slug === slug);
+  const [cachedProduct, products] = await Promise.all([
+    findProduct(slug),
+    getProducts(),
+  ]);
   if (!cachedProduct) notFound();
   const [inventory, reviews, reels, user, sizeGuide, qualityDescription] = await Promise.all([
     getLiveProductInventory(cachedProduct.id),
@@ -92,6 +100,11 @@ export default async function ProductPage({
   return (
     <main className="pdp-page">
       <ProductViewTracker productId={product.id} />
+      {(product.visibility === "PRIVATE" || product.moderationStatus !== "APPROVED") && (
+        <div className="shop-container direct-link-product-note">
+          این محصول در ویترین و جست‌وجو نمایش داده نمی‌شود و فقط با لینک مستقیم در دسترس است.
+        </div>
+      )}
       <div className="shop-container breadcrumbs">
         <Link href="/">خانه</Link>
         <ChevronLeft />

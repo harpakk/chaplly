@@ -545,9 +545,14 @@ export async function moderateProductAction(
   });
   if (error) return fail(error.message);
   revalidatePath("/admin/pending-products");
+  revalidatePath("/");
+  revalidateTag("catalog");
+  revalidateTag("products");
+  revalidateTag("marketplace-home");
+  clearMarketplaceMemoryCache();
   return ok(
     decision === "APPROVED"
-      ? "محصول تأیید و منتشر شد."
+      ? "محصول تأیید شد؛ نمایش آن مطابق انتخاب فروشنده انجام می‌شود."
       : "محصول رد شد و پیام در صف اعلان قرار گرفت.",
     String(data),
   );
@@ -572,7 +577,7 @@ export async function unapproveProductAction(
   if (!previousQueue?.seller_id) return fail("فروشنده محصول پیدا نشد.");
   const { data: product, error: productError } = await db
     .from("seller_products")
-    .update({ moderation_status: "PENDING", status: "PENDING" })
+    .update({ moderation_status: "PENDING", status: "PUBLISHED" })
     .eq("id", productId)
     .eq("moderation_status", "APPROVED")
     .select("id")
@@ -593,6 +598,10 @@ export async function unapproveProductAction(
   }
   revalidatePath("/admin/pending-products");
   revalidatePath("/");
+  revalidateTag("catalog");
+  revalidateTag("products");
+  revalidateTag("marketplace-home");
+  clearMarketplaceMemoryCache();
   return ok("تأیید محصول لغو شد و محصول به صف بررسی برگشت.");
 }
 
@@ -3238,8 +3247,11 @@ export async function saveSellerProductAction(
     formData.get("backupSupplierOfferId") || "",
   );
   const gender = String(formData.get("gender") || "").toUpperCase();
+  const visibility = String(formData.get("visibility") || "VISIBLE").toUpperCase();
   if (!["MALE", "FEMALE", "UNISEX"].includes(gender))
     return fail("جنسیت محصول را انتخاب کنید.", { gender: "انتخاب جنسیت الزامی است." }, productAlreadyExists ? productId : undefined);
+  if (!["VISIBLE", "PRIVATE"].includes(visibility))
+    return fail("نحوه نمایش محصول معتبر نیست.", { visibility: "یکی از گزینه‌های عمومی یا خصوصی را انتخاب کنید." }, productAlreadyExists ? productId : undefined);
   if (title.length < 3)
     return fail(
       "عنوان محصول را کامل کنید.",
@@ -3385,6 +3397,7 @@ export async function saveSellerProductAction(
     seoTitle: String(formData.get("seoTitle") || ""),
     seoDescription: String(formData.get("seoDescription") || ""),
     gender,
+    visibility,
     details,
     publish: publishOnChaplly,
   };
@@ -3490,6 +3503,20 @@ export async function saveSellerProductAction(
       errorMessage(imageError, "خطای ناشناخته ذخیره تصویر"),
     );
   }
+  if (publishOnChaplly) {
+    const { error: publishError } = await admin
+      .from("seller_products")
+      .update({ status: "PUBLISHED" })
+      .eq("id", productId)
+      .eq("moderation_status", "PENDING");
+    if (publishError)
+      return fail(
+        "محصول ذخیره شد، اما فعال‌سازی لینک مستقیم کامل نشد. دوباره تلاش کنید.",
+        undefined,
+        productId,
+        publishError.message,
+      );
+  }
   if (publishOnWooCommerce) {
     try {
       await publishProductToWooCommerce(context.membership.organization.id, productId);
@@ -3502,6 +3529,12 @@ export async function saveSellerProductAction(
     }
   }
   revalidatePath("/seller/dashboard");
+  revalidatePath(`/products/${slug}`);
+  revalidatePath("/");
+  revalidateTag("catalog");
+  revalidateTag("products");
+  revalidateTag("marketplace-home");
+  clearMarketplaceMemoryCache();
   return ok(
     publishOnWooCommerce && publishOnChaplly
       ? "محصول برای بررسی چاپلی ارسال و در ووکامرس منتشر شد."

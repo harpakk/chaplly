@@ -396,7 +396,7 @@ export async function getProductReels(productId: string) {
 export async function getSellerReelUploadData(storeId: string) {
   const db = createSupabaseAdmin();
   const [products, reels] = await Promise.all([
-    db.from("seller_products").select("id,title,slug").eq("store_id", storeId).eq("status", "PUBLISHED").eq("moderation_status", "APPROVED").order("title"),
+    db.from("seller_products").select("id,title,slug").eq("store_id", storeId).eq("status", "PUBLISHED").eq("moderation_status", "APPROVED").eq("visibility", "VISIBLE").order("title"),
     db.from("reel_posts").select("id,caption,status,published_at,rejection_reason,seller_products(title),storage_files(bucket,path)").eq("store_id", storeId).order("created_at", { ascending: false }),
   ]);
   if (products.error || reels.error) throw new Error(products.error?.message || reels.error?.message);
@@ -609,7 +609,7 @@ export async function getSellerProductEditData(
   const { data: product, error } = await db
     .from("seller_products")
     .select(
-      "id,store_id,raw_product_id,design_id,primary_supplier_offer_id,backup_supplier_offer_id,title,slug,subtitle,description,price,discounted_price,gender,status,moderation_status,seo_title,seo_description,version",
+      "id,store_id,raw_product_id,design_id,primary_supplier_offer_id,backup_supplier_offer_id,title,slug,subtitle,description,price,discounted_price,gender,status,moderation_status,visibility,seo_title,seo_description,version",
     )
     .eq("id", productId)
     .eq("store_id", storeId)
@@ -737,7 +737,7 @@ export async function getSellerDashboardData(
     needsProducts ? db
       .from("seller_products")
       .select(
-        "id,slug,title,status,moderation_status,price,discounted_price,sales_count,view_count,rating_average,review_count,created_at,updated_at,raw_product_id,design_id,primary_supplier_offer_id,backup_supplier_offer_id,product_images(is_primary,sort_order,file:storage_files!product_images_file_id_fkey(bucket,path)),seller_product_variants(id,status,raw_product_variant_id,supplier_offer_variants!seller_product_variants_supplier_offer_variant_id_fkey(stock_quantity,stock_status))",
+        "id,slug,title,status,moderation_status,visibility,price,discounted_price,sales_count,view_count,rating_average,review_count,created_at,updated_at,raw_product_id,design_id,primary_supplier_offer_id,backup_supplier_offer_id,product_images(is_primary,sort_order,file:storage_files!product_images_file_id_fkey(bucket,path)),seller_product_variants(id,status,raw_product_variant_id,supplier_offer_variants!seller_product_variants_supplier_offer_variant_id_fkey(stock_quantity,stock_status))",
       )
       .eq("store_id", storeId)
       .neq("status", "ARCHIVED")
@@ -1339,7 +1339,7 @@ export async function getAdminDashboardData(
     needsModeration ? db
       .from("seller_products")
       .select(
-        "id,store_id,raw_product_id,title,price,status,moderation_status,created_at,published_at,product_images(is_primary,sort_order,file:storage_files!product_images_file_id_fkey(bucket,path))",
+        "id,store_id,raw_product_id,title,price,status,moderation_status,visibility,created_at,published_at,product_images(is_primary,sort_order,file:storage_files!product_images_file_id_fkey(bucket,path))",
       ) : emptyMany,
     needsModeration ? db.from("stores").select("id,name,organization_id") : emptyMany,
     needsOrders || needsOverview ? db
@@ -2379,6 +2379,7 @@ export async function getDesignEditorData(
     description: string | null;
     price: number;
     discounted_price: number | null;
+    visibility: string;
     gender: string;
     primary_supplier_offer_id: string | null;
     backup_supplier_offer_id: string | null;
@@ -2457,7 +2458,7 @@ export async function getDesignEditorData(
       const { data: drafts, error: draftError } = await db
         .from("seller_products")
         .select(
-          "id,title,slug,subtitle,description,price,discounted_price,gender,primary_supplier_offer_id,backup_supplier_offer_id,product_details(title,value,sort_order),product_graphic_styles(graphic_style_id),seller_product_variants(raw_product_variant_id,price)",
+          "id,title,slug,subtitle,description,price,discounted_price,gender,visibility,primary_supplier_offer_id,backup_supplier_offer_id,product_details(title,value,sort_order),product_graphic_styles(graphic_style_id),seller_product_variants(raw_product_variant_id,price)",
         )
         .eq("store_id", record.store_id)
         .eq("design_id", record.id)
@@ -2477,6 +2478,7 @@ export async function getDesignEditorData(
           discounted_price:
             draft.discounted_price === null ? null : n(draft.discounted_price),
           gender: draft.gender,
+          visibility: draft.visibility,
           primary_supplier_offer_id: draft.primary_supplier_offer_id,
           backup_supplier_offer_id: draft.backup_supplier_offer_id,
           details: [...(draft.product_details || [])].sort(

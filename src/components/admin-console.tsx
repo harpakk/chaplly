@@ -974,6 +974,7 @@ function PendingProducts({ data }: { data: AdminData }) {
               <em className="status-fa">
                 {productStatusFa(item.product?.status || item.status)}
               </em>
+              <small>{item.product?.visibility === "PRIVATE" ? "خصوصی؛ فقط با لینک" : "عمومی پس از تأیید"}</small>
               <p>
                 {item.product ? money(Number(item.product.price)) : "—"} ریال ·{" "}
                 {date(item.submitted_at)}
@@ -986,7 +987,7 @@ function PendingProducts({ data }: { data: AdminData }) {
                     value={item.seller_product_id}
                   />
                   <input type="hidden" name="decision" value="APPROVED" />
-                  <button className="admin-primary">تأیید و انتشار</button>
+                  <button className="admin-primary">تأیید محصول</button>
                 </ActionForm>
                 <ActionForm action={moderateProductAction}>
                   <input
@@ -1050,6 +1051,7 @@ function PendingProducts({ data }: { data: AdminData }) {
                 </div>
                 <span>{item.store?.name || "فروشگاه"}</span>
                 <h3>{item.title}</h3>
+                <small>{item.visibility === "PRIVATE" ? "خصوصی؛ فقط با لینک" : "قابل نمایش در ویترین"}</small>
                 <p>{money(Number(item.price))} ریال · {date(item.published_at || item.created_at)}</p>
                 <div className="moderation-actions approved-product-actions">
                   <ActionForm action={unapproveProductAction} confirmMessage="تأیید این محصول لغو و محصول از انتشار خارج شود؟">

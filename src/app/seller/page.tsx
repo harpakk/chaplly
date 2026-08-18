@@ -17,7 +17,7 @@ async function getSellerLandingData(){
   db.from("raw_products").select("id,name,description,base_cost,suggested_price,raw_product_views(side,background:storage_files!raw_product_views_background_file_id_fkey(bucket,path))").eq("status","ACTIVE").order("name"),
   db.from("organizations").select("id",{count:"exact",head:true}).eq("type","SELLER"),
   db.from("orders").select("id",{count:"exact",head:true}).not("paid_at","is",null).gte("paid_at",todayStart),
-  db.from("seller_products").select("id,title,slug,store_id,sales_count,stores(id,name,slug,description,organization_id,banner:storage_files!stores_banner_file_id_fkey(bucket,path)),product_images(is_primary,sort_order,file:storage_files!product_images_file_id_fkey(bucket,path))").eq("status","PUBLISHED").eq("moderation_status","APPROVED").order("sales_count",{ascending:false}).limit(8),
+  db.from("seller_products").select("id,title,slug,store_id,sales_count,stores(id,name,slug,description,organization_id,banner:storage_files!stores_banner_file_id_fkey(bucket,path)),product_images(is_primary,sort_order,file:storage_files!product_images_file_id_fkey(bucket,path))").eq("status","PUBLISHED").eq("moderation_status","APPROVED").eq("visibility","VISIBLE").order("sales_count",{ascending:false}).limit(8),
   db.from("order_items").select("order_id,seller_organization_id,orders!inner(paid_at,status)").not("seller_organization_id","is",null).gte("orders.paid_at",new Date(Date.now()-30*86400000).toISOString()).not("orders.status","in",'("CANCELLED","RETURNED")').limit(5000),
  ]);
  for(const result of [raws,sellerCount,todayOrders,products,recentItems])if(result.error)throw new Error(result.error.message);

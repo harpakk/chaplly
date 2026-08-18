@@ -9,6 +9,8 @@ import {
   AlertTriangle,
   BadgeCheck,
   ChevronLeft,
+  Copy,
+  ExternalLink,
   Layers3,
   ImagePlus,
   Package,
@@ -184,6 +186,8 @@ function FinalProduct({
 }) {
   const raw = data.rawProducts[0];
   const draft = data.productDraft;
+  const productSlug =
+    draft?.slug || `${raw?.slug || "product"}-${designId.slice(0, 8)}`;
   const eligible = data.suppliers.filter((offer) =>
     data.design!.variantIds.every((variantId) =>
       offer.variants.some(
@@ -205,6 +209,9 @@ function FinalProduct({
     message: string;
     field?: string;
   }>(null);
+  const [submittedIntent, setSubmittedIntent] = useState("");
+  const [successOpen, setSuccessOpen] = useState(true);
+  const [linkCopied, setLinkCopied] = useState(false);
   const selectedMockups = data.mockups.filter((mockup) =>
     data.selectedMockupIds.includes(mockup.id),
   );
@@ -284,6 +291,8 @@ function FinalProduct({
     const formElement = event.currentTarget;
     const submitter = (event.nativeEvent as SubmitEvent)
       .submitter as HTMLButtonElement | null;
+    setSubmittedIntent(submitter?.value || "draft");
+    setSuccessOpen(true);
     setClientError(null);
     const form = new FormData(formElement);
     const title = String(form.get("title") || "").trim();
@@ -706,10 +715,7 @@ function FinalProduct({
               <input
                 type="hidden"
                 name="slug"
-                value={
-                  draft?.slug ||
-                  `${raw?.slug || "product"}-${designId.slice(0, 8)}`
-                }
+                value={productSlug}
               />
               <label className="wide">
                 زیرعنوان کوتاه
@@ -883,6 +889,21 @@ function FinalProduct({
               </div>
             )}
           </section>
+          <section className="wizard-section product-visibility-section">
+            <span>نحوه نمایش</span>
+            <h2>محصول کجا دیده شود؟</h2>
+            <label>
+              وضعیت نمایش محصول
+              <select name="visibility" required defaultValue={draft?.visibility || "VISIBLE"}>
+                <option value="VISIBLE">عمومی پس از تأیید مدیر</option>
+                <option value="PRIVATE">خصوصی؛ فقط با لینک مستقیم</option>
+              </select>
+              <small>
+                تا قبل از تأیید مدیر، هر دو گزینه فقط با لینک مستقیم قابل مشاهده و خرید هستند.
+                اگر «خصوصی» را انتخاب کنی، محصول حتی بعد از تأیید هم در خانه، فروشگاه و جست‌وجو نمایش داده نمی‌شود.
+              </small>
+            </label>
+          </section>
           {state.ok && state.message && (
             <div className="action-note success">
               {state.message}
@@ -917,16 +938,29 @@ function FinalProduct({
           </footer>
         </form>
       </main>
-      {state.ok && (
+      {state.ok && successOpen && ["publish", "publish_chaplly", "publish_both"].includes(submittedIntent) && (
         <div className="publish-success">
           <div>
             <span>🎉</span>
-            <small>اطلاعات با موفقیت ذخیره شد</small>
+            <small>محصول با موفقیت ساخته شد</small>
             <h2>{state.message}</h2>
-            <p>محصول در داشبورد و صف بررسی قابل مشاهده است.</p>
-            <Link href="/seller/dashboard?section=products">
-              بازگشت به محصولات <ChevronLeft />
-            </Link>
+            <p>تا زمان تأیید مدیر، محصول در ویترین‌ها دیده نمی‌شود؛ اما خریدار می‌تواند با این لینک آن را ببیند و بخرد.</p>
+            <div className="publish-share-link" dir="ltr">
+              <input readOnly value={`/products/${productSlug}`} aria-label="لینک مستقیم محصول" />
+              <button type="button" onClick={async () => {
+                await navigator.clipboard.writeText(`${window.location.origin}/products/${productSlug}`);
+                setLinkCopied(true);
+              }}><Copy /> {linkCopied ? "کپی شد" : "کپی لینک"}</button>
+            </div>
+            <div className="publish-success-actions">
+              <Link href={`/products/${productSlug}`} target="_blank">
+                مشاهده محصول <ExternalLink />
+              </Link>
+              <Link href="/seller/dashboard?section=products">
+                بازگشت به محصولات <ChevronLeft />
+              </Link>
+              <button type="button" onClick={() => setSuccessOpen(false)}>بستن</button>
+            </div>
             <BadgeCheck />
           </div>
         </div>
