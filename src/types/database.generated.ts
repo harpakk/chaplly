@@ -6,6 +6,30 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
   public: {
     Tables: {
+      "admin_mockup_test_assets": {
+        Row: {
+          "singleton": boolean;
+          "file_id": string;
+          "updated_by": string | null;
+          "updated_at": string;
+        };
+        Insert: {
+          "singleton"?: boolean;
+          "file_id": string;
+          "updated_by"?: string | null;
+          "updated_at"?: string;
+        };
+        Update: {
+          "singleton"?: boolean;
+          "file_id"?: string;
+          "updated_by"?: string | null;
+          "updated_at"?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "admin_mockup_test_assets_file_id_fkey"; columns: ["file_id"]; isOneToOne: false; referencedRelation: "storage_files"; referencedColumns: ["id"] },
+          { foreignKeyName: "admin_mockup_test_assets_updated_by_fkey"; columns: ["updated_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+        ];
+      };
       "admin_profiles": {
         Row: {
           "user_id": string;
@@ -371,6 +395,92 @@ export type Database = {
           { foreignKeyName: "buyer_profiles_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
         ];
       };
+      "buyer_refund_preferences": {
+        Row: {
+          "user_id": string;
+          "destination": string;
+          "card_number": string | null;
+          "updated_at": string;
+        };
+        Insert: {
+          "user_id": string;
+          "destination"?: string;
+          "card_number"?: string | null;
+          "updated_at"?: string;
+        };
+        Update: {
+          "user_id"?: string;
+          "destination"?: string;
+          "card_number"?: string | null;
+          "updated_at"?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "buyer_refund_preferences_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+        ];
+      };
+      "buyer_wallet_transactions": {
+        Row: {
+          "id": string;
+          "user_id": string;
+          "order_id": string | null;
+          "refund_id": string | null;
+          "direction": string;
+          "amount": number;
+          "description": string;
+          "idempotency_key": string;
+          "created_at": string;
+        };
+        Insert: {
+          "id"?: string;
+          "user_id": string;
+          "order_id"?: string | null;
+          "refund_id"?: string | null;
+          "direction": string;
+          "amount": number;
+          "description": string;
+          "idempotency_key": string;
+          "created_at"?: string;
+        };
+        Update: {
+          "id"?: string;
+          "user_id"?: string;
+          "order_id"?: string | null;
+          "refund_id"?: string | null;
+          "direction"?: string;
+          "amount"?: number;
+          "description"?: string;
+          "idempotency_key"?: string;
+          "created_at"?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "buyer_wallet_transactions_order_id_fkey"; columns: ["order_id"]; isOneToOne: false; referencedRelation: "orders"; referencedColumns: ["id"] },
+          { foreignKeyName: "buyer_wallet_transactions_refund_id_fkey"; columns: ["refund_id"]; isOneToOne: false; referencedRelation: "refunds"; referencedColumns: ["id"] },
+          { foreignKeyName: "buyer_wallet_transactions_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+        ];
+      };
+      "buyer_wallets": {
+        Row: {
+          "user_id": string;
+          "balance": number;
+          "currency": string;
+          "updated_at": string;
+        };
+        Insert: {
+          "user_id": string;
+          "balance"?: number;
+          "currency"?: string;
+          "updated_at"?: string;
+        };
+        Update: {
+          "user_id"?: string;
+          "balance"?: number;
+          "currency"?: string;
+          "updated_at"?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "buyer_wallets_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+        ];
+      };
       "cart_items": {
         Row: {
           "id": string;
@@ -482,6 +592,192 @@ export type Database = {
         Relationships: [
           { foreignKeyName: "categories_image_file_id_fkey"; columns: ["image_file_id"]; isOneToOne: false; referencedRelation: "storage_files"; referencedColumns: ["id"] },
           { foreignKeyName: "categories_parent_id_fkey"; columns: ["parent_id"]; isOneToOne: false; referencedRelation: "categories"; referencedColumns: ["id"] },
+        ];
+      };
+      "coupon_categories": {
+        Row: {
+          "coupon_id": string;
+          "category_id": string;
+        };
+        Insert: {
+          "coupon_id": string;
+          "category_id": string;
+        };
+        Update: {
+          "coupon_id"?: string;
+          "category_id"?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "coupon_categories_category_id_fkey"; columns: ["category_id"]; isOneToOne: false; referencedRelation: "categories"; referencedColumns: ["id"] },
+          { foreignKeyName: "coupon_categories_coupon_id_fkey"; columns: ["coupon_id"]; isOneToOne: false; referencedRelation: "coupons"; referencedColumns: ["id"] },
+        ];
+      };
+      "coupon_redemptions": {
+        Row: {
+          "id": string;
+          "coupon_id": string;
+          "order_id": string;
+          "buyer_user_id": string | null;
+          "discount_amount": number;
+          "redeemed_at": string;
+        };
+        Insert: {
+          "id"?: string;
+          "coupon_id": string;
+          "order_id": string;
+          "buyer_user_id"?: string | null;
+          "discount_amount": number;
+          "redeemed_at"?: string;
+        };
+        Update: {
+          "id"?: string;
+          "coupon_id"?: string;
+          "order_id"?: string;
+          "buyer_user_id"?: string | null;
+          "discount_amount"?: number;
+          "redeemed_at"?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "coupon_redemptions_buyer_user_id_fkey"; columns: ["buyer_user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "coupon_redemptions_coupon_id_fkey"; columns: ["coupon_id"]; isOneToOne: false; referencedRelation: "coupons"; referencedColumns: ["id"] },
+          { foreignKeyName: "coupon_redemptions_order_id_fkey"; columns: ["order_id"]; isOneToOne: false; referencedRelation: "orders"; referencedColumns: ["id"] },
+        ];
+      };
+      "coupon_stores": {
+        Row: {
+          "coupon_id": string;
+          "store_id": string;
+        };
+        Insert: {
+          "coupon_id": string;
+          "store_id": string;
+        };
+        Update: {
+          "coupon_id"?: string;
+          "store_id"?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "coupon_stores_coupon_id_fkey"; columns: ["coupon_id"]; isOneToOne: false; referencedRelation: "coupons"; referencedColumns: ["id"] },
+          { foreignKeyName: "coupon_stores_store_id_fkey"; columns: ["store_id"]; isOneToOne: false; referencedRelation: "stores"; referencedColumns: ["id"] },
+        ];
+      };
+      "coupons": {
+        Row: {
+          "id": string;
+          "code": string;
+          "created_by": string;
+          "owner_organization_id": string | null;
+          "discount_type": string;
+          "discount_value": number;
+          "applies_to": string;
+          "all_stores": boolean;
+          "expires_at": string;
+          "max_usage": number;
+          "usage_count": number;
+          "status": string;
+          "created_at": string;
+          "updated_at": string;
+        };
+        Insert: {
+          "id"?: string;
+          "code": string;
+          "created_by": string;
+          "owner_organization_id"?: string | null;
+          "discount_type": string;
+          "discount_value": number;
+          "applies_to": string;
+          "all_stores"?: boolean;
+          "expires_at": string;
+          "max_usage": number;
+          "usage_count"?: number;
+          "status"?: string;
+          "created_at"?: string;
+          "updated_at"?: string;
+        };
+        Update: {
+          "id"?: string;
+          "code"?: string;
+          "created_by"?: string;
+          "owner_organization_id"?: string | null;
+          "discount_type"?: string;
+          "discount_value"?: number;
+          "applies_to"?: string;
+          "all_stores"?: boolean;
+          "expires_at"?: string;
+          "max_usage"?: number;
+          "usage_count"?: number;
+          "status"?: string;
+          "created_at"?: string;
+          "updated_at"?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "coupons_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "coupons_owner_organization_id_fkey"; columns: ["owner_organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] },
+        ];
+      };
+      "daily_attribution_visitors": {
+        Row: {
+          "day": string;
+          "visitor_hash": string;
+          "source_type": string;
+          "referral_code": string | null;
+          "landing_path": string | null;
+          "visits": number;
+          "first_seen_at": string;
+          "last_seen_at": string;
+        };
+        Insert: {
+          "day": string;
+          "visitor_hash": string;
+          "source_type": string;
+          "referral_code"?: string | null;
+          "landing_path"?: string | null;
+          "visits"?: number;
+          "first_seen_at"?: string;
+          "last_seen_at"?: string;
+        };
+        Update: {
+          "day"?: string;
+          "visitor_hash"?: string;
+          "source_type"?: string;
+          "referral_code"?: string | null;
+          "landing_path"?: string | null;
+          "visits"?: number;
+          "first_seen_at"?: string;
+          "last_seen_at"?: string;
+        };
+        Relationships: [
+        ];
+      };
+      "daily_site_analytics": {
+        Row: {
+          "day": string;
+          "index_page_views": number;
+          "product_page_views": number;
+          "paid_orders": number;
+          "paid_items": number;
+          "total_sales": number;
+          "updated_at": string;
+        };
+        Insert: {
+          "day": string;
+          "index_page_views"?: number;
+          "product_page_views"?: number;
+          "paid_orders"?: number;
+          "paid_items"?: number;
+          "total_sales"?: number;
+          "updated_at"?: string;
+        };
+        Update: {
+          "day"?: string;
+          "index_page_views"?: number;
+          "product_page_views"?: number;
+          "paid_orders"?: number;
+          "paid_items"?: number;
+          "total_sales"?: number;
+          "updated_at"?: string;
+        };
+        Relationships: [
         ];
       };
       "design_mockup_renders": {
@@ -623,6 +919,9 @@ export type Database = {
           "name": string;
           "schema_version": number;
           "version": number;
+          "last_autosaved_at": string | null;
+          "completed_at": string | null;
+          "archived_at": string | null;
         };
         Insert: {
           "id"?: string;
@@ -635,6 +934,9 @@ export type Database = {
           "name"?: string;
           "schema_version"?: number;
           "version"?: number;
+          "last_autosaved_at"?: string | null;
+          "completed_at"?: string | null;
+          "archived_at"?: string | null;
         };
         Update: {
           "id"?: string;
@@ -647,6 +949,9 @@ export type Database = {
           "name"?: string;
           "schema_version"?: number;
           "version"?: number;
+          "last_autosaved_at"?: string | null;
+          "completed_at"?: string | null;
+          "archived_at"?: string | null;
         };
         Relationships: [
           { foreignKeyName: "designs_owner_user_id_fkey"; columns: ["owner_user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
@@ -723,14 +1028,14 @@ export type Database = {
           "gross_amount": number;
           "fee_amount": number;
           "net_amount": number;
-          "reserved_amount": number;
-          "paid_amount": number;
           "currency": string;
           "status": Database["public"]["Enums"]["earning_state"];
           "available_at": string | null;
           "paid_at": string | null;
           "created_at": string;
           "updated_at": string;
+          "reserved_amount": number;
+          "paid_amount": number;
         };
         Insert: {
           "id"?: string;
@@ -744,14 +1049,14 @@ export type Database = {
           "gross_amount": number;
           "fee_amount"?: number;
           "net_amount": number;
-          "reserved_amount"?: number;
-          "paid_amount"?: number;
           "currency"?: string;
           "status"?: Database["public"]["Enums"]["earning_state"];
           "available_at"?: string | null;
           "paid_at"?: string | null;
           "created_at"?: string;
           "updated_at"?: string;
+          "reserved_amount"?: number;
+          "paid_amount"?: number;
         };
         Update: {
           "id"?: string;
@@ -765,14 +1070,14 @@ export type Database = {
           "gross_amount"?: number;
           "fee_amount"?: number;
           "net_amount"?: number;
-          "reserved_amount"?: number;
-          "paid_amount"?: number;
           "currency"?: string;
           "status"?: Database["public"]["Enums"]["earning_state"];
           "available_at"?: string | null;
           "paid_at"?: string | null;
           "created_at"?: string;
           "updated_at"?: string;
+          "reserved_amount"?: number;
+          "paid_amount"?: number;
         };
         Relationships: [
           { foreignKeyName: "earnings_beneficiary_organization_id_fkey"; columns: ["beneficiary_organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] },
@@ -838,6 +1143,7 @@ export type Database = {
           "sort_order": number;
           "created_at": string;
           "updated_at": string;
+          "is_premium": boolean;
         };
         Insert: {
           "id"?: string;
@@ -848,6 +1154,7 @@ export type Database = {
           "sort_order"?: number;
           "created_at"?: string;
           "updated_at"?: string;
+          "is_premium"?: boolean;
         };
         Update: {
           "id"?: string;
@@ -858,6 +1165,7 @@ export type Database = {
           "sort_order"?: number;
           "created_at"?: string;
           "updated_at"?: string;
+          "is_premium"?: boolean;
         };
         Relationships: [
           { foreignKeyName: "free_designs_file_id_fkey"; columns: ["file_id"]; isOneToOne: false; referencedRelation: "storage_files"; referencedColumns: ["id"] },
@@ -1472,6 +1780,9 @@ export type Database = {
           "tax_amount": number;
           "paid_at": string | null;
           "completed_at": string | null;
+          "referral_code": string | null;
+          "acquisition_source": string | null;
+          "attribution_landing_path": string | null;
         };
         Insert: {
           "id"?: string;
@@ -1492,6 +1803,9 @@ export type Database = {
           "tax_amount"?: number;
           "paid_at"?: string | null;
           "completed_at"?: string | null;
+          "referral_code"?: string | null;
+          "acquisition_source"?: string | null;
+          "attribution_landing_path"?: string | null;
         };
         Update: {
           "id"?: string;
@@ -1512,6 +1826,9 @@ export type Database = {
           "tax_amount"?: number;
           "paid_at"?: string | null;
           "completed_at"?: string | null;
+          "referral_code"?: string | null;
+          "acquisition_source"?: string | null;
+          "attribution_landing_path"?: string | null;
         };
         Relationships: [
           { foreignKeyName: "orders_buyer_user_id_fkey"; columns: ["buyer_user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
@@ -2044,6 +2361,11 @@ export type Database = {
           "last_login_at": string | null;
           "created_at": string;
           "updated_at": string;
+          "referral_code": string | null;
+          "acquisition_source": string | null;
+          "attribution_landing_path": string | null;
+          "attributed_at": string | null;
+          "login_count": number;
         };
         Insert: {
           "id": string;
@@ -2060,6 +2382,11 @@ export type Database = {
           "last_login_at"?: string | null;
           "created_at"?: string;
           "updated_at"?: string;
+          "referral_code"?: string | null;
+          "acquisition_source"?: string | null;
+          "attribution_landing_path"?: string | null;
+          "attributed_at"?: string | null;
+          "login_count"?: number;
         };
         Update: {
           "id"?: string;
@@ -2076,6 +2403,11 @@ export type Database = {
           "last_login_at"?: string | null;
           "created_at"?: string;
           "updated_at"?: string;
+          "referral_code"?: string | null;
+          "acquisition_source"?: string | null;
+          "attribution_landing_path"?: string | null;
+          "attributed_at"?: string | null;
+          "login_count"?: number;
         };
         Relationships: [
         ];
@@ -2178,10 +2510,10 @@ export type Database = {
           "area_width": number;
           "area_height": number;
           "perspective_points": Json | null;
-          "artwork_clip": string;
           "created_at": string;
           "updated_at": string;
           "rotation_degrees": number;
+          "artwork_clip": string;
         };
         Insert: {
           "id"?: string;
@@ -2193,10 +2525,10 @@ export type Database = {
           "area_width": number;
           "area_height": number;
           "perspective_points"?: Json | null;
-          "artwork_clip"?: string;
           "created_at"?: string;
           "updated_at"?: string;
           "rotation_degrees"?: number;
+          "artwork_clip"?: string;
         };
         Update: {
           "id"?: string;
@@ -2208,10 +2540,10 @@ export type Database = {
           "area_width"?: number;
           "area_height"?: number;
           "perspective_points"?: Json | null;
-          "artwork_clip"?: string;
           "created_at"?: string;
           "updated_at"?: string;
           "rotation_degrees"?: number;
+          "artwork_clip"?: string;
         };
         Relationships: [
           { foreignKeyName: "raw_product_mockup_views_background_file_id_fkey"; columns: ["background_file_id"]; isOneToOne: false; referencedRelation: "storage_files"; referencedColumns: ["id"] },
@@ -2259,9 +2591,38 @@ export type Database = {
           "gender"?: string;
         };
         Relationships: [
-          { foreignKeyName: "raw_product_mockups_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
           { foreignKeyName: "raw_product_mockups_color_id_fkey"; columns: ["color_id"]; isOneToOne: false; referencedRelation: "raw_product_colors"; referencedColumns: ["id"] },
+          { foreignKeyName: "raw_product_mockups_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
           { foreignKeyName: "raw_product_mockups_raw_product_id_fkey"; columns: ["raw_product_id"]; isOneToOne: false; referencedRelation: "raw_products"; referencedColumns: ["id"] },
+        ];
+      };
+      "raw_product_quality_descriptions": {
+        Row: {
+          "id": string;
+          "raw_product_id": string;
+          "description": string;
+          "sort_order": number;
+          "created_at": string;
+          "updated_at": string;
+        };
+        Insert: {
+          "id"?: string;
+          "raw_product_id": string;
+          "description": string;
+          "sort_order"?: number;
+          "created_at"?: string;
+          "updated_at"?: string;
+        };
+        Update: {
+          "id"?: string;
+          "raw_product_id"?: string;
+          "description"?: string;
+          "sort_order"?: number;
+          "created_at"?: string;
+          "updated_at"?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "raw_product_quality_descriptions_raw_product_id_fkey"; columns: ["raw_product_id"]; isOneToOne: false; referencedRelation: "raw_products"; referencedColumns: ["id"] },
         ];
       };
       "raw_product_sizes": {
@@ -2554,19 +2915,37 @@ export type Database = {
           "published_at": string | null;
           "created_at": string;
           "updated_at": string;
+          "tags": string[];
+          "social_url": string | null;
+          "duration_seconds": number | null;
+          "width": number | null;
+          "height": number | null;
+          "view_count": number;
+          "reviewed_by": string | null;
+          "reviewed_at": string | null;
+          "rejection_reason": string | null;
         };
         Insert: {
           "id"?: string;
           "store_id": string;
           "seller_product_id"?: string | null;
           "video_file_id": string;
-          "caption": string;
+          "caption"?: string;
           "status"?: string;
           "like_count"?: number;
           "save_count"?: number;
           "published_at"?: string | null;
           "created_at"?: string;
           "updated_at"?: string;
+          "tags"?: string[];
+          "social_url"?: string | null;
+          "duration_seconds"?: number | null;
+          "width"?: number | null;
+          "height"?: number | null;
+          "view_count"?: number;
+          "reviewed_by"?: string | null;
+          "reviewed_at"?: string | null;
+          "rejection_reason"?: string | null;
         };
         Update: {
           "id"?: string;
@@ -2580,11 +2959,42 @@ export type Database = {
           "published_at"?: string | null;
           "created_at"?: string;
           "updated_at"?: string;
+          "tags"?: string[];
+          "social_url"?: string | null;
+          "duration_seconds"?: number | null;
+          "width"?: number | null;
+          "height"?: number | null;
+          "view_count"?: number;
+          "reviewed_by"?: string | null;
+          "reviewed_at"?: string | null;
+          "rejection_reason"?: string | null;
         };
         Relationships: [
+          { foreignKeyName: "reel_posts_reviewed_by_fkey"; columns: ["reviewed_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
           { foreignKeyName: "reel_posts_seller_product_id_fkey"; columns: ["seller_product_id"]; isOneToOne: false; referencedRelation: "seller_products"; referencedColumns: ["id"] },
           { foreignKeyName: "reel_posts_store_id_fkey"; columns: ["store_id"]; isOneToOne: false; referencedRelation: "stores"; referencedColumns: ["id"] },
           { foreignKeyName: "reel_posts_video_file_id_fkey"; columns: ["video_file_id"]; isOneToOne: false; referencedRelation: "storage_files"; referencedColumns: ["id"] },
+        ];
+      };
+      "reel_products": {
+        Row: {
+          "reel_id": string;
+          "seller_product_id": string;
+          "sort_order": number;
+        };
+        Insert: {
+          "reel_id": string;
+          "seller_product_id": string;
+          "sort_order"?: number;
+        };
+        Update: {
+          "reel_id"?: string;
+          "seller_product_id"?: string;
+          "sort_order"?: number;
+        };
+        Relationships: [
+          { foreignKeyName: "reel_products_reel_id_fkey"; columns: ["reel_id"]; isOneToOne: false; referencedRelation: "reel_posts"; referencedColumns: ["id"] },
+          { foreignKeyName: "reel_products_seller_product_id_fkey"; columns: ["seller_product_id"]; isOneToOne: false; referencedRelation: "seller_products"; referencedColumns: ["id"] },
         ];
       };
       "reel_saves": {
@@ -2608,6 +3018,32 @@ export type Database = {
           { foreignKeyName: "reel_saves_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
         ];
       };
+      "reel_view_events": {
+        Row: {
+          "id": string;
+          "reel_id": string;
+          "viewer_key": string;
+          "viewed_on": string;
+          "viewed_at": string;
+        };
+        Insert: {
+          "id"?: string;
+          "reel_id": string;
+          "viewer_key": string;
+          "viewed_on"?: string;
+          "viewed_at"?: string;
+        };
+        Update: {
+          "id"?: string;
+          "reel_id"?: string;
+          "viewer_key"?: string;
+          "viewed_on"?: string;
+          "viewed_at"?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "reel_view_events_reel_id_fkey"; columns: ["reel_id"]; isOneToOne: false; referencedRelation: "reel_posts"; referencedColumns: ["id"] },
+        ];
+      };
       "refunds": {
         Row: {
           "id": string;
@@ -2625,6 +3061,10 @@ export type Database = {
           "requested_at": string;
           "processed_at": string | null;
           "updated_at": string;
+          "destination": string | null;
+          "destination_card_number": string | null;
+          "receipt_file_id": string | null;
+          "transfer_reference": string | null;
         };
         Insert: {
           "id"?: string;
@@ -2642,6 +3082,10 @@ export type Database = {
           "requested_at"?: string;
           "processed_at"?: string | null;
           "updated_at"?: string;
+          "destination"?: string | null;
+          "destination_card_number"?: string | null;
+          "receipt_file_id"?: string | null;
+          "transfer_reference"?: string | null;
         };
         Update: {
           "id"?: string;
@@ -2659,11 +3103,16 @@ export type Database = {
           "requested_at"?: string;
           "processed_at"?: string | null;
           "updated_at"?: string;
+          "destination"?: string | null;
+          "destination_card_number"?: string | null;
+          "receipt_file_id"?: string | null;
+          "transfer_reference"?: string | null;
         };
         Relationships: [
           { foreignKeyName: "refunds_order_id_fkey"; columns: ["order_id"]; isOneToOne: false; referencedRelation: "orders"; referencedColumns: ["id"] },
           { foreignKeyName: "refunds_payment_id_fkey"; columns: ["payment_id"]; isOneToOne: false; referencedRelation: "payments"; referencedColumns: ["id"] },
           { foreignKeyName: "refunds_processed_by_fkey"; columns: ["processed_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "refunds_receipt_file_id_fkey"; columns: ["receipt_file_id"]; isOneToOne: false; referencedRelation: "storage_files"; referencedColumns: ["id"] },
           { foreignKeyName: "refunds_requested_by_fkey"; columns: ["requested_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
         ];
       };
@@ -2904,12 +3353,39 @@ export type Database = {
         ];
       };
       "seller_product_property_markups": {
-        Row: { "id": string; "seller_product_id": string; "dimension": string; "color_id": string | null; "size_id": string | null; "markup_percentage": number; "created_at": string; "updated_at": string };
-        Insert: { "id"?: string; "seller_product_id": string; "dimension": string; "color_id"?: string | null; "size_id"?: string | null; "markup_percentage": number; "created_at"?: string; "updated_at"?: string };
-        Update: { "id"?: string; "seller_product_id"?: string; "dimension"?: string; "color_id"?: string | null; "size_id"?: string | null; "markup_percentage"?: number; "created_at"?: string; "updated_at"?: string };
+        Row: {
+          "id": string;
+          "seller_product_id": string;
+          "dimension": string;
+          "color_id": string | null;
+          "size_id": string | null;
+          "markup_percentage": number;
+          "created_at": string;
+          "updated_at": string;
+        };
+        Insert: {
+          "id"?: string;
+          "seller_product_id": string;
+          "dimension": string;
+          "color_id"?: string | null;
+          "size_id"?: string | null;
+          "markup_percentage": number;
+          "created_at"?: string;
+          "updated_at"?: string;
+        };
+        Update: {
+          "id"?: string;
+          "seller_product_id"?: string;
+          "dimension"?: string;
+          "color_id"?: string | null;
+          "size_id"?: string | null;
+          "markup_percentage"?: number;
+          "created_at"?: string;
+          "updated_at"?: string;
+        };
         Relationships: [
-          { foreignKeyName: "seller_product_property_markups_seller_product_id_fkey"; columns: ["seller_product_id"]; isOneToOne: false; referencedRelation: "seller_products"; referencedColumns: ["id"] },
           { foreignKeyName: "seller_product_property_markups_color_id_fkey"; columns: ["color_id"]; isOneToOne: false; referencedRelation: "raw_product_colors"; referencedColumns: ["id"] },
+          { foreignKeyName: "seller_product_property_markups_seller_product_id_fkey"; columns: ["seller_product_id"]; isOneToOne: false; referencedRelation: "seller_products"; referencedColumns: ["id"] },
           { foreignKeyName: "seller_product_property_markups_size_id_fkey"; columns: ["size_id"]; isOneToOne: false; referencedRelation: "raw_product_sizes"; referencedColumns: ["id"] },
         ];
       };
@@ -2922,11 +3398,11 @@ export type Database = {
           "backup_supplier_offer_variant_id": string | null;
           "sku": string;
           "price": number;
-          "markup_percentage": number;
           "compare_at_price": number | null;
           "status": string;
           "created_at": string;
           "updated_at": string;
+          "markup_percentage": number;
         };
         Insert: {
           "id"?: string;
@@ -2936,11 +3412,11 @@ export type Database = {
           "backup_supplier_offer_variant_id"?: string | null;
           "sku": string;
           "price": number;
-          "markup_percentage"?: number;
           "compare_at_price"?: number | null;
           "status"?: string;
           "created_at"?: string;
           "updated_at"?: string;
+          "markup_percentage"?: number;
         };
         Update: {
           "id"?: string;
@@ -2950,11 +3426,11 @@ export type Database = {
           "backup_supplier_offer_variant_id"?: string | null;
           "sku"?: string;
           "price"?: number;
-          "markup_percentage"?: number;
           "compare_at_price"?: number | null;
           "status"?: string;
           "created_at"?: string;
           "updated_at"?: string;
+          "markup_percentage"?: number;
         };
         Relationships: [
           { foreignKeyName: "seller_product_variants_backup_supplier_offer_variant_id_fkey"; columns: ["backup_supplier_offer_variant_id"]; isOneToOne: false; referencedRelation: "supplier_offer_variants"; referencedColumns: ["id"] },
@@ -2982,7 +3458,6 @@ export type Database = {
           "slug": string;
           "subtitle": string | null;
           "moderation_status": Database["public"]["Enums"]["moderation_state"];
-          "visibility": string;
           "seo_title": string | null;
           "seo_description": string | null;
           "rating_average": number;
@@ -2992,6 +3467,7 @@ export type Database = {
           "is_featured": boolean;
           "version": number;
           "gender": string;
+          "visibility": string;
         };
         Insert: {
           "id"?: string;
@@ -3011,7 +3487,6 @@ export type Database = {
           "slug": string;
           "subtitle"?: string | null;
           "moderation_status"?: Database["public"]["Enums"]["moderation_state"];
-          "visibility"?: string;
           "seo_title"?: string | null;
           "seo_description"?: string | null;
           "rating_average"?: number;
@@ -3021,6 +3496,7 @@ export type Database = {
           "is_featured"?: boolean;
           "version"?: number;
           "gender"?: string;
+          "visibility"?: string;
         };
         Update: {
           "id"?: string;
@@ -3040,7 +3516,6 @@ export type Database = {
           "slug"?: string;
           "subtitle"?: string | null;
           "moderation_status"?: Database["public"]["Enums"]["moderation_state"];
-          "visibility"?: string;
           "seo_title"?: string | null;
           "seo_description"?: string | null;
           "rating_average"?: number;
@@ -3050,6 +3525,7 @@ export type Database = {
           "is_featured"?: boolean;
           "version"?: number;
           "gender"?: string;
+          "visibility"?: string;
         };
         Relationships: [
           { foreignKeyName: "seller_products_backup_supplier_offer_id_fkey"; columns: ["backup_supplier_offer_id"]; isOneToOne: false; referencedRelation: "supplier_offers"; referencedColumns: ["id"] },
@@ -3072,6 +3548,7 @@ export type Database = {
           "status": string;
           "created_at": string;
           "updated_at": string;
+          "onboarding_answers": Json;
         };
         Insert: {
           "organization_id": string;
@@ -3085,6 +3562,7 @@ export type Database = {
           "status"?: string;
           "created_at"?: string;
           "updated_at"?: string;
+          "onboarding_answers"?: Json;
         };
         Update: {
           "organization_id"?: string;
@@ -3098,10 +3576,79 @@ export type Database = {
           "status"?: string;
           "created_at"?: string;
           "updated_at"?: string;
+          "onboarding_answers"?: Json;
         };
         Relationships: [
           { foreignKeyName: "seller_profiles_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] },
           { foreignKeyName: "seller_profiles_owner_user_id_fkey"; columns: ["owner_user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+        ];
+      };
+      "seller_tour_progress": {
+        Row: {
+          "user_id": string;
+          "eligible": boolean;
+          "sidebar_step": number;
+          "product_step": number;
+          "design_step": number;
+          "sidebar_completed_at": string | null;
+          "product_completed_at": string | null;
+          "design_completed_at": string | null;
+          "sidebar_shown_count": number;
+          "product_shown_count": number;
+          "design_shown_count": number;
+          "skipped_count": number;
+          "dismissed_login_count": number | null;
+          "dont_show_again": boolean;
+          "dont_show_again_at": string | null;
+          "last_tour": string | null;
+          "last_seen_at": string | null;
+          "created_at": string;
+          "updated_at": string;
+        };
+        Insert: {
+          "user_id": string;
+          "eligible"?: boolean;
+          "sidebar_step"?: number;
+          "product_step"?: number;
+          "design_step"?: number;
+          "sidebar_completed_at"?: string | null;
+          "product_completed_at"?: string | null;
+          "design_completed_at"?: string | null;
+          "sidebar_shown_count"?: number;
+          "product_shown_count"?: number;
+          "design_shown_count"?: number;
+          "skipped_count"?: number;
+          "dismissed_login_count"?: number | null;
+          "dont_show_again"?: boolean;
+          "dont_show_again_at"?: string | null;
+          "last_tour"?: string | null;
+          "last_seen_at"?: string | null;
+          "created_at"?: string;
+          "updated_at"?: string;
+        };
+        Update: {
+          "user_id"?: string;
+          "eligible"?: boolean;
+          "sidebar_step"?: number;
+          "product_step"?: number;
+          "design_step"?: number;
+          "sidebar_completed_at"?: string | null;
+          "product_completed_at"?: string | null;
+          "design_completed_at"?: string | null;
+          "sidebar_shown_count"?: number;
+          "product_shown_count"?: number;
+          "design_shown_count"?: number;
+          "skipped_count"?: number;
+          "dismissed_login_count"?: number | null;
+          "dont_show_again"?: boolean;
+          "dont_show_again_at"?: string | null;
+          "last_tour"?: string | null;
+          "last_seen_at"?: string | null;
+          "created_at"?: string;
+          "updated_at"?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "seller_tour_progress_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
         ];
       };
       "shipments": {
@@ -3146,6 +3693,46 @@ export type Database = {
         };
         Relationships: [
           { foreignKeyName: "shipments_fulfilment_id_fkey"; columns: ["fulfilment_id"]; isOneToOne: false; referencedRelation: "fulfilments"; referencedColumns: ["id"] },
+        ];
+      };
+      "sms_event_configs": {
+        Row: {
+          "event_type": string;
+          "name": string;
+          "recipient_role": string;
+          "description": string;
+          "pattern_id": number | null;
+          "variable_keys": string[];
+          "enabled": boolean;
+          "is_required_event": boolean;
+          "created_at": string;
+          "updated_at": string;
+        };
+        Insert: {
+          "event_type": string;
+          "name": string;
+          "recipient_role": string;
+          "description"?: string;
+          "pattern_id"?: number | null;
+          "variable_keys"?: string[];
+          "enabled"?: boolean;
+          "is_required_event"?: boolean;
+          "created_at"?: string;
+          "updated_at"?: string;
+        };
+        Update: {
+          "event_type"?: string;
+          "name"?: string;
+          "recipient_role"?: string;
+          "description"?: string;
+          "pattern_id"?: number | null;
+          "variable_keys"?: string[];
+          "enabled"?: boolean;
+          "is_required_event"?: boolean;
+          "created_at"?: string;
+          "updated_at"?: string;
+        };
+        Relationships: [
         ];
       };
       "sms_templates": {
@@ -3293,9 +3880,24 @@ export type Database = {
         ];
       };
       "storefront_unique_visits": {
-        Row: { "store_id": string; "visitor_hash": string; "day": string; "first_seen_at": string };
-        Insert: { "store_id": string; "visitor_hash": string; "day"?: string; "first_seen_at"?: string };
-        Update: { "store_id"?: string; "visitor_hash"?: string; "day"?: string; "first_seen_at"?: string };
+        Row: {
+          "store_id": string;
+          "visitor_hash": string;
+          "day": string;
+          "first_seen_at": string;
+        };
+        Insert: {
+          "store_id": string;
+          "visitor_hash": string;
+          "day"?: string;
+          "first_seen_at"?: string;
+        };
+        Update: {
+          "store_id"?: string;
+          "visitor_hash"?: string;
+          "day"?: string;
+          "first_seen_at"?: string;
+        };
         Relationships: [
           { foreignKeyName: "storefront_unique_visits_store_id_fkey"; columns: ["store_id"]; isOneToOne: false; referencedRelation: "stores"; referencedColumns: ["id"] },
         ];
@@ -3324,8 +3926,8 @@ export type Database = {
           "brand_tone": string | null;
           "follower_count": number;
           "is_verified": boolean;
-          "storefront_config": Json;
           "version": number;
+          "storefront_config": Json;
         };
         Insert: {
           "id"?: string;
@@ -3350,8 +3952,8 @@ export type Database = {
           "brand_tone"?: string | null;
           "follower_count"?: number;
           "is_verified"?: boolean;
-          "storefront_config"?: Json;
           "version"?: number;
+          "storefront_config"?: Json;
         };
         Update: {
           "id"?: string;
@@ -3376,8 +3978,8 @@ export type Database = {
           "brand_tone"?: string | null;
           "follower_count"?: number;
           "is_verified"?: boolean;
-          "storefront_config"?: Json;
           "version"?: number;
+          "storefront_config"?: Json;
         };
         Relationships: [
           { foreignKeyName: "stores_banner_file_id_fkey"; columns: ["banner_file_id"]; isOneToOne: false; referencedRelation: "storage_files"; referencedColumns: ["id"] },
@@ -3517,7 +4119,7 @@ export type Database = {
           "facility_id": string;
           "raw_product_id": string;
           "base_cost": number;
-          "lead_time_days": number;
+          "lead_time_days"?: number;
           "capacity_per_day": number;
           "approval_status"?: string;
           "status"?: string;
@@ -3665,6 +4267,84 @@ export type Database = {
           { foreignKeyName: "supplier_variant_availability_events_changed_by_fkey"; columns: ["changed_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
         ];
       };
+      "support_ai_conversations": {
+        Row: {
+          "id": string;
+          "user_id": string;
+          "user_role": string;
+          "created_at": string;
+          "updated_at": string;
+        };
+        Insert: {
+          "id"?: string;
+          "user_id": string;
+          "user_role": string;
+          "created_at"?: string;
+          "updated_at"?: string;
+        };
+        Update: {
+          "id"?: string;
+          "user_id"?: string;
+          "user_role"?: string;
+          "created_at"?: string;
+          "updated_at"?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "support_ai_conversations_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+        ];
+      };
+      "support_ai_messages": {
+        Row: {
+          "id": string;
+          "conversation_id": string;
+          "user_id": string;
+          "role": string;
+          "body": string;
+          "created_at": string;
+        };
+        Insert: {
+          "id"?: string;
+          "conversation_id": string;
+          "user_id": string;
+          "role": string;
+          "body": string;
+          "created_at"?: string;
+        };
+        Update: {
+          "id"?: string;
+          "conversation_id"?: string;
+          "user_id"?: string;
+          "role"?: string;
+          "body"?: string;
+          "created_at"?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "support_ai_messages_conversation_id_fkey"; columns: ["conversation_id"]; isOneToOne: false; referencedRelation: "support_ai_conversations"; referencedColumns: ["id"] },
+          { foreignKeyName: "support_ai_messages_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+        ];
+      };
+      "support_ai_settings": {
+        Row: {
+          "id": string;
+          "model": string;
+          "system_prompt": string;
+          "updated_at": string;
+        };
+        Insert: {
+          "id"?: string;
+          "model"?: string;
+          "system_prompt": string;
+          "updated_at"?: string;
+        };
+        Update: {
+          "id"?: string;
+          "model"?: string;
+          "system_prompt"?: string;
+          "updated_at"?: string;
+        };
+        Relationships: [
+        ];
+      };
       "support_knowledge_base": {
         Row: {
           "id": string;
@@ -3674,6 +4354,8 @@ export type Database = {
           "status": string;
           "created_at": string;
           "updated_at": string;
+          "source_type": string;
+          "file_name": string | null;
         };
         Insert: {
           "id"?: string;
@@ -3683,6 +4365,8 @@ export type Database = {
           "status"?: string;
           "created_at"?: string;
           "updated_at"?: string;
+          "source_type"?: string;
+          "file_name"?: string | null;
         };
         Update: {
           "id"?: string;
@@ -3692,6 +4376,8 @@ export type Database = {
           "status"?: string;
           "created_at"?: string;
           "updated_at"?: string;
+          "source_type"?: string;
+          "file_name"?: string | null;
         };
         Relationships: [
         ];
@@ -3716,6 +4402,32 @@ export type Database = {
           "created_at"?: string;
         };
         Relationships: [
+        ];
+      };
+      "ticket_ai_drafts": {
+        Row: {
+          "ticket_id": string;
+          "draft": string;
+          "source_message_at": string | null;
+          "created_at": string;
+          "updated_at": string;
+        };
+        Insert: {
+          "ticket_id": string;
+          "draft": string;
+          "source_message_at"?: string | null;
+          "created_at"?: string;
+          "updated_at"?: string;
+        };
+        Update: {
+          "ticket_id"?: string;
+          "draft"?: string;
+          "source_message_at"?: string | null;
+          "created_at"?: string;
+          "updated_at"?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "ticket_ai_drafts_ticket_id_fkey"; columns: ["ticket_id"]; isOneToOne: false; referencedRelation: "tickets"; referencedColumns: ["id"] },
         ];
       };
       "ticket_attachments": {
@@ -4101,27 +4813,394 @@ export type Database = {
           { foreignKeyName: "wishlist_items_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
         ];
       };
+      "woocommerce_channel_accounts": {
+        Row: {
+          "organization_id": string;
+          "balance": number;
+          "currency": string;
+          "updated_at": string;
+        };
+        Insert: {
+          "organization_id": string;
+          "balance"?: number;
+          "currency"?: string;
+          "updated_at"?: string;
+        };
+        Update: {
+          "organization_id"?: string;
+          "balance"?: number;
+          "currency"?: string;
+          "updated_at"?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "woocommerce_channel_accounts_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] },
+        ];
+      };
+      "woocommerce_channel_transactions": {
+        Row: {
+          "id": string;
+          "organization_id": string;
+          "import_id": string | null;
+          "direction": string;
+          "amount": number;
+          "source": string;
+          "reference": string | null;
+          "idempotency_key": string;
+          "created_at": string;
+        };
+        Insert: {
+          "id"?: string;
+          "organization_id": string;
+          "import_id"?: string | null;
+          "direction": string;
+          "amount": number;
+          "source": string;
+          "reference"?: string | null;
+          "idempotency_key": string;
+          "created_at"?: string;
+        };
+        Update: {
+          "id"?: string;
+          "organization_id"?: string;
+          "import_id"?: string | null;
+          "direction"?: string;
+          "amount"?: number;
+          "source"?: string;
+          "reference"?: string | null;
+          "idempotency_key"?: string;
+          "created_at"?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "woocommerce_channel_transactions_import_id_fkey"; columns: ["import_id"]; isOneToOne: false; referencedRelation: "woocommerce_order_imports"; referencedColumns: ["id"] },
+          { foreignKeyName: "woocommerce_channel_transactions_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] },
+        ];
+      };
+      "woocommerce_connections": {
+        Row: {
+          "id": string;
+          "organization_id": string;
+          "store_id": string;
+          "site_url": string;
+          "consumer_key_encrypted": string;
+          "consumer_secret_encrypted": string;
+          "webhook_secret_encrypted": string;
+          "webhook_id": number | null;
+          "status": string;
+          "price_divisor": number;
+          "last_error": string | null;
+          "last_verified_at": string | null;
+          "created_at": string;
+          "updated_at": string;
+        };
+        Insert: {
+          "id"?: string;
+          "organization_id": string;
+          "store_id": string;
+          "site_url": string;
+          "consumer_key_encrypted": string;
+          "consumer_secret_encrypted": string;
+          "webhook_secret_encrypted": string;
+          "webhook_id"?: number | null;
+          "status"?: string;
+          "price_divisor"?: number;
+          "last_error"?: string | null;
+          "last_verified_at"?: string | null;
+          "created_at"?: string;
+          "updated_at"?: string;
+        };
+        Update: {
+          "id"?: string;
+          "organization_id"?: string;
+          "store_id"?: string;
+          "site_url"?: string;
+          "consumer_key_encrypted"?: string;
+          "consumer_secret_encrypted"?: string;
+          "webhook_secret_encrypted"?: string;
+          "webhook_id"?: number | null;
+          "status"?: string;
+          "price_divisor"?: number;
+          "last_error"?: string | null;
+          "last_verified_at"?: string | null;
+          "created_at"?: string;
+          "updated_at"?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "woocommerce_connections_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] },
+          { foreignKeyName: "woocommerce_connections_store_id_fkey"; columns: ["store_id"]; isOneToOne: false; referencedRelation: "stores"; referencedColumns: ["id"] },
+        ];
+      };
+      "woocommerce_funding_payments": {
+        Row: {
+          "id": string;
+          "import_id": string;
+          "organization_id": string;
+          "authority": string | null;
+          "amount": number;
+          "status": string;
+          "ref_id": string | null;
+          "response_payload": Json;
+          "idempotency_key": string;
+          "created_at": string;
+          "completed_at": string | null;
+        };
+        Insert: {
+          "id"?: string;
+          "import_id": string;
+          "organization_id": string;
+          "authority"?: string | null;
+          "amount": number;
+          "status"?: string;
+          "ref_id"?: string | null;
+          "response_payload"?: Json;
+          "idempotency_key": string;
+          "created_at"?: string;
+          "completed_at"?: string | null;
+        };
+        Update: {
+          "id"?: string;
+          "import_id"?: string;
+          "organization_id"?: string;
+          "authority"?: string | null;
+          "amount"?: number;
+          "status"?: string;
+          "ref_id"?: string | null;
+          "response_payload"?: Json;
+          "idempotency_key"?: string;
+          "created_at"?: string;
+          "completed_at"?: string | null;
+        };
+        Relationships: [
+          { foreignKeyName: "woocommerce_funding_payments_import_id_fkey"; columns: ["import_id"]; isOneToOne: false; referencedRelation: "woocommerce_order_imports"; referencedColumns: ["id"] },
+          { foreignKeyName: "woocommerce_funding_payments_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] },
+        ];
+      };
+      "woocommerce_order_import_items": {
+        Row: {
+          "id": string;
+          "import_id": string;
+          "external_product_id": number;
+          "external_variation_id": number | null;
+          "seller_product_variant_id": string;
+          "quantity": number;
+          "unit_cost": number;
+          "address_key": string;
+          "item_snapshot": Json;
+        };
+        Insert: {
+          "id"?: string;
+          "import_id": string;
+          "external_product_id": number;
+          "external_variation_id"?: number | null;
+          "seller_product_variant_id": string;
+          "quantity": number;
+          "unit_cost": number;
+          "address_key"?: string;
+          "item_snapshot"?: Json;
+        };
+        Update: {
+          "id"?: string;
+          "import_id"?: string;
+          "external_product_id"?: number;
+          "external_variation_id"?: number | null;
+          "seller_product_variant_id"?: string;
+          "quantity"?: number;
+          "unit_cost"?: number;
+          "address_key"?: string;
+          "item_snapshot"?: Json;
+        };
+        Relationships: [
+          { foreignKeyName: "woocommerce_order_import_items_import_id_fkey"; columns: ["import_id"]; isOneToOne: false; referencedRelation: "woocommerce_order_imports"; referencedColumns: ["id"] },
+          { foreignKeyName: "woocommerce_order_import_items_seller_product_variant_id_fkey"; columns: ["seller_product_variant_id"]; isOneToOne: false; referencedRelation: "seller_product_variants"; referencedColumns: ["id"] },
+        ];
+      };
+      "woocommerce_order_imports": {
+        Row: {
+          "id": string;
+          "connection_id": string;
+          "organization_id": string;
+          "external_order_id": number;
+          "external_order_number": string;
+          "status": string;
+          "customer_snapshot": Json;
+          "shipping_address_snapshot": Json;
+          "required_amount": number;
+          "funded_amount": number;
+          "platform_order_ids": string[];
+          "raw_payload": Json;
+          "imported_at": string;
+          "converted_at": string | null;
+          "updated_at": string;
+        };
+        Insert: {
+          "id"?: string;
+          "connection_id": string;
+          "organization_id": string;
+          "external_order_id": number;
+          "external_order_number": string;
+          "status"?: string;
+          "customer_snapshot"?: Json;
+          "shipping_address_snapshot"?: Json;
+          "required_amount"?: number;
+          "funded_amount"?: number;
+          "platform_order_ids"?: string[];
+          "raw_payload"?: Json;
+          "imported_at"?: string;
+          "converted_at"?: string | null;
+          "updated_at"?: string;
+        };
+        Update: {
+          "id"?: string;
+          "connection_id"?: string;
+          "organization_id"?: string;
+          "external_order_id"?: number;
+          "external_order_number"?: string;
+          "status"?: string;
+          "customer_snapshot"?: Json;
+          "shipping_address_snapshot"?: Json;
+          "required_amount"?: number;
+          "funded_amount"?: number;
+          "platform_order_ids"?: string[];
+          "raw_payload"?: Json;
+          "imported_at"?: string;
+          "converted_at"?: string | null;
+          "updated_at"?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "woocommerce_order_imports_connection_id_fkey"; columns: ["connection_id"]; isOneToOne: false; referencedRelation: "woocommerce_connections"; referencedColumns: ["id"] },
+          { foreignKeyName: "woocommerce_order_imports_organization_id_fkey"; columns: ["organization_id"]; isOneToOne: false; referencedRelation: "organizations"; referencedColumns: ["id"] },
+        ];
+      };
+      "woocommerce_product_links": {
+        Row: {
+          "id": string;
+          "connection_id": string;
+          "seller_product_id": string;
+          "woo_product_id": number;
+          "status": string;
+          "last_error": string | null;
+          "synced_at": string;
+        };
+        Insert: {
+          "id"?: string;
+          "connection_id": string;
+          "seller_product_id": string;
+          "woo_product_id": number;
+          "status"?: string;
+          "last_error"?: string | null;
+          "synced_at"?: string;
+        };
+        Update: {
+          "id"?: string;
+          "connection_id"?: string;
+          "seller_product_id"?: string;
+          "woo_product_id"?: number;
+          "status"?: string;
+          "last_error"?: string | null;
+          "synced_at"?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "woocommerce_product_links_connection_id_fkey"; columns: ["connection_id"]; isOneToOne: false; referencedRelation: "woocommerce_connections"; referencedColumns: ["id"] },
+          { foreignKeyName: "woocommerce_product_links_seller_product_id_fkey"; columns: ["seller_product_id"]; isOneToOne: false; referencedRelation: "seller_products"; referencedColumns: ["id"] },
+        ];
+      };
+      "woocommerce_variant_links": {
+        Row: {
+          "id": string;
+          "product_link_id": string;
+          "seller_product_variant_id": string;
+          "woo_variation_id": number;
+          "synced_at": string;
+        };
+        Insert: {
+          "id"?: string;
+          "product_link_id": string;
+          "seller_product_variant_id": string;
+          "woo_variation_id": number;
+          "synced_at"?: string;
+        };
+        Update: {
+          "id"?: string;
+          "product_link_id"?: string;
+          "seller_product_variant_id"?: string;
+          "woo_variation_id"?: number;
+          "synced_at"?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "woocommerce_variant_links_product_link_id_fkey"; columns: ["product_link_id"]; isOneToOne: false; referencedRelation: "woocommerce_product_links"; referencedColumns: ["id"] },
+          { foreignKeyName: "woocommerce_variant_links_seller_product_variant_id_fkey"; columns: ["seller_product_variant_id"]; isOneToOne: false; referencedRelation: "seller_product_variants"; referencedColumns: ["id"] },
+        ];
+      };
+      "woocommerce_webhook_events": {
+        Row: {
+          "id": string;
+          "connection_id": string;
+          "delivery_id": string;
+          "topic": string | null;
+          "signature": string | null;
+          "payload": Json;
+          "status": string;
+          "error_message": string | null;
+          "received_at": string;
+          "processed_at": string | null;
+        };
+        Insert: {
+          "id"?: string;
+          "connection_id": string;
+          "delivery_id": string;
+          "topic"?: string | null;
+          "signature"?: string | null;
+          "payload": Json;
+          "status"?: string;
+          "error_message"?: string | null;
+          "received_at"?: string;
+          "processed_at"?: string | null;
+        };
+        Update: {
+          "id"?: string;
+          "connection_id"?: string;
+          "delivery_id"?: string;
+          "topic"?: string | null;
+          "signature"?: string | null;
+          "payload"?: Json;
+          "status"?: string;
+          "error_message"?: string | null;
+          "received_at"?: string;
+          "processed_at"?: string | null;
+        };
+        Relationships: [
+          { foreignKeyName: "woocommerce_webhook_events_connection_id_fkey"; columns: ["connection_id"]; isOneToOne: false; referencedRelation: "woocommerce_connections"; referencedColumns: ["id"] },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {
       "admin_review_supplier_offer": { Args: Record<string, unknown>; Returns: unknown };
       "admin_upsert_raw_product": { Args: Record<string, unknown>; Returns: unknown };
       "after_offer_variant_stock_change": { Args: Record<string, unknown>; Returns: unknown };
+      "apply_buyer_wallet_to_order": { Args: Record<string, unknown>; Returns: unknown };
       "assign_supplier_to_product": { Args: Record<string, unknown>; Returns: unknown };
       "audit_sensitive_mutation": { Args: Record<string, unknown>; Returns: unknown };
       "bump_record_version": { Args: Record<string, unknown>; Returns: unknown };
+      "buyer_confirm_order_received": { Args: Record<string, unknown>; Returns: unknown };
       "can_access_file": { Args: Record<string, unknown>; Returns: unknown };
       "can_access_fulfilment": { Args: Record<string, unknown>; Returns: unknown };
       "can_access_order": { Args: Record<string, unknown>; Returns: unknown };
       "can_manage_store": { Args: Record<string, unknown>; Returns: unknown };
+      "cancel_overdue_orders": { Args: Record<string, unknown>; Returns: unknown };
       "checkout_create_order": { Args: Record<string, unknown>; Returns: unknown };
       "complete_eligible_fulfilments": { Args: Record<string, unknown>; Returns: unknown };
       "complete_payout": { Args: Record<string, unknown>; Returns: unknown };
+      "confirm_pending_order_when_paid": { Args: Record<string, unknown>; Returns: unknown };
       "consume_ai_credit": { Args: Record<string, unknown>; Returns: unknown };
       "consume_user_rate_limit": { Args: Record<string, unknown>; Returns: unknown };
+      "create_earnings_after_payment": { Args: Record<string, unknown>; Returns: unknown };
       "create_earnings_when_done": { Args: Record<string, unknown>; Returns: unknown };
+      "create_order_earnings": { Args: Record<string, unknown>; Returns: unknown };
+      "create_support_ai_user_message": { Args: Record<string, unknown>; Returns: unknown };
       "create_ticket": { Args: Record<string, unknown>; Returns: unknown };
       "deduct_supplier_inventory_for_order_item": { Args: Record<string, unknown>; Returns: unknown };
+      "derive_seller_variant_price": { Args: Record<string, unknown>; Returns: unknown };
+      "enforce_coupon_store_owner": { Args: Record<string, unknown>; Returns: unknown };
       "enforce_exception_rate_limit": { Args: Record<string, unknown>; Returns: unknown };
       "enforce_ticket_message_hourly_limit": { Args: Record<string, unknown>; Returns: unknown };
       "handle_new_auth_user": { Args: Record<string, unknown>; Returns: unknown };
@@ -4134,47 +5213,74 @@ export type Database = {
       "prepare_fulfilment_for_shipping": { Args: Record<string, unknown>; Returns: unknown };
       "provision_seller": { Args: Record<string, unknown>; Returns: unknown };
       "provision_supplier": { Args: Record<string, unknown>; Returns: unknown };
+      "public_top_reels": { Args: Record<string, unknown>; Returns: unknown };
       "queue_exception_notification": { Args: Record<string, unknown>; Returns: unknown };
       "reassign_fulfilment": { Args: Record<string, unknown>; Returns: unknown };
       "recalculate_balance": { Args: Record<string, unknown>; Returns: unknown };
+      "record_attribution_visit": { Args: Record<string, unknown>; Returns: unknown };
       "record_payment": { Args: Record<string, unknown>; Returns: unknown };
+      "record_site_page_view": { Args: Record<string, unknown>; Returns: unknown };
       "record_supplier_availability_change": { Args: Record<string, unknown>; Returns: unknown };
       "refresh_balance_after_earning": { Args: Record<string, unknown>; Returns: unknown };
+      "refresh_prices_after_supplier_cost": { Args: Record<string, unknown>; Returns: unknown };
+      "refresh_seller_product_min_price": { Args: Record<string, unknown>; Returns: unknown };
       "refresh_seller_variant_availability": { Args: Record<string, unknown>; Returns: unknown };
       "release_cancelled_fulfilment_inventory": { Args: Record<string, unknown>; Returns: unknown };
       "report_fulfilment_exception": { Args: Record<string, unknown>; Returns: unknown };
       "request_order_cancellation": { Args: Record<string, unknown>; Returns: unknown };
+      "request_partial_payout": { Args: Record<string, unknown>; Returns: unknown };
       "request_payout": { Args: Record<string, unknown>; Returns: unknown };
       "request_return": { Args: Record<string, unknown>; Returns: unknown };
       "resolve_dispute": { Args: Record<string, unknown>; Returns: unknown };
       "review_fulfilment_exception": { Args: Record<string, unknown>; Returns: unknown };
       "review_order_cancellation": { Args: Record<string, unknown>; Returns: unknown };
       "review_return_request": { Args: Record<string, unknown>; Returns: unknown };
+      "rollup_paid_order_analytics": { Args: Record<string, unknown>; Returns: unknown };
       "save_design_draft": { Args: Record<string, unknown>; Returns: unknown };
       "save_seller_product": { Args: Record<string, unknown>; Returns: unknown };
-      "service_admin_overview": { Args: Record<PropertyKey, never>; Returns: Json };
-      "service_catalog_products": { Args: Record<PropertyKey, never>; Returns: Json };
-      "service_complete_payout": { Args: { p_payout_request_id: string; p_receipt_file_id: string | null; p_reference: string | null; p_actor_id: string }; Returns: string };
-      "service_guest_checkout_create_order": { Args: { p_idempotency_key: string; p_address: Json; p_items: Json }; Returns: string };
-      "service_marketplace_context": { Args: Record<PropertyKey, never>; Returns: Json };
-      "service_moderate_product": { Args: { p_product_id: string; p_decision: Database["public"]["Enums"]["moderation_state"]; p_rejection_reason_id: string | null; p_custom_message: string | null; p_actor_id: string }; Returns: string };
-      "service_refresh_product_review_stats": { Args: { p_product_id: string }; Returns: undefined };
-      "service_resolve_dispute": { Args: { p_dispute_id: string; p_resolution: string; p_reject: boolean; p_actor_id: string }; Returns: string };
-      "service_review_fulfilment_exception": { Args: { p_exception_id: string; p_status: string; p_resolution: string; p_actor_id: string }; Returns: string };
-      "service_review_order_cancellation": { Args: { p_request_id: string; p_approve: boolean; p_message: string | null; p_actor_id: string }; Returns: string };
-      "service_review_return_request": { Args: { p_request_id: string; p_approve: boolean; p_message: string | null; p_actor_id: string }; Returns: string };
-      "service_review_supplier_offer": { Args: { p_offer_id: string; p_decision: string; p_actor_id: string; p_note?: string | null }; Returns: string };
-      "service_save_product_metadata": { Args: { p_product_id: string; p_graphic_style_ids: string[]; p_variant_markups: Json; p_property_markups: Json }; Returns: undefined };
-      "service_save_raw_product_media": { Args: { p_raw_product_id: string; p_main_file_id: string | null; p_main_alt_text: string; p_front_background_id: string | null; p_front_overlay_id: string | null; p_front_mockup_id: string | null; p_back_background_id: string | null; p_back_overlay_id: string | null; p_back_mockup_id: string | null }; Returns: undefined };
-      "service_supplier_catalog_stats": { Args: Record<PropertyKey, never>; Returns: Array<{ supplier_organization_id: string; product_count: number; review_count: number; rating_average: number }> };
-      "service_upsert_raw_product": { Args: { p_payload: Json; p_actor_id: string; p_color_names: string[]; p_size_names: string[]; p_variant_keys: string[] }; Returns: string };
-      "service_upsert_raw_product_mockup": { Args: { p_id: string; p_raw_product_id: string; p_name: string; p_side: string; p_background_file_id: string | null; p_area_x: number; p_area_y: number; p_area_width: number; p_rotation_degrees: number; p_actor_id: string; p_color_id: string; p_gender: string; p_perspective_points: Json | null; p_artwork_clip: string }; Returns: string };
+      "service_admin_analytics": { Args: Record<string, unknown>; Returns: unknown };
+      "service_admin_attribution": { Args: Record<string, unknown>; Returns: unknown };
+      "service_admin_overview": { Args: Record<string, unknown>; Returns: unknown };
+      "service_admin_seller_funnel": { Args: Record<string, unknown>; Returns: unknown };
+      "service_apply_coupon_to_order": { Args: Record<string, unknown>; Returns: unknown };
+      "service_apply_woocommerce_earnings": { Args: Record<string, unknown>; Returns: unknown };
+      "service_catalog_products": { Args: Record<string, unknown>; Returns: unknown };
+      "service_complete_buyer_bank_refund": { Args: Record<string, unknown>; Returns: unknown };
+      "service_complete_payout": { Args: Record<string, unknown>; Returns: unknown };
+      "service_convert_woocommerce_import": { Args: Record<string, unknown>; Returns: unknown };
+      "service_credit_woocommerce_funding": { Args: Record<string, unknown>; Returns: unknown };
+      "service_finalize_order_cancellation": { Args: Record<string, unknown>; Returns: unknown };
+      "service_guest_checkout_create_order": { Args: Record<string, unknown>; Returns: unknown };
+      "service_guest_checkout_create_pending_order": { Args: Record<string, unknown>; Returns: unknown };
+      "service_marketplace_context": { Args: Record<string, unknown>; Returns: unknown };
+      "service_moderate_product": { Args: Record<string, unknown>; Returns: unknown };
+      "service_quote_coupon": { Args: Record<string, unknown>; Returns: unknown };
+      "service_record_profile_login": { Args: Record<string, unknown>; Returns: unknown };
+      "service_record_reel_view": { Args: Record<string, unknown>; Returns: unknown };
+      "service_refresh_product_review_stats": { Args: Record<string, unknown>; Returns: unknown };
+      "service_resolve_dispute": { Args: Record<string, unknown>; Returns: unknown };
+      "service_review_fulfilment_exception": { Args: Record<string, unknown>; Returns: unknown };
+      "service_review_order_cancellation": { Args: Record<string, unknown>; Returns: unknown };
+      "service_review_return_request": { Args: Record<string, unknown>; Returns: unknown };
+      "service_review_supplier_offer": { Args: Record<string, unknown>; Returns: unknown };
+      "service_save_product_metadata": { Args: Record<string, unknown>; Returns: unknown };
+      "service_save_raw_product_media": { Args: Record<string, unknown>; Returns: unknown };
+      "service_save_seller_onboarding_answers": { Args: Record<string, unknown>; Returns: unknown };
+      "service_set_raw_product_quality_descriptions": { Args: Record<string, unknown>; Returns: unknown };
+      "service_supplier_catalog_stats": { Args: Record<string, unknown>; Returns: unknown };
+      "service_upsert_raw_product": { Args: Record<string, unknown>; Returns: unknown };
+      "service_upsert_raw_product_mockup": { Args: Record<string, unknown>; Returns: unknown };
+      "set_buyer_refund_preference": { Args: Record<string, unknown>; Returns: unknown };
+      "set_design_lifecycle_timestamps": { Args: Record<string, unknown>; Returns: unknown };
       "supplier_submit_inventory": { Args: Record<string, unknown>; Returns: unknown };
       "supplier_submit_offer": { Args: Record<string, unknown>; Returns: unknown };
       "sync_buyer_cart": { Args: Record<string, unknown>; Returns: unknown };
       "sync_offer_variant_stock_state": { Args: Record<string, unknown>; Returns: unknown };
+      "sync_order_after_fulfilment_status": { Args: Record<string, unknown>; Returns: unknown };
       "touch_updated_at": { Args: Record<string, unknown>; Returns: unknown };
       "transition_fulfilment": { Args: Record<string, unknown>; Returns: unknown };
+      "validate_design_mockup_render_side": { Args: Record<string, unknown>; Returns: unknown };
+      "validate_design_mockup_selection": { Args: Record<string, unknown>; Returns: unknown };
       "validate_exception_transition": { Args: Record<string, unknown>; Returns: unknown };
       "validate_raw_product_mockup": { Args: Record<string, unknown>; Returns: unknown };
       "validate_raw_product_mockup_view": { Args: Record<string, unknown>; Returns: unknown };
@@ -4184,13 +5290,13 @@ export type Database = {
     Enums: {
       "account_role": "BUYER" | "SELLER" | "SUPPLIER" | "ADMIN";
       "account_state": "PENDING" | "ACTIVE" | "RESTRICTED" | "SUSPENDED" | "CLOSED";
-      "asset_kind": "PRODUCT_IMAGE" | "RAW_PRODUCT_IMAGE" | "RAW_BACKGROUND" | "RAW_OVERLAY" | "VARIANT_MOCKUP" | "DESIGN_SOURCE" | "DESIGN_PREVIEW" | "PRINTABLE_EXPORT" | "AI_IMAGE" | "PAYOUT_RECEIPT" | "TICKET_ATTACHMENT" | "STORE_LOGO" | "STORE_BANNER" | "TUTORIAL_VIDEO" | "TUTORIAL_FILE" | "TUTORIAL_THUMBNAIL" | "REEL_VIDEO";
+      "asset_kind": "PRODUCT_IMAGE" | "RAW_PRODUCT_IMAGE" | "RAW_BACKGROUND" | "RAW_OVERLAY" | "VARIANT_MOCKUP" | "DESIGN_SOURCE" | "DESIGN_PREVIEW" | "PRINTABLE_EXPORT" | "AI_IMAGE" | "PAYOUT_RECEIPT" | "TICKET_ATTACHMENT" | "STORE_LOGO" | "STORE_BANNER" | "TUTORIAL_VIDEO" | "TUTORIAL_FILE" | "TUTORIAL_THUMBNAIL" | "REEL_VIDEO" | "CATEGORY_IMAGE" | "GRAPHIC_STYLE_IMAGE";
       "earning_state": "PENDING" | "AVAILABLE" | "RESERVED" | "PAID" | "REVERSED";
       "file_state": "PENDING" | "READY" | "QUARANTINED" | "REJECTED" | "DELETED";
       "fulfilment_status": "ASSIGNED" | "IN_PRODUCTION" | "QUALITY_CHECK" | "READY_TO_SEND" | "SENT" | "DONE" | "CANCELLED" | "RETURNED";
       "membership_state": "INVITED" | "ACTIVE" | "REVOKED";
       "moderation_state": "PENDING" | "APPROVED" | "REJECTED";
-      "order_state": "DRAFT" | "CONFIRMED" | "IN_PRODUCTION" | "PARTIALLY_SENT" | "SENT" | "DONE" | "CANCELLED" | "RETURNED" | "DISPUTED";
+      "order_state": "DRAFT" | "PENDING" | "CONFIRMED" | "IN_PRODUCTION" | "PARTIALLY_SENT" | "SENT" | "DONE" | "CANCELLED" | "RETURNED" | "DISPUTED";
       "organization_type": "PLATFORM" | "SELLER" | "SUPPLIER";
       "payment_state": "PENDING" | "AUTHORIZED" | "CAPTURED" | "FAILED" | "REFUNDED" | "CANCELLED";
       "payout_state": "REQUESTED" | "PROCESSING" | "PAID" | "REJECTED" | "CANCELLED";

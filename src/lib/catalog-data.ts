@@ -924,7 +924,7 @@ export async function getStorefrontData(slug: string) {
       shopName: store.name,
       handle: `@${store.slug}`,
       productSlug: "",
-      products: (linksResult.data || []).filter((link) => link.reel_id === reel.id).flatMap((link) => {
+      products: ((linksResult.data || []) as unknown as { reel_id: string; seller_products: unknown }[]).filter((link) => link.reel_id === reel.id).flatMap((link) => {
         const product = one(link.seller_products) as { id: string; title: string; slug: string } | undefined;
         return product ? [product] : [];
       }),

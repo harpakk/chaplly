@@ -15,6 +15,7 @@ import {
   ImagePlus,
   Landmark,
   Package,
+  Palette,
   Pencil,
   PlayCircle,
   Plus,
@@ -48,6 +49,7 @@ const sections = [
   "accounts",
   "store",
   "products",
+  "designs",
   "woocommerce",
   "tutorials",
 ] as const;
@@ -56,6 +58,7 @@ const labels = {
   accounts: "حساب‌های بانکی",
   store: "فروشگاه من",
   products: "محصولات",
+  designs: "طرح‌های من",
   woocommerce: "ووکامرس",
   tutorials: "آموزش",
 } as const;
@@ -145,6 +148,7 @@ export function SellerDashboardConsole({
             <SupplierAssignments data={data} />
           </>
         )}
+        {active === "designs" && <Designs data={data} />}
         {active === "woocommerce" && <WooCommercePanel data={data.woocommerce} />}
         {active === "tutorials" && <Tutorials data={data} />}
       </div>
@@ -560,6 +564,86 @@ function StoreMediaSettings({ store }: { store: SellerData["store"] }) {
       </div>
       <footer className="store-media-manager-footer"><p>فقط فایل‌هایی که در این مرحله انتخاب کرده‌اید جایگزین می‌شوند.</p><button className="sd-primary"><Save /> ذخیره تصاویر فروشگاه</button></footer>
     </ActionForm>
+  );
+}
+
+function Designs({ data }: { data: SellerData }) {
+  const [filter, setFilter] = useState<"ALL" | "DRAFT" | "REVIEW" | "PUBLISHED" | "ARCHIVED">("ALL");
+  const visible = data.designs.filter((design) =>
+    filter === "ALL"
+      ? design.lifecycle !== "ARCHIVED"
+      : filter === "DRAFT"
+        ? ["EMPTY", "DRAFT", "PRODUCT_DRAFT", "REJECTED"].includes(design.lifecycle)
+        : filter === design.lifecycle,
+  );
+  const tabs = [
+    ["ALL", "همه"],
+    ["DRAFT", "ناتمام و پیش‌نویس"],
+    ["REVIEW", "در حال بررسی"],
+    ["PUBLISHED", "منتشرشده"],
+    ["ARCHIVED", "بایگانی"],
+  ] as const;
+  const lifecycleLabel = (value: string) => ({
+    EMPTY: "شروع‌شده",
+    DRAFT: "طرح ناتمام",
+    PRODUCT_DRAFT: "پیش‌نویس محصول",
+    REVIEW: "در انتظار بررسی",
+    PUBLISHED: "منتشرشده",
+    REJECTED: "نیازمند اصلاح",
+    ARCHIVED: "بایگانی‌شده",
+  } as Record<string, string>)[value] || value;
+  return (
+    <div className="sd-stack seller-design-library">
+      <section className="sd-intro-row">
+        <div>
+          <h2>کارگاه طرح‌های تو</h2>
+          <p>هر گروه، نمای جلو و پشت و نسخه‌های مخصوص رنگ‌ها را با هم نگه می‌دارد. از هرجا رها کنی، همین‌جا ادامه می‌دهی.</p>
+        </div>
+        <Link className="sd-primary" href="/seller/dashboard/products/new"><Plus /> ساخت طرح تازه</Link>
+      </section>
+      <nav className="design-library-tabs" aria-label="فیلتر طرح‌ها">
+        {tabs.map(([key, label]) => (
+          <button type="button" key={key} className={filter === key ? "active" : ""} onClick={() => setFilter(key)}>
+            {label}
+            <b>{data.designs.filter((design) => key === "ALL" ? design.lifecycle !== "ARCHIVED" : key === "DRAFT" ? ["EMPTY", "DRAFT", "PRODUCT_DRAFT", "REJECTED"].includes(design.lifecycle) : design.lifecycle === key).length.toLocaleString("fa-IR")}</b>
+          </button>
+        ))}
+      </nav>
+      {visible.length ? (
+        <section className="design-library-grid">
+          {visible.map((design) => (
+            <article className="design-library-card" key={design.id}>
+              <div className="design-library-preview">
+                {design.mainImageUrl ? <Image src={design.mainImageUrl} alt={design.name} fill sizes="(max-width:700px) 100vw, 320px" unoptimized /> : <Palette />}
+                <span className={`design-lifecycle design-lifecycle-${design.lifecycle.toLowerCase()}`}>{lifecycleLabel(design.lifecycle)}</span>
+              </div>
+              <div className="design-library-body">
+                <small>{design.rawProductName}</small>
+                <h3>{design.name}</h3>
+                {design.product && <p>محصول متصل: <b>{design.product.title}</b> · {statusFa(design.product.moderation_status)}</p>}
+                <div className="design-library-metrics">
+                  <span>{design.viewCount.toLocaleString("fa-IR")} نما</span>
+                  <span>{design.colorCount.toLocaleString("fa-IR")} رنگ طراحی‌شده</span>
+                  <span>{design.variantCount.toLocaleString("fa-IR")} تنوع</span>
+                </div>
+                <time>آخرین ذخیره {new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(design.last_autosaved_at || design.updated_at))}</time>
+              </div>
+              <footer>
+                {design.lifecycle !== "ARCHIVED" && (
+                  <Link className="primary" href={`/seller/dashboard/products/new/design?raw=${design.raw_product_id}&design=${design.id}`}>
+                    <Pencil /> {design.lifecycle === "EMPTY" || design.lifecycle === "DRAFT" ? "ادامه طراحی" : "بازکردن و ویرایش"}
+                  </Link>
+                )}
+                {design.product && <Link href={`/seller/dashboard/products/${design.product.id}/edit`}><Package /> ویرایش اطلاعات محصول</Link>}
+                {design.product?.slug && design.lifecycle === "PUBLISHED" && <Link href={`/products/${design.product.slug}`} target="_blank"><Eye /> مشاهده محصول</Link>}
+              </footer>
+            </article>
+          ))}
+        </section>
+      ) : (
+        <section className="design-library-empty"><Palette /><h3>در این بخش هنوز طرحی نیست</h3><p>یک محصول خام انتخاب کن؛ ذخیره خودکار از همان لحظه شروع می‌شود.</p><Link className="sd-primary" href="/seller/dashboard/products/new">شروع اولین طرح</Link></section>
+      )}
+    </div>
   );
 }
 

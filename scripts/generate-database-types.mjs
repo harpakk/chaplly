@@ -57,6 +57,7 @@ const {rows:functionRows}=await db.query(`
   where n.nspname='public' and p.prokind='f'
   order by p.proname
 `);
+const functionNames=[...new Set(functionRows.map(row=>row.proname))];
 
 const scalar=(row)=>{
   const name=row.udt_name;
@@ -93,8 +94,8 @@ for(const [table,columns] of tables){
 }
 
 output+=`    };\n    Views: Record<string, never>;\n    Functions: {\n`;
-for(const fn of functionRows){
-  output+=`      ${JSON.stringify(fn.proname)}: { Args: Record<string, unknown>; Returns: unknown };\n`;
+for(const name of functionNames){
+  output+=`      ${JSON.stringify(name)}: { Args: Record<string, unknown>; Returns: unknown };\n`;
 }
 output+=`    };\n    Enums: {\n`;
 for(const [name,values] of enums){
@@ -109,4 +110,4 @@ output+=`export type Enums<T extends keyof Database["public"]["Enums"]> = Databa
 await fs.mkdir("src/types",{recursive:true});
 await fs.writeFile("src/types/database.generated.ts",output,"utf8");
 await db.end();
-console.log(JSON.stringify({tables:tables.size,enums:enums.size,functions:functionRows.length,bytes:Buffer.byteLength(output)}));
+console.log(JSON.stringify({tables:tables.size,enums:enums.size,functions:functionNames.length,bytes:Buffer.byteLength(output)}));

@@ -23,6 +23,7 @@ export function SellerProductEditForm({data}:{data:EditData}){
   const variantMarkups=expandPropertyMarkups(pricingVariants,propertyMarkups);
   return <main className="seller-product-edit">
     <header><div><span>ویرایش محصول / نسخه {product.version.toLocaleString("fa-IR")}</span><h1>{product.title}</h1><p>هر ویرایش، حتی برای محصول تأییدشده یا ردشده، به‌عنوان نسخه جدید برای بررسی مدیر ارسال می‌شود.</p></div><Link href="/seller/dashboard?section=products">بازگشت به محصولات</Link></header>
+    {product.design_id && <aside className="seller-product-design-link"><div><b>طراحی، رنگ‌ها و موکاپ‌ها</b><p>برای تغییر طرح جلو/پشت یا طرح مخصوص هر رنگ، وارد کارگاه طراحی شو. بعد از بازسازی موکاپ‌ها، همین محصول دوباره برای بررسی ارسال می‌شود.</p></div><Link href={`/seller/dashboard/products/new/design?raw=${product.raw_product_id}&design=${product.design_id}`}><Store /> ویرایش طراحی و موکاپ</Link></aside>}
     <ActionForm action={saveSellerProductAction} refreshAfterSuccess={false} savingText="در حال ذخیره و ارسال نسخه جدید…">
       <input type="hidden" name="productId" value={product.id}/><input type="hidden" name="designId" value={product.design_id||""}/><input type="hidden" name="rawProductId" value={product.raw_product_id}/>
       <input type="hidden" name="variantMarkups" value={JSON.stringify(variantMarkups)}/><input type="hidden" name="propertyMarkups" value={JSON.stringify(serializePropertyMarkups(pricingVariants,propertyMarkups))}/>

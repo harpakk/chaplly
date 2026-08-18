@@ -174,6 +174,7 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
   const [selected, setSelected] = useState<string | null>(null),
     [zoom, setZoom] = useState(140),
     [designId, setDesignId] = useState(existing?.id || ""),
+    [designName, setDesignName] = useState(existing?.name || `طرح ${raw.name}`),
     [panel, setPanel] = useState<"layers" | "files" | "free" | null>(null),
     [cropOpen, setCropOpen] = useState(false),
     [uploads, setUploads] = useState(data.uploads),
@@ -251,10 +252,14 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
     copiedObject = useRef<ObjectItem | null>(null),
     saving = useRef(false);
   useEffect(() => {
+    if (existing) {
+      setLocalCanvasReady(true);
+      return;
+    }
     try {
-      const saved = localStorage.getItem(`chapli-design-canvas:${raw.id}`);
+      const saved = localStorage.getItem(`chapli-design-canvas:new:${raw.id}`);
       if (saved) setObjects(JSON.parse(saved) as Record<string, ObjectItem[]>);
-      const savedColorSettings = localStorage.getItem(`chapli-design-colors:${raw.id}`);
+      const savedColorSettings = localStorage.getItem(`chapli-design-colors:new:${raw.id}`);
       if (savedColorSettings) {
         const parsed = JSON.parse(savedColorSettings) as {
           independent?: string[];
@@ -264,29 +269,29 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
         if (Array.isArray(parsed.reviewedShared)) setReviewedSharedColorIds(parsed.reviewedShared);
       }
     } catch {
-      localStorage.removeItem(`chapli-design-canvas:${raw.id}`);
-      localStorage.removeItem(`chapli-design-colors:${raw.id}`);
+      localStorage.removeItem(`chapli-design-canvas:new:${raw.id}`);
+      localStorage.removeItem(`chapli-design-colors:new:${raw.id}`);
     } finally {
       setLocalCanvasReady(true);
     }
-  }, [raw.id]);
+  }, [existing, raw.id]);
   useEffect(() => {
-    if (!localCanvasReady) return;
+    if (!localCanvasReady || existing) return;
     localStorage.setItem(
-      `chapli-design-canvas:${raw.id}`,
+      `chapli-design-canvas:new:${raw.id}`,
       JSON.stringify(objects),
     );
-  }, [localCanvasReady, objects, raw.id]);
+  }, [existing, localCanvasReady, objects, raw.id]);
   useEffect(() => {
-    if (!localCanvasReady) return;
+    if (!localCanvasReady || existing) return;
     localStorage.setItem(
-      `chapli-design-colors:${raw.id}`,
+      `chapli-design-colors:new:${raw.id}`,
       JSON.stringify({
         independent: independentColorIds,
         reviewedShared: reviewedSharedColorIds,
       }),
     );
-  }, [independentColorIds, localCanvasReady, raw.id, reviewedSharedColorIds]);
+  }, [existing, independentColorIds, localCanvasReady, raw.id, reviewedSharedColorIds]);
   const designColorId = independentColorIds.includes(colorId)
     ? colorId
     : sharedColorId;
@@ -404,30 +409,49 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
       })),
     [independentColorIds, objects, raw.colors, raw.views, sharedColorId],
   );
+  const latestDraft = useRef({
+    name: designName,
+    views: canvasViews,
+    variantIds: selectedVariants,
+  });
+  latestDraft.current = { name: designName, views: canvasViews, variantIds: selectedVariants };
+  const designIdRef = useRef(existing?.id || "");
+  const changeRevision = useRef(0);
+  const savedRevision = useRef(0);
   const activeSave = useRef<Promise<string> | null>(null);
   const persist = useCallback(async () => {
     if (activeSave.current) return activeSave.current;
     const task = (async () => {
       saving.current = true;
-      setSaveState("در حال ذخیره…");
+      let savedId = designIdRef.current;
       try {
-        const result = await saveDesignDraftAction({
-          designId: designId || undefined,
-          rawProductId: raw.id,
-          name: `طرح ${raw.name}`,
-          views: canvasViews,
-          variantIds: selectedVariants,
-        });
-        if (result.ok && result.id) {
+        do {
+          const targetRevision = changeRevision.current;
+          const payload = latestDraft.current;
+          setSaveState("در حال ذخیره در فضای ابری…");
+          const result = await saveDesignDraftAction({
+            designId: designIdRef.current || undefined,
+            rawProductId: raw.id,
+            name: payload.name,
+            views: payload.views,
+            variantIds: payload.variantIds,
+          });
+          if (!result.ok || !result.id) {
+            setSaveState(result.message);
+            return "";
+          }
+          savedId = result.id;
+          designIdRef.current = result.id;
           setDesignId(result.id);
-          setSaveState("ذخیره شد");
-          return result.id;
-        }
-        setSaveState(result.message);
-        return "";
+          savedRevision.current = targetRevision;
+          localStorage.removeItem(`chapli-design-canvas:new:${raw.id}`);
+          localStorage.removeItem(`chapli-design-colors:new:${raw.id}`);
+        } while (savedRevision.current < changeRevision.current);
+        setSaveState("همه تغییرات در فضای ابری ذخیره شد");
+        return savedId;
       } catch (error) {
         console.error("Design save failed", error);
-        setSaveState("ذخیره طراحی ناموفق بود؛ دوباره تلاش کنید.");
+        setSaveState("ذخیره طراحی ناموفق بود؛ اینترنت را بررسی و دوباره تلاش کنید.");
         return "";
       } finally {
         saving.current = false;
@@ -436,13 +460,45 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
     })();
     activeSave.current = task;
     return task;
-  }, [canvasViews, designId, raw.id, raw.name, selectedVariants]);
+  }, [raw.id]);
   useEffect(() => {
-    const timer = setTimeout(() => {
-      void persist();
-    }, 600);
+    if (!localCanvasReady) return;
+    changeRevision.current += 1;
+    setSaveState("تغییر جدید؛ در صف ذخیره خودکار");
+    const timer = setTimeout(() => void persist(), 900);
     return () => clearTimeout(timer);
-  }, [persist]);
+  }, [canvasViews, designName, localCanvasReady, persist, selectedVariants]);
+  useEffect(() => {
+    const sendLastDraft = () => {
+      if (
+        !designIdRef.current ||
+        savedRevision.current >= changeRevision.current ||
+        typeof navigator.sendBeacon !== "function"
+      ) return;
+      const payload = latestDraft.current;
+      navigator.sendBeacon(
+        "/api/seller/designs/autosave",
+        new Blob([
+          JSON.stringify({
+            designId: designIdRef.current,
+            rawProductId: raw.id,
+            name: payload.name,
+            views: payload.views,
+            variantIds: payload.variantIds,
+          }),
+        ], { type: "application/json" }),
+      );
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") sendLastDraft();
+    };
+    window.addEventListener("pagehide", sendLastDraft);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.removeEventListener("pagehide", sendLastDraft);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [raw.id]);
   const commit = (next: ObjectItem[], record = true) => {
     if (record) {
       setUndoByView((current) => ({
@@ -1130,6 +1186,15 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
             <small>{raw.has_back ? "جلو و پشت" : "نمای جلو"}</small>
           </div>
         </div>
+        <label className="design-group-name">
+          <span>نام گروه طراحی</span>
+          <input
+            value={designName}
+            maxLength={160}
+            onChange={(event) => setDesignName(event.target.value)}
+            placeholder="مثلاً تی‌شرت تابستانی"
+          />
+        </label>
         <div className="design-context" data-tour="top-tools">
           <button
             className={tool === "select" ? "active" : ""}
@@ -1300,6 +1365,9 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
           <span>
             <Save /> {saveState}
           </span>
+          <button className="design-save-now" type="button" onClick={() => void persist()}>
+            <Save /> ذخیره حالا
+          </button>
           <SellerTourReplayButton tour="design" label="راهنما" />
           <button data-tour="design-continue" onClick={() => setPhase("supplier")}>
             ادامه <ChevronLeft />

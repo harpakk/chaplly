@@ -11,6 +11,7 @@ import {
   Landmark,
   Menu,
   Package,
+  Palette,
   PanelRightClose,
   PanelRightOpen,
   Plus,
@@ -31,6 +32,7 @@ const items = [
   ["accounts", "حساب‌ها", Landmark],
   ["store", "فروشگاه", Store],
   ["products", "محصولات", Package],
+  ["designs", "طرح‌های من", Palette],
   ["woocommerce", "ووکامرس", ShoppingCart],
   ["tutorials", "آموزش", BookOpen],
 ] as const;

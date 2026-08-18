@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getProducts } from "@/lib/catalog-data";
+import type { Json } from "@/types/database.generated";
 
 const n = (value: unknown) => Number(value ?? 0);
 const faDate = (value: string | null | undefined) =>
@@ -27,6 +28,26 @@ const publicFileUrl = (value: unknown) => {
 const publicUrl = (value: unknown) =>
   publicFileUrl(value) || "/images/product-placeholder.png";
 type FileRef = { bucket: string; path: string };
+type WooImportRow = {
+  id: string;
+  external_order_id: string;
+  external_order_number: string;
+  status: string;
+  customer_snapshot: Json;
+  shipping_address_snapshot: Json;
+  required_amount: number;
+  funded_amount: number;
+  platform_order_ids: string[] | null;
+  imported_at: string;
+  converted_at: string | null;
+  woocommerce_order_import_items: {
+    id: string;
+    quantity: number;
+    unit_cost: number;
+    item_snapshot: Json;
+    seller_product_variant_id: string | null;
+  }[];
+};
 type FreeDesignRow = {
   id: string;
   title: string;
@@ -692,6 +713,7 @@ export async function getSellerDashboardData(
     | "accounts"
     | "store"
     | "products"
+    | "designs"
     | "woocommerce"
     | "tutorials"
     | "all" = "all",
@@ -701,6 +723,7 @@ export async function getSellerDashboardData(
   const needsAccounts =
     section === "all" || section === "accounts" || section === "finance";
   const needsProducts = section === "all" || section === "products" || section === "store";
+  const needsDesigns = section === "all" || section === "designs";
   const needsWooCommerce = section === "all" || section === "woocommerce";
   const needsTutorials = section === "all" || section === "tutorials";
   const emptyMany = Promise.resolve({ data: [], error: null });
@@ -715,6 +738,7 @@ export async function getSellerDashboardData(
     tutorialsResult,
     progressResult,
     cancelledOrdersResult,
+    designsResult,
   ] = await Promise.all([
     needsFinance ? db
       .from("balance_projections")
@@ -767,6 +791,11 @@ export async function getSellerDashboardData(
       .eq("orders.status", "CANCELLED")
       .order("created_at", { ascending: false })
       .limit(50) : emptyMany,
+    needsDesigns ? db
+      .from("designs")
+      .select("id,name,status,raw_product_id,version,created_at,updated_at,last_autosaved_at,completed_at,archived_at,design_views(canvas_document),design_variants(raw_product_variant_id),raw_product:raw_products!designs_raw_product_id_fkey(id,name,raw_product_media(is_primary,sort_order,file:storage_files!raw_product_media_file_id_fkey(bucket,path))),seller_products(id,title,slug,status,moderation_status,visibility,updated_at,product_images(is_primary,sort_order,file:storage_files!product_images_file_id_fkey(bucket,path)))")
+      .eq("store_id", storeId)
+      .order("updated_at", { ascending: false }) : emptyMany,
   ]);
   for (const result of [
     balanceResult,
@@ -778,6 +807,7 @@ export async function getSellerDashboardData(
     tutorialsResult,
     progressResult,
     cancelledOrdersResult,
+    designsResult,
   ])
     if (result.error) throw new Error(result.error.message);
   if (!storeResult.data) throw new Error("Seller store not found.");
@@ -811,10 +841,53 @@ export async function getSellerDashboardData(
   if (wooConnectionResult.error || wooImportsResult.error || wooAccountResult.error)
     throw new Error(wooConnectionResult.error?.message || wooImportsResult.error?.message || wooAccountResult.error?.message);
   return {
+    designs: (designsResult.data || []).map((item) => {
+      const product = (item.seller_products || []).find((row) => row.status !== "ARCHIVED") || item.seller_products?.[0] || null;
+      const productImages = [...(product?.product_images || [])].sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order);
+      const rawProduct = one(item.raw_product);
+      const rawImages = [...(rawProduct?.raw_product_media || [])].sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order);
+      let objectCount = 0;
+      const colorIds = new Set<string>();
+      for (const view of item.design_views || []) {
+        const document = view.canvas_document && typeof view.canvas_document === "object" && !Array.isArray(view.canvas_document)
+          ? view.canvas_document as Record<string, unknown>
+          : {};
+        const base = Array.isArray(document.objects) ? document.objects : [];
+        objectCount += base.length;
+        const independent = Array.isArray(document.independentColorIds) ? document.independentColorIds.map(String) : [];
+        const byColor = document.colorObjects && typeof document.colorObjects === "object" && !Array.isArray(document.colorObjects)
+          ? document.colorObjects as Record<string, unknown>
+          : {};
+        for (const [colorId, objects] of Object.entries(byColor)) {
+          if (Array.isArray(objects) && objects.length) colorIds.add(colorId);
+          if (independent.includes(colorId) && Array.isArray(objects)) objectCount += objects.length;
+        }
+      }
+      const lifecycle = item.status === "ARCHIVED"
+        ? "ARCHIVED"
+        : product?.status === "PUBLISHED" && product.moderation_status === "APPROVED"
+          ? "PUBLISHED"
+          : product?.moderation_status === "REJECTED"
+            ? "REJECTED"
+            : product
+              ? product.status === "DRAFT" ? "PRODUCT_DRAFT" : "REVIEW"
+              : objectCount ? "DRAFT" : "EMPTY";
+      return {
+        ...item,
+        rawProductName: rawProduct?.name || "محصول خام",
+        product: product ? { ...product, product_images: undefined } : null,
+        mainImageUrl: publicFileUrl(productImages[0]?.file) || publicFileUrl(rawImages[0]?.file),
+        objectCount,
+        colorCount: colorIds.size,
+        viewCount: (item.design_views || []).length,
+        variantCount: (item.design_variants || []).length,
+        lifecycle,
+      };
+    }),
     woocommerce: {
       connection: wooConnectionResult.data,
       channelBalance: n(wooAccountResult.data?.balance),
-      imports: (wooImportsResult.data || []).map((item) => ({
+      imports: ((wooImportsResult.data || []) as unknown as WooImportRow[]).map((item) => ({
         ...item,
         required_amount: n(item.required_amount),
         funded_amount: n(item.funded_amount),
@@ -2101,7 +2174,12 @@ export async function getProductCreationData(rawProductId: string) {
   if (supplierStatsResult.error)
     throw new Error(supplierStatsResult.error.message);
   const supplierStats = new Map(
-    (supplierStatsResult.data || []).map((row) => [
+    ((supplierStatsResult.data || []) as unknown as {
+      supplier_organization_id: string;
+      product_count: number;
+      review_count: number;
+      rating_average: number;
+    }[]).map((row) => [
       row.supplier_organization_id,
       row,
     ]),
@@ -2470,7 +2548,7 @@ export async function getDesignEditorData(
         )
         .eq("store_id", record.store_id)
         .eq("design_id", record.id)
-        .in("status", ["DRAFT", "PENDING", "PUBLISHED"])
+        .neq("status", "ARCHIVED")
         .order("updated_at", { ascending: false })
         .limit(1);
       if (draftError) throw new Error(draftError.message);
