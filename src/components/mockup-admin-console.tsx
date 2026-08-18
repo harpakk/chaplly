@@ -141,7 +141,6 @@ export function MockupAdminConsole({ data }: { data: Data }) {
                     0,
                   );
               }}
-              showSavingOverlay={false}
               backgroundConcurrent
               savingText="در حال ذخیره موکاپ تک‌نما…"
             >

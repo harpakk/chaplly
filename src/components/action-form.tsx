@@ -16,7 +16,6 @@ export function ActionForm({
   refreshAfterSuccess = true,
   onSuccess,
   savingText,
-  showSavingOverlay = true,
   onSubmit,
   backgroundConcurrent = false,
 }: {
@@ -28,7 +27,6 @@ export function ActionForm({
   refreshAfterSuccess?: boolean;
   onSuccess?: (state: ActionResult) => void;
   savingText?: string;
-  showSavingOverlay?: boolean;
   onSubmit?: () => void;
   backgroundConcurrent?: boolean;
 }) {
@@ -88,7 +86,7 @@ export function ActionForm({
       }}
     >
       {children}
-      {showSavingOverlay && <SavingOverlay visible={isPending} text={contextText} />}
+      <SavingOverlay visible={isPending} text={contextText} />
       {currentState.message && (
         <p className={`action-note ${currentState.ok ? "success" : "error"}`}>
           {currentState.ok

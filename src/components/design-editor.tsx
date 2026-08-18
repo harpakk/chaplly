@@ -1949,7 +1949,11 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
                 >
                   انتخاب دوباره
                 </button>
-                <button onClick={finish}>
+                <button
+                  disabled={Boolean(blockingSave)}
+                  data-action-waiting={blockingSave ? "true" : undefined}
+                  onClick={finish}
+                >
                   تأیید و تکمیل اطلاعات محصول <ChevronLeft />
                 </button>
               </>

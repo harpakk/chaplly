@@ -16112,89 +16112,105 @@ a:focus-visible {
 }
 
 /* Unified database-write feedback */
+.saving-feedback-anchor {
+  display: none !important;
+}
 .saving-overlay {
   position: fixed;
   z-index: 10000;
-  inset: 0;
-  display: grid;
-  place-content: center;
-  justify-items: center;
-  gap: 13px;
-  padding: 24px;
-  text-align: center;
+  top: 18px;
+  left: 18px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: min(360px, calc(100vw - 36px));
+  border: 1px solid #e2dbea;
+  border-radius: 15px;
+  padding: 12px 14px;
+  text-align: right;
   color: #201b2b;
-  background: rgba(250, 249, 252, 0.88);
-  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 12px 38px rgba(38, 27, 53, 0.16);
+  backdrop-filter: blur(8px);
+  pointer-events: none;
   animation: saving-in 0.18s ease-out;
 }
+.saving-overlay > div:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
 .saving-overlay strong {
-  font-size: clamp(16px, 2vw, 21px);
-  font-weight: 950;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .saving-overlay small {
   color: #777080;
-  font-size: 12px;
+  font-size: 10px;
 }
 .saving-orbit {
-  position: relative;
-  width: 82px;
-  height: 82px;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
   display: grid;
   place-items: center;
-}
-.saving-orbit span {
-  width: 48px;
-  height: 48px;
-  border-radius: 17px;
-  display: grid;
-  place-items: center;
-  background: #7557f6;
-  color: #fff;
-  font-size: 25px;
-  font-weight: 950;
-  box-shadow: 0 14px 34px #7557f64d;
-  animation: saving-pulse 1.2s ease-in-out infinite;
+  border-radius: 11px;
+  background: #f3efff;
 }
 .saving-orbit i {
-  position: absolute;
-  inset: 0;
+  width: 17px;
+  height: 17px;
   border-radius: 50%;
-  border: 2px solid transparent;
+  border: 2px solid #d8cff5;
   border-top-color: #7557f6;
-  border-right-color: #ef5b4c;
-  animation: saving-spin 1s linear infinite;
-}
-.saving-orbit i:nth-child(2) {
-  inset: 8px;
-  border-top-color: #19ad7f;
-  border-right-color: transparent;
-  animation-direction: reverse;
-  animation-duration: 0.75s;
+  animation: saving-spin 0.7s linear infinite;
 }
 @keyframes saving-spin {
   to {
     transform: rotate(360deg);
   }
 }
-@keyframes saving-pulse {
-  50% {
-    transform: scale(0.92);
-    border-radius: 50%;
-  }
-}
 @keyframes saving-in {
   from {
     opacity: 0;
+    transform: translateY(-8px);
   }
   to {
     opacity: 1;
+    transform: translateY(0);
   }
+}
+button[data-action-waiting="true"] {
+  cursor: wait !important;
+}
+button[data-action-waiting="true"]::after {
+  content: "";
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  margin-inline-start: 7px;
+  border: 2px solid currentColor;
+  border-bottom-color: transparent;
+  border-radius: 50%;
+  vertical-align: -2px;
+  animation: saving-spin 0.65s linear infinite;
 }
 @media (prefers-reduced-motion: reduce) {
   .saving-overlay,
   .saving-orbit i,
-  .saving-orbit span {
+  button[data-action-waiting="true"]::after {
     animation: none;
+  }
+}
+@media (max-width: 600px) {
+  .saving-overlay {
+    top: 10px;
+    left: 10px;
+    width: min(330px, calc(100vw - 20px));
   }
 }
 .order-exceptions {

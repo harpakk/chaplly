@@ -36,7 +36,7 @@ export function CouponManager({ data, seller, createAction, toggleAction }: {
     <section className="coupon-list-card"><h2>کدهای ساخته‌شده</h2>{data.coupons.length ? <div className="coupon-table">{data.coupons.map((coupon) => <article key={coupon.id}>
       <div><b>{coupon.code}</b><span>{coupon.discount_type === "PERCENTAGE" ? `${coupon.discount_value.toLocaleString("fa-IR")}٪` : formatPrice(coupon.discount_value)}</span></div>
       <small>{coupon.applies_to === "ITEM" ? "یک قلم" : "سبد"} · استفاده {coupon.usage_count.toLocaleString("fa-IR")} از {coupon.max_usage.toLocaleString("fa-IR")} · انقضا {new Date(coupon.expires_at).toLocaleString("fa-IR")}</small>
-      <ActionForm action={toggleAction} showSavingOverlay={false}><input type="hidden" name="couponId" value={coupon.id} /><input type="hidden" name="status" value={coupon.status === "ACTIVE" ? "DISABLED" : "ACTIVE"} /><button className={coupon.status === "ACTIVE" ? "coupon-disable" : "coupon-enable"}>{coupon.status === "ACTIVE" ? "غیرفعال کردن" : "فعال کردن"}</button></ActionForm>
+      <ActionForm action={toggleAction}><input type="hidden" name="couponId" value={coupon.id} /><input type="hidden" name="status" value={coupon.status === "ACTIVE" ? "DISABLED" : "ACTIVE"} /><button className={coupon.status === "ACTIVE" ? "coupon-disable" : "coupon-enable"}>{coupon.status === "ACTIVE" ? "غیرفعال کردن" : "فعال کردن"}</button></ActionForm>
     </article>)}</div> : <p>هنوز کد تخفیفی ساخته نشده است.</p>}</section>
   </div>;
 }
