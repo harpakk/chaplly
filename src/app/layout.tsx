@@ -5,6 +5,7 @@ import { BuyerFooter } from "@/components/buyer-footer";
 import { CartProvider } from "@/components/cart-context";
 import { NavigationFeedback } from "@/components/navigation-feedback";
 import { AttributionTracker } from "@/components/attribution-tracker";
+import { brandConfig } from "@/lib/brand-config";
 import "./globals.css";
 
 // Liara injects application secrets at runtime rather than while building the
@@ -13,6 +14,10 @@ import "./globals.css";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
+  icons: {
+    icon: brandConfig.logos.orange,
+    apple: brandConfig.logos.orange,
+  },
   title: {
     default: "چاپلی | محصولات خاص از طراحان مستقل",
     template: "%s | چاپلی",

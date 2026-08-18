@@ -4,13 +4,14 @@ import Link from "next/link";
 import { Instagram, Send } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { TrustLogos } from "@/components/trust-logos";
+import { BrandLogo } from "@/components/brand-logo";
 
 export function BuyerFooter() {
   const pathname = usePathname();
   if (pathname.startsWith("/seller") || pathname.startsWith("/supplier") || pathname.startsWith("/admin") || pathname.startsWith("/stores/")) return null;
   return (
     <footer className="buyer-footer">
-      <div className="shop-container footer-story"><div><Link className="buyer-logo light" href="/"><span>چ</span>چاپلی</Link><p>چاپلی بازار آنلاین خرید محصولات خاص، بامزه و اوریجینال از طراح‌ها، هنرمندان و فروشگاه‌های مستقل ایرانی است. در چاپلی می‌توانی میان تیشرت‌های گرافیکی، پوشاک متفاوت، اکسسوری، هدیه و محصولات خلاقانه جست‌وجو کنی، رنگ و اندازه مناسب را انتخاب کنی و محصولی هماهنگ با سلیقه و سبک شخصی خودت سفارش بدهی. هر فروشگاه ویترین اختصاصی خودش را دارد و اطلاعات محصول، قیمت، تنوع‌ها و وضعیت سفارش به‌صورت شفاف نمایش داده می‌شود تا کشف و خرید طراحی ایرانی ساده‌تر، مطمئن‌تر و لذت‌بخش‌تر باشد.</p></div><form><label htmlFor="footer-email">تازه‌ترین دراپ‌ها، بدون اسپم</label><div><input id="footer-email" type="email" placeholder="ایمیلت را بنویس" /><button aria-label="عضویت"><Send size={18} /></button></div></form></div>
+      <div className="shop-container footer-story"><div><BrandLogo className="buyer-logo light" href="/" /><p>چاپلی بازار آنلاین خرید محصولات خاص، بامزه و اوریجینال از طراح‌ها، هنرمندان و فروشگاه‌های مستقل ایرانی است. در چاپلی می‌توانی میان تیشرت‌های گرافیکی، پوشاک متفاوت، اکسسوری، هدیه و محصولات خلاقانه جست‌وجو کنی، رنگ و اندازه مناسب را انتخاب کنی و محصولی هماهنگ با سلیقه و سبک شخصی خودت سفارش بدهی. هر فروشگاه ویترین اختصاصی خودش را دارد و اطلاعات محصول، قیمت، تنوع‌ها و وضعیت سفارش به‌صورت شفاف نمایش داده می‌شود تا کشف و خرید طراحی ایرانی ساده‌تر، مطمئن‌تر و لذت‌بخش‌تر باشد.</p></div><form><label htmlFor="footer-email">تازه‌ترین دراپ‌ها، بدون اسپم</label><div><input id="footer-email" type="email" placeholder="ایمیلت را بنویس" /><button aria-label="عضویت"><Send size={18} /></button></div></form></div>
       <div className="shop-container footer-grid seo-footer">
         <div><strong>دسته‌بندی‌های محبوب</strong><Link href="/search?q=پوشاک">پوشاک خاص</Link><Link href="/search?q=تیشرت">تیشرت گرافیکی</Link><Link href="/search?q=هودی">دورس و هودی</Link><Link href="/search?q=اکسسوری">اکسسوری</Link><Link href="/search?q=خانه">خانه و زندگی</Link></div>
         <div><strong>سبک‌های گرافیکی</strong><Link href="/search?graphic=colorful-minimal">مینیمال رنگی</Link><Link href="/search?graphic=fun-typography">تایپوگرافی بامزه</Link><Link href="/search?graphic=persian-typography">تایپوگرافی فارسی</Link><Link href="/search?graphic=urban-graphic">گرافیک شهری</Link></div>

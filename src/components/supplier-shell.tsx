@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { ReactNode, useState } from "react";
 import { supplierLogoutAction } from "@/app/actions/supplier-auth";
+import { BrandLogo } from "@/components/brand-logo";
 
 const links = [
   ["/supplier/dashboard", "سفارش‌ها", ShoppingBag],
@@ -51,11 +52,7 @@ export function SupplierShell({
       )}
       <aside className={open ? "open" : ""}>
         <div className="supplier-brand">
-          <span>چ</span>
-          <div>
-            <b>چاپلی</b>
-            <small>پنل تأمین‌کننده</small>
-          </div>
+          <BrandLogo variant="white" href="/supplier/dashboard" subtitle="پنل تأمین‌کننده" />
           <button onClick={() => setOpen(false)}>
             <X />
           </button>

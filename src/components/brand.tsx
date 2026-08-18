@@ -1,12 +1,5 @@
-import Link from "next/link";
+import { BrandLogo } from "@/components/brand-logo";
 
 export function Brand({ compact = false }: { compact?: boolean }) {
-  return (
-    <Link className="brand" href="/seller" aria-label="چاپلی، صفحه اصلی فروشندگان">
-      <span className="brand-mark" aria-hidden="true">
-        چ
-      </span>
-      {!compact && <span>چاپلی</span>}
-    </Link>
-  );
+  return <BrandLogo className="brand" variant="white" href="/seller" compact={compact} />;
 }

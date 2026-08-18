@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getAdminAccessMode, isAdminAuthenticated } from "@/lib/admin-auth";
 import { AdminLoginForm } from "@/components/admin-login-form";
 import { getCurrentUser } from "@/lib/auth";
+import { BrandLogo } from "@/components/brand-logo";
 
 export default async function AdminLogin() {
   if (await isAdminAuthenticated()) redirect("/admin");
@@ -15,8 +16,7 @@ export default async function AdminLogin() {
     <main className="admin-login" dir="rtl">
       <section>
         <div className="admin-login-brand">
-          <span>چ</span>
-          <b>چاپلی / مدیریت</b>
+          <BrandLogo variant="white" href="/admin/login" subtitle="مدیریت" priority />
         </div>
         <div className="admin-login-art">
           <i>امن</i>

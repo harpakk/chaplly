@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft, PackageCheck, Palette, Rocket, Sparkles, Store, WalletCards } from "lucide-react";
 import { IncomeCalculator } from "@/components/income-calculator";
 import { QuickSellerSignupForm, SellerSignupTrigger } from "@/components/seller-quick-signup";
+import { BrandLogo } from "@/components/brand-logo";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 
 const number=(value:number)=>value.toLocaleString("fa-IR");
@@ -36,7 +37,7 @@ async function getSellerLandingData(){
 export default async function SellerLandingPage(){
  const data=await getSellerLandingData();
  return <main className="creator-landing seller-conversion-page">
-  <header className="creator-header"><div className="creator-container"><Link className="creator-logo" href="/seller"><span>چ</span>چاپلی <small>برای سازنده‌ها</small></Link><div><Link className="creator-login" href="/seller/login">ورود</Link><SellerSignupTrigger className="creator-button small">رایگان شروع کن <ArrowLeft/></SellerSignupTrigger></div></div></header>
+  <header className="creator-header"><div className="creator-container"><BrandLogo className="creator-logo" href="/seller" subtitle="برای سازنده‌ها" priority /><div><Link className="creator-login" href="/seller/login">ورود</Link><SellerSignupTrigger className="creator-button small">رایگان شروع کن <ArrowLeft/></SellerSignupTrigger></div></div></header>
   <section className="creator-hero seller-conversion-hero"><div className="creator-blob one"/><div className="creator-container creator-hero-grid"><div><span className="creator-kicker"><Sparkles/> بدون سرمایه اولیه</span><h1>فروشگاه خودتو<br/><em>رایگان بساز</em></h1><p>برند خودتو بدون خرید موجودی، انبار، ساخت سایت یا درگیری با چاپ و ارسال راه بنداز.</p><div className="free-proof"><strong>کاملاً رایگان</strong><span>بدون هزینه ثبت‌نام • بدون خرید موجودی • بدون حداقل سفارش</span></div><div className="hero-objections"><span>هزینه داره؟ <b>نه</b></span><span>باید جنس بخری؟ <b>نه</b></span><span>ارسال با منه؟ <b>نه</b></span></div></div><aside className="hero-signup-box"><span>۶۰ ثانیه دیگه اولین محصولت آماده‌ست.</span><h2>همین الان شروع کن</h2><QuickSellerSignupForm compact/></aside></div></section>
   <section className="money-strip free-strip"><div className="creator-container"><span><b>۰ ریال</b> هزینه ثبت‌نام</span><span><b>۰ عدد</b> حداقل سفارش</span><span><b>۰ عدد</b> موجودی لازم</span></div></section>
   <section className="creator-section simple-workflow" id="how"><div className="creator-container"><SectionTitle eyebrow="واقعاً همین‌قدر ساده" title="سه قدم تا فروشگاه آماده" copy="سرعت، بخشی از محصوله؛ نه یک وعده تبلیغاتی."/><div>{[[Store,"۱. رایگان ثبت‌نام کن","فقط ایمیل و رمز عبور."],[Palette,"۲. محصولت رو بساز","محصول خام رو انتخاب کن و طرحت رو بنداز روش."],[PackageCheck,"۳. بفروش؛ بقیه با ما","چاپ، بسته‌بندی و ارسال در چاپلی مدیریت می‌شه."]].map(([Icon,title,copy])=><article key={String(title)}><Icon/><h3>{String(title)}</h3><p>{String(copy)}</p></article>)}</div><CenteredCta/></div></section>
@@ -47,7 +48,7 @@ export default async function SellerLandingPage(){
   <section className="creator-section creator-faq"><div className="creator-container"><SectionTitle eyebrow="بدون ترس شروع کن" title="جواب نگرانی‌های اصلی"/><div>{[["اگه نفروشم چی؟","هیچ هزینه ثبت‌نام، خرید موجودی یا حداقل سفارشی نداری؛ پس بدون فروش بدهکار نمی‌شی."],["چطور پول می‌گیرم؟","سود هر سفارش در پنل مالی ثبت می‌شه و طبق چرخه تسویه به حساب بانکی تأییدشده‌ات واریز می‌شه."],["چاپ و ارسال با کیه؟","چاپ، آماده‌سازی و ارسال در شبکه تأمین چاپلی انجام می‌شه؛ تو روی محصول، برند و فروش تمرکز می‌کنی."],["سرمایه اولیه می‌خواد؟","نه. محصول بعد از ثبت سفارش مشتری وارد تولید می‌شه."],["واقعاً رایگانه؟","ساخت حساب و فروشگاه، اضافه‌کردن محصول و شروع کار هزینه ثبت‌نام نداره."]].map(([q,a])=><details key={q}><summary>{q}</summary><p>{a}</p></details>)}</div></div></section>
   <section className="creator-final"><div className="creator-container"><span>بدون هزینه ثبت‌نام • بدون موجودی • بدون حداقل سفارش</span><h2>برند خودتو بدون سرمایه اولیه راه بنداز.</h2><SellerSignupTrigger className="creator-button light">رایگان شروع کن <ArrowLeft/></SellerSignupTrigger></div></section>
   <div className="seller-mobile-cta"><SellerSignupTrigger>رایگان شروع کن <ArrowLeft/></SellerSignupTrigger></div>
-  <footer className="creator-footer"><div className="creator-container"><Link className="creator-logo" href="/seller"><span>چ</span>چاپلی</Link><p>ابزار ساخت و فروش برای آدم‌های خلاق.</p><div><Link href="/seller/login">ورود فروشنده</Link><Link href="/terms">قوانین</Link><Link href="/privacy">حریم خصوصی</Link></div></div></footer>
+  <footer className="creator-footer"><div className="creator-container"><BrandLogo className="creator-logo" href="/seller" /><p>ابزار ساخت و فروش برای آدم‌های خلاق.</p><div><Link href="/seller/login">ورود فروشنده</Link><Link href="/terms">قوانین</Link><Link href="/privacy">حریم خصوصی</Link></div></div></footer>
  </main>;
 }
 

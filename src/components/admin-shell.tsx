@@ -24,6 +24,7 @@ import {
   Video,
 } from "lucide-react";
 import { adminLogoutAction } from "@/app/admin/actions";
+import { BrandLogo } from "@/components/brand-logo";
 const links = [
   ["/admin/analytics", "آنالیتیکس", BarChart3],
   ["/admin", "داشبورد", BarChart3],
@@ -60,11 +61,7 @@ export function AdminShell({
       )}
       <aside className={open ? "open" : ""}>
         <div className="admin-brand">
-          <span>چ</span>
-          <div>
-            <b>چاپلی</b>
-            <small>مرکز مدیریت</small>
-          </div>
+          <BrandLogo variant="white" href="/admin" subtitle="مرکز مدیریت" />
           <button onClick={() => setOpen(false)}>
             <X />
           </button>

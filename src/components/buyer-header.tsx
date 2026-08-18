@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Heart, Menu, Search, ShoppingBag, UserRound, X } from "lucide-react";
 import { useCart } from "@/components/cart-context";
+import { BrandLogo } from "@/components/brand-logo";
 import { formatPrice } from "@/lib/catalog";
 
 export function BuyerHeader() {
@@ -20,10 +21,7 @@ export function BuyerHeader() {
       <div className="topbar">ارسال رایگان برای سفارش‌های بالای ۱٬۵۰۰٬۰۰۰ تومان</div>
       <header className="buyer-header">
         <div className="shop-container buyer-header-row">
-          <Link className="buyer-logo" href="/">
-            <span>چ</span>
-            چاپلی
-          </Link>
+          <BrandLogo className="buyer-logo" href="/" priority />
           <nav className="buyer-nav" aria-label="منوی اصلی">
             <Link href="/search">محصولات</Link>
             <Link href="/#categories">دسته‌بندی‌ها</Link>
