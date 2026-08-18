@@ -7,6 +7,7 @@ import "@fontsource/estedad/400.css";
 import "@fontsource/estedad/700.css";
 import {
   ChangeEvent,
+  DragEvent as ReactDragEvent,
   PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
@@ -108,7 +109,7 @@ const designTourSteps: SellerTourStep[] = [
   { target: '[data-tour="design-variants"]', emoji: "🎨", title: "جلو، پشت و رنگ‌ها", body: "پایین صفحه نما و رنگ محصول را عوض کن تا مطمئن شی طرحت روی همه حالت‌ها عالیه." },
   { target: '[data-tour="layers"]', emoji: "🥞", title: "لایه‌ها نظم می‌دن", body: "از اینجا متن و تصویرها را دوباره انتخاب، مرتب یا قفل کن؛ مثل ورق‌های روی هم." },
   { target: '[data-tour="top-tools"]', emoji: "🪄", title: "ابزار دقیق همین بالاست", body: "وقتی یک طرح یا متن را انتخاب کنی، شفافیت، برش، چرخش و ترتیب لایه‌ها همین بالا ظاهر می‌شه." },
-  { target: '[data-tour="design-continue"]', emoji: "✅", title: "ادامه یعنی ذخیره امن", body: "ادامه را بزن؛ بعد تأمین‌کننده، رنگ و سایزهای قابل فروش و در آخر موکاپ را انتخاب می‌کنی.", hint: "پیش‌نویست در مسیر ذخیره می‌شه؛ با خیال راحت جلو برو." },
+  { target: '[data-tour="design-continue"]', emoji: "✅", title: "ادامه یعنی ذخیره امن", body: "ادامه را بزن؛ بعد تأمین‌کننده، رنگ و سایزهای قابل طراحی و در آخر موکاپ را انتخاب می‌کنی.", hint: "پیش‌نویست در مسیر ذخیره می‌شه؛ با خیال راحت جلو برو." },
 ];
 
 export function DesignEditor({ data, tourState }: { data: EditorData; tourState: SellerTourState }) {
@@ -244,6 +245,7 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
     [mockupSideFilter, setMockupSideFilter] = useState("ALL"),
     [mockupColorFilter, setMockupColorFilter] = useState("ALL"),
     [chatGuideOpen, setChatGuideOpen] = useState(false),
+    [fileDragActive, setFileDragActive] = useState(false),
     [blockingSave, setBlockingSave] = useState("");
   const uploadRef = useRef<HTMLInputElement>(null),
     copiedObject = useRef<ObjectItem | null>(null),
@@ -639,9 +641,11 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
     });
     setCropOpen(false);
   };
-  const upload = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const uploadFile = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      setSaveState("فقط فایل تصویری را روی بوم رها کنید.");
+      return;
+    }
     const temporaryUrl = URL.createObjectURL(file);
     const objectId = add("image", {
       src: temporaryUrl,
@@ -652,7 +656,6 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
     const form = new FormData();
     form.set("file", file);
     setSaveState("تصویر اضافه شد؛ در حال آپلود…");
-    event.target.value = "";
     try {
       const result = await uploadDesignAssetAction(form);
       if (result.ok && result.url) {
@@ -682,6 +685,18 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
     } catch {
       setSaveState("تصویر روی بوم است اما آپلود ناموفق بود؛ دوباره تلاش کنید.");
     }
+  };
+  const upload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (file) void uploadFile(file);
+  };
+  const dropOnCanvas = (event: ReactDragEvent<HTMLElement>) => {
+    event.preventDefault();
+    setFileDragActive(false);
+    const file = [...event.dataTransfer.files].find((item) => item.type.startsWith("image/"));
+    if (file) void uploadFile(file);
+    else setSaveState("فایل رهاشده تصویر نیست؛ PNG، JPG یا WEBP انتخاب کنید.");
   };
   const drag = (
     event: ReactPointerEvent<HTMLDivElement>,
@@ -1472,9 +1487,22 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
       </aside>
       <section
         data-tour="design-canvas"
-        className={`design-stage ${tool === "pan" ? "is-panning" : ""}`}
+        className={`design-stage ${tool === "pan" ? "is-panning" : ""} ${fileDragActive ? "is-file-dragging" : ""}`}
         onPointerDown={panStage}
+        onDragEnter={(event) => {
+          if (event.dataTransfer.types.includes("Files")) setFileDragActive(true);
+        }}
+        onDragOver={(event) => {
+          if (!event.dataTransfer.types.includes("Files")) return;
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "copy";
+        }}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFileDragActive(false);
+        }}
+        onDrop={dropOnCanvas}
       >
+        {fileDragActive && <div className="design-drop-hint"><Upload /><b>تصویر را رها کن</b><span>خودکار آپلود و روی بوم اضافه می‌شود</span></div>}
         <div
           className="design-canvas-wrap"
           style={{
@@ -1725,7 +1753,7 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
                           امتیاز {offer.ratingAverage.toFixed(1)}
                         </span>
                         <small>
-                          {offer.variants.length} تنوع موجود · آماده‌سازی{" "}
+                          {offer.variants.length} تنوع قابل طراحی · آماده‌سازی{" "}
                           {offer.lead_time_days} روز
                         </small>
                         {selectedSupplierOfferId === offer.id && <Check />}
@@ -1738,8 +1766,7 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
                     offer.variants.length > 0,
                 ) && (
                   <div className="empty-state">
-                    تأمین‌کننده تأییدشده با موجودی مثبت برای این محصول وجود
-                    ندارد.
+                    تأمین‌کننده تأییدشده‌ای برای این محصول وجود ندارد.
                   </div>
                 )}
                 <button
@@ -1752,7 +1779,7 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
             ) : phase === "variants" ? (
               <>
                 <Palette />
-                <span>تنوع‌های قابل فروش</span>
+                <span>تنوع‌های قابل طراحی</span>
                 <h2>رنگ و سایزها را انتخاب کن</h2>
                 <p>
                   طرح روی همه انتخاب‌ها ثابت می‌ماند؛ فقط تصویر محصول تغییر

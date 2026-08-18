@@ -56,6 +56,7 @@ export function SellerDashboardShell({
   const [collapsed, setCollapsed] = useState(false);
   const [mobile, setMobile] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
+  const [aiLauncherDismissed, setAiLauncherDismissed] = useState(false);
   const pathname = usePathname();
   const isDesignStudio = pathname === "/seller/dashboard/products/new/design";
   const params = useSearchParams();
@@ -201,10 +202,18 @@ export function SellerDashboardShell({
         </aside>
       )}
       <section className="sd-main">{children}</section>
-      {!isDesignStudio && (
-        <button className="sd-ai-chat-button" onClick={() => setAiOpen(true)}>
-          <Bot /> <span>گفت‌وگوی آنلاین</span>
-        </button>
+      {!isDesignStudio && !aiLauncherDismissed && (
+        <div className="sd-ai-chat-launcher">
+          <button className="sd-ai-chat-button" onClick={() => setAiOpen(true)}>
+            <Bot /> <span>گفت‌وگو</span>
+          </button>
+          <button
+            className="sd-ai-chat-dismiss"
+            type="button"
+            aria-label="بستن دکمه گفت‌وگو تا بارگذاری بعدی"
+            onClick={() => setAiLauncherDismissed(true)}
+          ><X /></button>
+        </div>
       )}
       <SupportAiChat
         role="seller"

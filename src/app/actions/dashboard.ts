@@ -3260,7 +3260,7 @@ export async function saveSellerProductAction(
     );
   if (!primarySupplierOfferId)
     return fail(
-      "برای ساخت محصول باید ابتدا یک تأمین‌کننده دارای موجودی انتخاب کنید.",
+      "برای ساخت محصول باید ابتدا یک تأمین‌کننده فعال انتخاب کنید.",
       { primarySupplierOfferId: "انتخاب تأمین‌کننده اصلی الزامی است." },
       productAlreadyExists ? productId : undefined,
     );

@@ -11,20 +11,24 @@ import { formatPrice, type Product } from "@/lib/catalog";
 export function AddToCart({ product, redirectToCart = false }: { product: Product; redirectToCart?: boolean }) {
   const router = useRouter();
   const { addItem, items, updateQuantity } = useCart();
-  const [color, setColor] = useState(product.variants[0]?.color || "");
+  const sellableVariants = useMemo(
+    () => product.variants.filter((item) => item.inventory > 0),
+    [product.variants],
+  );
+  const [color, setColor] = useState(sellableVariants[0]?.color || "");
   const availableSizes = useMemo(
     () =>
-      product.variants
+      sellableVariants
         .filter((item) => item.color === color)
         .map((item) => item.size),
-    [color, product.variants],
+    [color, sellableVariants],
   );
   const [size, setSize] = useState(
-    product.variants.find((item) => item.color === color)?.size || "",
+    sellableVariants.find((item) => item.color === color)?.size || "",
   );
   const [added, setAdded] = useState(false);
   const [cartPromptOpen, setCartPromptOpen] = useState(false);
-  const variant = product.variants.find(
+  const variant = sellableVariants.find(
     (item) => item.color === color && item.size === size,
   );
   const cartItemIndex = variant
@@ -33,7 +37,7 @@ export function AddToCart({ product, redirectToCart = false }: { product: Produc
   const cartItem = cartItemIndex >= 0 ? items[cartItemIndex] : undefined;
   const chooseColor = (next: string) => {
     setColor(next);
-    const sizes = product.variants.filter((item) => item.color === next);
+    const sizes = sellableVariants.filter((item) => item.color === next);
     if (!sizes.some((item) => item.size === size))
       setSize(sizes[0]?.size || "");
   };
@@ -60,9 +64,9 @@ export function AddToCart({ product, redirectToCart = false }: { product: Produc
     window.setTimeout(() => setAdded(false), 1800);
   };
   const colors = [
-    ...new Map(product.variants.map((item) => [item.color, item])).values(),
+    ...new Map(sellableVariants.map((item) => [item.color, item])).values(),
   ];
-  const sizes = [...new Set(product.variants.map((item) => item.size))];
+  const sizes = [...new Set(sellableVariants.map((item) => item.size))];
   return (
     <div className="purchase-options">
       <fieldset>

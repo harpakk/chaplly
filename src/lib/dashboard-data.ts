@@ -626,7 +626,7 @@ export async function getSellerProductEditData(
     db
       .from("supplier_offers")
       .select(
-        "id,base_cost,lead_time_days,capacity_per_day,organization:organizations(display_name)",
+        "id,base_cost,lead_time_days,capacity_per_day,organization:organizations(display_name),variants:supplier_offer_variants(raw_product_variant_id,unit_cost)",
       )
       .eq("raw_product_id", product.raw_product_id)
       .eq("approval_status", "APPROVED")
@@ -635,7 +635,7 @@ export async function getSellerProductEditData(
       .limit(100),
     db.from("graphic_styles").select("id,name,caption").eq("status", "ACTIVE").order("sort_order"),
     db.from("product_graphic_styles").select("graphic_style_id").eq("seller_product_id", product.id),
-    db.from("seller_product_variants").select("raw_product_variant_id,price,raw_product_variants(raw_product_colors(name),raw_product_sizes(name)),supplier:supplier_offer_variants!seller_product_variants_supplier_offer_variant_id_fkey(unit_cost)").eq("seller_product_id", product.id),
+    db.from("seller_product_variants").select("raw_product_variant_id,price,raw_product_variants(color_id,size_id,raw_product_colors(name),raw_product_sizes(name))").eq("seller_product_id", product.id),
   ]);
   if (detailsResult.error || offersResult.error || stylesResult.error || selectedStylesResult.error || variantsResult.error)
     throw new Error(
@@ -656,12 +656,22 @@ export async function getSellerProductEditData(
       const rawVariant = Array.isArray(item.raw_product_variants) ? item.raw_product_variants[0] : item.raw_product_variants;
       const color = Array.isArray(rawVariant?.raw_product_colors) ? rawVariant.raw_product_colors[0] : rawVariant?.raw_product_colors;
       const size = Array.isArray(rawVariant?.raw_product_sizes) ? rawVariant.raw_product_sizes[0] : rawVariant?.raw_product_sizes;
-      const supplier = Array.isArray(item.supplier) ? item.supplier[0] : item.supplier;
-      return { rawProductVariantId: item.raw_product_variant_id, price: n(item.price), minimumPrice: Math.ceil(n(supplier?.unit_cost) * 1.1), label: `${color?.name || "رنگ استاندارد"} · ${size?.name || "سایز استاندارد"}` };
+      return {
+        rawProductVariantId: item.raw_product_variant_id,
+        colorId: rawVariant?.color_id || "",
+        colorName: color?.name || "رنگ استاندارد",
+        sizeId: rawVariant?.size_id || "",
+        sizeName: size?.name || "سایز استاندارد",
+        price: n(item.price),
+      };
     }),
     suppliers: (offersResult.data || []).map((item) => ({
       ...item,
       base_cost: n(item.base_cost),
+      variants: (item.variants || []).map((variant) => ({
+        ...variant,
+        unit_cost: n(variant.unit_cost),
+      })),
     })),
   };
 }
@@ -1999,8 +2009,7 @@ export async function getProductCreationData(rawProductId: string) {
       .from("supplier_offer_variants")
       .select(
         "id,supplier_offer_id,raw_product_variant_id,unit_cost,stock_status,stock_quantity",
-      )
-      .in("stock_status", ["AVAILABLE", "LOW_STOCK"]),
+      ),
     db
       .from("organizations")
       .select("id,display_name,slug")
@@ -2134,8 +2143,7 @@ export async function getProductCreationData(rawProductId: string) {
             (org) => org.id === offer.supplier_organization_id,
           ),
           variants: (offerVariantsResult.data || []).filter(
-            (item) =>
-              item.supplier_offer_id === offer.id && item.stock_quantity > 0,
+            (item) => item.supplier_offer_id === offer.id,
           ),
           productCount,
           reviewCount,

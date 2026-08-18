@@ -26,8 +26,12 @@ import type {
   getProductStartData,
 } from "@/lib/dashboard-data";
 import { SavingOverlay } from "@/components/saving-overlay";
-import { formatRial } from "@/lib/catalog";
 import { WarpedArtwork } from "@/components/warped-artwork";
+import {
+  createPropertyPrices,
+  expandPropertyPrices,
+  VariantPropertyPricing,
+} from "@/components/variant-property-pricing";
 import { croppedArtworkImageStyle, hasManualArtworkCrop } from "@/lib/design-artwork-style";
 import { SellerOnboardingTour, SellerTourReplayButton, type SellerTourStep } from "@/components/seller-onboarding-tour";
 import type { SellerTourState } from "@/lib/seller-tour-shared";
@@ -205,9 +209,7 @@ function FinalProduct({
     data.selectedMockupIds.includes(mockup.id),
   );
   const pricingOffer = data.suppliers.find(
-    (offer) =>
-      offer.id ===
-      (supplierOfferId || draft?.primary_supplier_offer_id || ""),
+    (offer) => offer.id === primary,
   );
   const renderedMockupViews = selectedMockups.flatMap((mockup) =>
     mockup.views.map((view) => ({
@@ -223,50 +225,28 @@ function FinalProduct({
     renderedMockupViews[0]?.key || "",
   );
   const [customImages, setCustomImages] = useState<File[]>([]);
-  const [prices, setPrices] = useState<Record<string, number>>(() => {
-    const saved = new Map(
-      (draft?.variantPrices || []).map((item) => [
-        item.rawProductVariantId,
-        item.price,
-      ]),
+  const savedVariantPrices = new Map(
+    (draft?.variantPrices || []).map((item) => [item.rawProductVariantId, item.price]),
+  );
+  const pricingVariants = data.design!.variantIds.flatMap((id) => {
+    const variant = raw.variants.find((item) => item.id === id);
+    if (!variant) return [];
+    const supplierCost = Number(
+      pricingOffer?.variants.find((item) => item.raw_product_variant_id === id)?.unit_cost || 0,
     );
-    return Object.fromEntries(
-      data.design!.variantIds.map((id) => [
-        id,
-        saved.get(id) ||
-          Math.max(
-            1,
-            Math.round(
-              Number(
-                pricingOffer?.variants.find(
-                  (variant) => variant.raw_product_variant_id === id,
-                )?.unit_cost || 0,
-              ) * 1.3,
-            ),
-          ),
-      ]),
-    );
+    return [{
+      rawProductVariantId: id,
+      colorId: variant.color_id,
+      colorName: raw.colors.find((item) => item.id === variant.color_id)?.name || "رنگ استاندارد",
+      sizeId: variant.size_id,
+      sizeName: raw.sizes.find((item) => item.id === variant.size_id)?.name || "سایز استاندارد",
+      minimumPrice: Math.ceil(supplierCost * 1.1),
+      price: savedVariantPrices.get(id) || Math.max(1, Math.round(supplierCost * 1.3)),
+      isSavedPrice: savedVariantPrices.has(id),
+    }];
   });
-  const adjustAllPrices = (factor: number) =>
-    setPrices((current) =>
-      Object.fromEntries(
-        data.design!.variantIds.map((variantId) => {
-          const supplierCost = Number(
-            pricingOffer?.variants.find(
-              (item) => item.raw_product_variant_id === variantId,
-            )?.unit_cost || 0,
-          );
-          const minimumPrice = Math.ceil(supplierCost * 1.1);
-          return [
-            variantId,
-            Math.max(
-              minimumPrice,
-              Math.round((current[variantId] || minimumPrice || 1) * factor),
-            ),
-          ];
-        }),
-      ),
-    );
+  const [propertyPrices, setPropertyPrices] = useState(() => createPropertyPrices(pricingVariants));
+  const variantPrices = expandPropertyPrices(pricingVariants, propertyPrices);
   const mockupRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const fileInput = useRef<HTMLInputElement>(null);
   const errorAlert = useRef<HTMLDivElement>(null);
@@ -326,18 +306,14 @@ function FinalProduct({
     }
     if (!String(form.get("primarySupplierOfferId") || "")) {
       showClientError(
-        "یک تأمین‌کننده اصلی دارای موجودی انتخاب کنید.",
+        "یک تأمین‌کننده اصلی برای تنوع‌های انتخاب‌شده انتخاب کنید.",
         "primarySupplierOfferId",
       );
       return;
     }
-    const belowMinimumMargin = data.design!.variantIds.some((variantId) => {
-      const supplierCost = Number(
-        pricingOffer?.variants.find(
-          (variant) => variant.raw_product_variant_id === variantId,
-        )?.unit_cost || 0,
-      );
-      return (prices[variantId] || 0) < Math.ceil(supplierCost * 1.1);
+    const belowMinimumMargin = variantPrices.some((variant) => {
+      const source = pricingVariants.find((item) => item.rawProductVariantId === variant.rawProductVariantId);
+      return variant.price < Number(source?.minimumPrice || 0);
     });
     if (belowMinimumMargin) {
       showClientError(
@@ -507,12 +483,7 @@ function FinalProduct({
           <input
             type="hidden"
             name="variantPrices"
-            value={JSON.stringify(
-              Object.entries(prices).map(([rawProductVariantId, price]) => ({
-                rawProductVariantId,
-                price,
-              })),
-            )}
+            value={JSON.stringify(variantPrices)}
           />
           {(clientError || (!pending && !state.ok && state.message)) && (
             <div
@@ -787,85 +758,11 @@ function FinalProduct({
                 </div>
               </details>
             </div>
-            <div className="variant-price-heading">
-              <div><h3>قیمت تنوع‌ها</h3><small>قیمت نهایی هر رنگ و سایز را جداگانه تعیین کن.</small></div>
-              <div className="variant-price-bulk-actions">
-                <button type="button" onClick={() => adjustAllPrices(0.9)}>−۱۰٪ همه</button>
-                <button type="button" onClick={() => adjustAllPrices(1.1)}>+۱۰٪ همه</button>
-              </div>
-            </div>
-            <div className="variant-price-grid">
-              {data.design!.variantIds.map((variantId) => {
-                const variant = raw.variants.find(
-                  (item) => item.id === variantId,
-                );
-                const color = raw.colors.find(
-                  (item) => item.id === variant?.color_id,
-                );
-                const size = raw.sizes.find(
-                  (item) => item.id === variant?.size_id,
-                );
-                const supplierCost = Number(
-                  pricingOffer?.variants.find(
-                    (item) => item.raw_product_variant_id === variantId,
-                  )?.unit_cost || 0,
-                );
-                const minimumPrice = Math.ceil(supplierCost * 1.1);
-                const variantPrice = prices[variantId] || 1;
-                return (
-                  <label key={variantId}>
-                    <span>
-                      {color?.name || "رنگ استاندارد"} ·{" "}
-                      {size?.name || "سایز استاندارد"}
-                    </span>
-                    <input
-                      type="number"
-                      min={minimumPrice}
-                      value={prices[variantId] || 1}
-                      onChange={(event) =>
-                        setPrices((current) => ({
-                          ...current,
-                          [variantId]: Number(event.target.value),
-                        }))
-                      }
-                    />
-                    <div className="variant-price-actions">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setPrices((current) => ({
-                            ...current,
-                            [variantId]: Math.max(
-                              minimumPrice,
-                              Math.round((current[variantId] || 1) * 0.9),
-                            ),
-                          }))
-                        }
-                      >
-                        −۱۰٪
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setPrices((current) => ({
-                            ...current,
-                            [variantId]: Math.round(
-                              (current[variantId] || 1) * 1.1,
-                            ),
-                          }))
-                        }
-                      >
-                        +۱۰٪
-                      </button>
-                    </div>
-                    <small className="variant-profit">
-                      سود: {formatRial(Math.max(0, variantPrice - supplierCost))}
-                    </small>
-                    <small>حداقل قیمت با سود ۱۰٪: {formatRial(minimumPrice)}</small>
-                  </label>
-                );
-              })}
-            </div>
+            <VariantPropertyPricing
+              variants={pricingVariants}
+              value={propertyPrices}
+              onChange={setPropertyPrices}
+            />
             {fieldError("variantPrices") && (
               <small className="field-error product-section-error">
                 {fieldError("variantPrices")}
@@ -981,9 +878,8 @@ function FinalProduct({
               </div>
             ) : (
               <div className="empty-state">
-                فعلاً تأمین‌کننده‌ای با موجودی کامل برای همه تنوع‌های این محصول
-                وجود ندارد. برای ارسال به بررسی باید ابتدا یک تأمین‌کننده واجد
-                شرایط فعال شود.
+                فعلاً تأمین‌کننده فعالی برای همه تنوع‌های انتخاب‌شده وجود ندارد.
+                رنگ یا سایزها را بازبینی کنید یا تأمین‌کننده دیگری انتخاب کنید.
               </div>
             )}
           </section>
