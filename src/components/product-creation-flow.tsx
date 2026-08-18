@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import {
   saveSellerProductAction,
+  publishSellerProductToWooCommerceAction,
   type ActionResult,
 } from "@/app/actions/dashboard";
 import type {
@@ -28,10 +29,12 @@ import type {
   getProductStartData,
 } from "@/lib/dashboard-data";
 import { SavingOverlay } from "@/components/saving-overlay";
+import { ActionForm } from "@/components/action-form";
 import { WarpedArtwork } from "@/components/warped-artwork";
 import {
-  createPropertyPrices,
-  expandPropertyPrices,
+  createPropertyMarkups,
+  expandPropertyMarkups,
+  serializePropertyMarkups,
   VariantPropertyPricing,
 } from "@/components/variant-property-pricing";
 import { croppedArtworkImageStyle, hasManualArtworkCrop } from "@/lib/design-artwork-style";
@@ -232,8 +235,8 @@ function FinalProduct({
     renderedMockupViews[0]?.key || "",
   );
   const [customImages, setCustomImages] = useState<File[]>([]);
-  const savedVariantPrices = new Map(
-    (draft?.variantPrices || []).map((item) => [item.rawProductVariantId, item.price]),
+  const savedVariantMarkups = new Map(
+    (draft?.variantPrices || []).map((item) => [item.rawProductVariantId, item.markupPercentage]),
   );
   const pricingVariants = data.design!.variantIds.flatMap((id) => {
     const variant = raw.variants.find((item) => item.id === id);
@@ -247,13 +250,12 @@ function FinalProduct({
       colorName: raw.colors.find((item) => item.id === variant.color_id)?.name || "رنگ استاندارد",
       sizeId: variant.size_id,
       sizeName: raw.sizes.find((item) => item.id === variant.size_id)?.name || "سایز استاندارد",
-      minimumPrice: Math.ceil(supplierCost * 1.1),
-      price: savedVariantPrices.get(id) || Math.max(1, Math.round(supplierCost * 1.3)),
-      isSavedPrice: savedVariantPrices.has(id),
+      supplierCost,
+      markupPercentage: savedVariantMarkups.get(id) || 30,
     }];
   });
-  const [propertyPrices, setPropertyPrices] = useState(() => createPropertyPrices(pricingVariants));
-  const variantPrices = expandPropertyPrices(pricingVariants, propertyPrices);
+  const [propertyMarkups, setPropertyMarkups] = useState(() => createPropertyMarkups(pricingVariants, draft?.propertyMarkups));
+  const variantMarkups = expandPropertyMarkups(pricingVariants, propertyMarkups);
   const mockupRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const fileInput = useRef<HTMLInputElement>(null);
   const errorAlert = useRef<HTMLDivElement>(null);
@@ -320,14 +322,11 @@ function FinalProduct({
       );
       return;
     }
-    const belowMinimumMargin = variantPrices.some((variant) => {
-      const source = pricingVariants.find((item) => item.rawProductVariantId === variant.rawProductVariantId);
-      return variant.price < Number(source?.minimumPrice || 0);
-    });
+    const belowMinimumMargin = variantMarkups.some((variant) => variant.markupPercentage < 10);
     if (belowMinimumMargin) {
       showClientError(
-        "قیمت فروش هر تنوع باید حداقل ۱۰ درصد بیشتر از هزینه تأمین باشد.",
-        "variantPrices",
+        "درصد افزایش قیمت هر تنوع باید حداقل ۱۰ درصد باشد.",
+        "variantMarkups",
       );
       return;
     }
@@ -491,9 +490,10 @@ function FinalProduct({
           />
           <input
             type="hidden"
-            name="variantPrices"
-            value={JSON.stringify(variantPrices)}
+            name="variantMarkups"
+            value={JSON.stringify(variantMarkups)}
           />
+          <input type="hidden" name="propertyMarkups" value={JSON.stringify(serializePropertyMarkups(pricingVariants, propertyMarkups))} />
           {(clientError || (!pending && !state.ok && state.message)) && (
             <div
               className="product-submit-alert"
@@ -766,12 +766,12 @@ function FinalProduct({
             </div>
             <VariantPropertyPricing
               variants={pricingVariants}
-              value={propertyPrices}
-              onChange={setPropertyPrices}
+              value={propertyMarkups}
+              onChange={setPropertyMarkups}
             />
-            {fieldError("variantPrices") && (
+            {fieldError("variantMarkups") && (
               <small className="field-error product-section-error">
-                {fieldError("variantPrices")}
+                {fieldError("variantMarkups")}
               </small>
             )}
           </section>
@@ -953,6 +953,9 @@ function FinalProduct({
               }}><Copy /> {linkCopied ? "کپی شد" : "کپی لینک"}</button>
             </div>
             <div className="publish-success-actions">
+              <Link href="/seller/dashboard/products/new">
+                ساخت محصول جدید <Sparkles />
+              </Link>
               <Link href={`/products/${productSlug}`} target="_blank">
                 مشاهده محصول <ExternalLink />
               </Link>
@@ -961,6 +964,12 @@ function FinalProduct({
               </Link>
               <button type="button" onClick={() => setSuccessOpen(false)}>بستن</button>
             </div>
+            {data.woocommerceConnected && submittedIntent !== "publish_both" && state.id && (
+              <ActionForm action={publishSellerProductToWooCommerceAction} refreshAfterSuccess={false} savingText="در حال افزودن محصول به ووکامرس…" onSuccess={(result) => { if (result.detail?.startsWith("http")) window.open(result.detail, "_blank", "noopener,noreferrer"); }} className="publish-to-woo-form">
+                <input type="hidden" name="productId" value={state.id} />
+                <button type="submit">افزودن به ووکامرس</button>
+              </ActionForm>
+            )}
             <BadgeCheck />
           </div>
         </div>

@@ -105,7 +105,7 @@ export async function publishProductToWooCommerce(organizationId: string, seller
     db.from("seller_products").select("id,title,slug,subtitle,description,price,discounted_price").eq("id", sellerProductId).single(),
     db.from("product_images").select("sort_order,alt_text,file:storage_files!product_images_file_id_fkey(bucket,path)").eq("seller_product_id", sellerProductId).order("sort_order"),
     db.from("product_details").select("title,value,sort_order").eq("seller_product_id", sellerProductId).order("sort_order"),
-    db.from("seller_product_variants").select("id,sku,price,compare_at_price,raw_product_variant_id,status").eq("seller_product_id", sellerProductId).neq("status", "INACTIVE"),
+    db.from("seller_product_variants").select("id,sku,price,compare_at_price,markup_percentage,raw_product_variant_id,status,supplier:supplier_offer_variants!seller_product_variants_supplier_offer_variant_id_fkey(unit_cost)").eq("seller_product_id", sellerProductId).neq("status", "INACTIVE"),
   ]);
   if (!product || !variants?.length) throw new Error("محصول یا تنوع قابل انتشار پیدا نشد.");
   const rawIds = variants.map((item) => item.raw_product_variant_id);
@@ -144,10 +144,11 @@ export async function publishProductToWooCommerce(organizationId: string, seller
   if (linkError || !link) throw linkError ?? new Error("woocommerce_product_link_failed");
   for (const variant of variants) {
     const raw = rawMap.get(variant.raw_product_variant_id);
+    const supplier = Array.isArray(variant.supplier) ? variant.supplier[0] : variant.supplier;
+    const currentPrice = Math.ceil(Number(supplier?.unit_cost || 0) * (1 + Number(variant.markup_percentage) / 100));
     const variationBody = {
       sku: variant.sku,
-      regular_price: money(Number(variant.price)),
-      ...(variant.compare_at_price ? { sale_price: money(Number(variant.price)), regular_price: money(Number(variant.compare_at_price)) } : {}),
+      regular_price: money(currentPrice),
       status: "publish",
       attributes: [
         raw?.color_id ? { name: "رنگ", option: colorMap.get(raw.color_id) } : null,

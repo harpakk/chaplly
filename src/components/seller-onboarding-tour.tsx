@@ -120,7 +120,7 @@ export function SellerOnboardingTour({
   };
   return createPortal(
     <div className="seller-tour-layer" dir="rtl" role="dialog" aria-modal="true" aria-labelledby="seller-tour-title">
-      <div className="seller-tour-dim" />
+      {!target && <div className="seller-tour-dim" />}
       {target && (
         <div
           className="seller-tour-spotlight"

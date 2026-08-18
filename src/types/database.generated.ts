@@ -2903,6 +2903,16 @@ export type Database = {
           { foreignKeyName: "reviews_seller_product_id_fkey"; columns: ["seller_product_id"]; isOneToOne: false; referencedRelation: "seller_products"; referencedColumns: ["id"] },
         ];
       };
+      "seller_product_property_markups": {
+        Row: { "id": string; "seller_product_id": string; "dimension": string; "color_id": string | null; "size_id": string | null; "markup_percentage": number; "created_at": string; "updated_at": string };
+        Insert: { "id"?: string; "seller_product_id": string; "dimension": string; "color_id"?: string | null; "size_id"?: string | null; "markup_percentage": number; "created_at"?: string; "updated_at"?: string };
+        Update: { "id"?: string; "seller_product_id"?: string; "dimension"?: string; "color_id"?: string | null; "size_id"?: string | null; "markup_percentage"?: number; "created_at"?: string; "updated_at"?: string };
+        Relationships: [
+          { foreignKeyName: "seller_product_property_markups_seller_product_id_fkey"; columns: ["seller_product_id"]; isOneToOne: false; referencedRelation: "seller_products"; referencedColumns: ["id"] },
+          { foreignKeyName: "seller_product_property_markups_color_id_fkey"; columns: ["color_id"]; isOneToOne: false; referencedRelation: "raw_product_colors"; referencedColumns: ["id"] },
+          { foreignKeyName: "seller_product_property_markups_size_id_fkey"; columns: ["size_id"]; isOneToOne: false; referencedRelation: "raw_product_sizes"; referencedColumns: ["id"] },
+        ];
+      };
       "seller_product_variants": {
         Row: {
           "id": string;
@@ -2912,6 +2922,7 @@ export type Database = {
           "backup_supplier_offer_variant_id": string | null;
           "sku": string;
           "price": number;
+          "markup_percentage": number;
           "compare_at_price": number | null;
           "status": string;
           "created_at": string;
@@ -2925,6 +2936,7 @@ export type Database = {
           "backup_supplier_offer_variant_id"?: string | null;
           "sku": string;
           "price": number;
+          "markup_percentage"?: number;
           "compare_at_price"?: number | null;
           "status"?: string;
           "created_at"?: string;
@@ -2938,6 +2950,7 @@ export type Database = {
           "backup_supplier_offer_variant_id"?: string | null;
           "sku"?: string;
           "price"?: number;
+          "markup_percentage"?: number;
           "compare_at_price"?: number | null;
           "status"?: string;
           "created_at"?: string;
@@ -4151,7 +4164,7 @@ export type Database = {
       "service_review_order_cancellation": { Args: { p_request_id: string; p_approve: boolean; p_message: string | null; p_actor_id: string }; Returns: string };
       "service_review_return_request": { Args: { p_request_id: string; p_approve: boolean; p_message: string | null; p_actor_id: string }; Returns: string };
       "service_review_supplier_offer": { Args: { p_offer_id: string; p_decision: string; p_actor_id: string; p_note?: string | null }; Returns: string };
-      "service_save_product_metadata": { Args: { p_product_id: string; p_graphic_style_ids: string[]; p_variant_prices: Json }; Returns: undefined };
+      "service_save_product_metadata": { Args: { p_product_id: string; p_graphic_style_ids: string[]; p_variant_markups: Json; p_property_markups: Json }; Returns: undefined };
       "service_save_raw_product_media": { Args: { p_raw_product_id: string; p_main_file_id: string | null; p_main_alt_text: string; p_front_background_id: string | null; p_front_overlay_id: string | null; p_front_mockup_id: string | null; p_back_background_id: string | null; p_back_overlay_id: string | null; p_back_mockup_id: string | null }; Returns: undefined };
       "service_supplier_catalog_stats": { Args: Record<PropertyKey, never>; Returns: Array<{ supplier_organization_id: string; product_count: number; review_count: number; rating_average: number }> };
       "service_upsert_raw_product": { Args: { p_payload: Json; p_actor_id: string; p_color_names: string[]; p_size_names: string[]; p_variant_keys: string[] }; Returns: string };

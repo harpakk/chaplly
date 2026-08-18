@@ -616,7 +616,7 @@ export async function getSellerProductEditData(
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!product) return null;
-  const [detailsResult, offersResult, stylesResult, selectedStylesResult, variantsResult] = await Promise.all([
+  const [detailsResult, offersResult, stylesResult, selectedStylesResult, variantsResult, markupsResult] = await Promise.all([
     db
       .from("product_details")
       .select("id,title,value,sort_order")
@@ -635,11 +635,12 @@ export async function getSellerProductEditData(
       .limit(100),
     db.from("graphic_styles").select("id,name,caption").eq("status", "ACTIVE").order("sort_order"),
     db.from("product_graphic_styles").select("graphic_style_id").eq("seller_product_id", product.id),
-    db.from("seller_product_variants").select("raw_product_variant_id,price,raw_product_variants(color_id,size_id,raw_product_colors(name),raw_product_sizes(name))").eq("seller_product_id", product.id),
+    db.from("seller_product_variants").select("raw_product_variant_id,price,markup_percentage,raw_product_variants(color_id,size_id,raw_product_colors(name),raw_product_sizes(name))").eq("seller_product_id", product.id),
+    db.from("seller_product_property_markups").select("dimension,color_id,size_id,markup_percentage").eq("seller_product_id", product.id),
   ]);
-  if (detailsResult.error || offersResult.error || stylesResult.error || selectedStylesResult.error || variantsResult.error)
+  if (detailsResult.error || offersResult.error || stylesResult.error || selectedStylesResult.error || variantsResult.error || markupsResult.error)
     throw new Error(
-      detailsResult.error?.message || offersResult.error?.message || stylesResult.error?.message || selectedStylesResult.error?.message || variantsResult.error?.message,
+      detailsResult.error?.message || offersResult.error?.message || stylesResult.error?.message || selectedStylesResult.error?.message || variantsResult.error?.message || markupsResult.error?.message,
     );
   return {
     product: {
@@ -663,8 +664,14 @@ export async function getSellerProductEditData(
         sizeId: rawVariant?.size_id || "",
         sizeName: size?.name || "سایز استاندارد",
         price: n(item.price),
+        markupPercentage: n(item.markup_percentage),
       };
     }),
+    propertyMarkups: (markupsResult.data || []).map((item) => ({
+      dimension: item.dimension as "COLOR" | "SIZE",
+      propertyId: item.dimension === "COLOR" ? item.color_id || "" : item.size_id || "",
+      markupPercentage: n(item.markup_percentage),
+    })),
     suppliers: (offersResult.data || []).map((item) => ({
       ...item,
       base_cost: n(item.base_cost),
@@ -2385,7 +2392,8 @@ export async function getDesignEditorData(
     backup_supplier_offer_id: string | null;
     details: { title: string; value: string; sort_order: number }[];
     graphicStyleIds: string[];
-    variantPrices: { rawProductVariantId: string; price: number }[];
+    variantPrices: { rawProductVariantId: string; price: number; markupPercentage: number }[];
+    propertyMarkups: { dimension: "COLOR" | "SIZE"; propertyId: string; markupPercentage: number }[];
   } = null;
   const freeDesignUrls = await signedFileUrls(
     db,
@@ -2458,7 +2466,7 @@ export async function getDesignEditorData(
       const { data: drafts, error: draftError } = await db
         .from("seller_products")
         .select(
-          "id,title,slug,subtitle,description,price,discounted_price,gender,visibility,primary_supplier_offer_id,backup_supplier_offer_id,product_details(title,value,sort_order),product_graphic_styles(graphic_style_id),seller_product_variants(raw_product_variant_id,price)",
+          "id,title,slug,subtitle,description,price,discounted_price,gender,visibility,primary_supplier_offer_id,backup_supplier_offer_id,product_details(title,value,sort_order),product_graphic_styles(graphic_style_id),seller_product_variants(raw_product_variant_id,price,markup_percentage),seller_product_property_markups(dimension,color_id,size_id,markup_percentage)",
         )
         .eq("store_id", record.store_id)
         .eq("design_id", record.id)
@@ -2490,6 +2498,12 @@ export async function getDesignEditorData(
           variantPrices: (draft.seller_product_variants || []).map((item) => ({
             rawProductVariantId: item.raw_product_variant_id,
             price: n(item.price),
+            markupPercentage: n(item.markup_percentage),
+          })),
+          propertyMarkups: (draft.seller_product_property_markups || []).map((item) => ({
+            dimension: item.dimension as "COLOR" | "SIZE",
+            propertyId: item.dimension === "COLOR" ? item.color_id || "" : item.size_id || "",
+            markupPercentage: n(item.markup_percentage),
           })),
         };
     }
