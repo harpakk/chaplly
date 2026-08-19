@@ -115,7 +115,7 @@ const designTourSteps: SellerTourStep[] = [
   { target: '[data-tour="design-continue"]', emoji: "✅", title: "ادامه یعنی ذخیره امن", body: "ادامه را بزن؛ بعد تأمین‌کننده، رنگ و سایزهای قابل طراحی و در آخر موکاپ را انتخاب می‌کنی.", hint: "پیش‌نویست در مسیر ذخیره می‌شه؛ با خیال راحت جلو برو." },
 ];
 
-export function DesignEditor({ data, tourState }: { data: EditorData; tourState: SellerTourState }) {
+export function DesignEditor({ data, tourState, productId }: { data: EditorData; tourState: SellerTourState; productId?: string }) {
   const raw = data.rawProducts[0],
     existing = data.design;
   const initialColorId =
@@ -1036,6 +1036,10 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
     return () => window.removeEventListener("keydown", keyboard);
   });
   const finish = async () => {
+    const productDetailsUrl = (savedDesignId: string) =>
+      productId
+        ? `/seller/dashboard/products/${productId}/edit?supplier=${selectedSupplierOfferId}`
+        : `/seller/dashboard/products/new?raw=${raw.id}&design=${savedDesignId}&supplier=${selectedSupplierOfferId}`;
     setBlockingSave("در حال ذخیره نسخه نهایی طراحی…");
     const timeout = <T,>(promise: Promise<T>, milliseconds: number) =>
       Promise.race<T>([
@@ -1074,7 +1078,7 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
     } catch {
       if (designId) {
         location.assign(
-          `/seller/dashboard/products/new?raw=${raw.id}&design=${designId}&supplier=${selectedSupplierOfferId}`,
+          productDetailsUrl(designId),
         );
         return;
       }
@@ -1087,7 +1091,7 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
       return;
     }
     location.assign(
-      `/seller/dashboard/products/new?raw=${raw.id}&design=${id}&supplier=${selectedSupplierOfferId}`,
+      productDetailsUrl(id),
     );
   };
   const renderConfiguredMockup = (mockup: (typeof data.mockups)[number]) => (
@@ -1184,9 +1188,9 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
       <SellerOnboardingTour tour="design" state={tourState} steps={designTourSteps} />
       <SavingOverlay visible={Boolean(blockingSave)} text={blockingSave} />
       <header className="design-top">
-        <a href="/seller/dashboard/products/new">
+        <a href={productId ? `/seller/dashboard/products/${productId}/edit` : "/seller/dashboard/products/new"}>
           <ArrowRight />
-          <span>بازگشت</span>
+          <span>{productId ? "بازگشت به ویرایش محصول" : "بازگشت"}</span>
         </a>
         <div className="design-product">
           <i>◫</i>

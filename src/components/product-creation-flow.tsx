@@ -73,12 +73,14 @@ export function ProductCreationFlow({
   rawProductId,
   designId,
   supplierOfferId,
+  editingProductId,
   tourState,
 }: {
   data: CreationData | EditorData;
   rawProductId?: string;
   designId?: string;
   supplierOfferId?: string;
+  editingProductId?: string;
   tourState: SellerTourState;
 }) {
   if (rawProductId && designId && "design" in data && data.design)
@@ -88,6 +90,7 @@ export function ProductCreationFlow({
         rawProductId={rawProductId}
         designId={designId}
         supplierOfferId={supplierOfferId}
+        editingProductId={editingProductId}
       />
     );
   return <StartProduct data={data} tourState={tourState} />;
@@ -198,14 +201,17 @@ function FinalProduct({
   rawProductId,
   designId,
   supplierOfferId,
+  editingProductId,
 }: {
   data: EditorData;
   rawProductId: string;
   designId: string;
   supplierOfferId?: string;
+  editingProductId?: string;
 }) {
   const raw = data.rawProducts[0];
   const draft = data.productDraft;
+  const isEditing = Boolean(editingProductId);
   const productSlug =
     draft?.slug || `${raw?.slug || "product"}-${designId.slice(0, 8)}`;
   const eligible = data.suppliers.filter((offer) =>
@@ -616,17 +622,18 @@ function FinalProduct({
     <div className="product-wizard-page">
       <header className="wizard-head">
         <div>
-          <span>ساخت محصول / مرحله نهایی</span>
-          <h1>از طرح به ویترین</h1>
+          <span>{isEditing ? "ویرایش محصول / مرحله نهایی" : "ساخت محصول / مرحله نهایی"}</span>
+          <h1>{isEditing ? `ویرایش ${draft?.title || "محصول"}` : "از طرح به ویترین"}</h1>
           <p>
-            کپی، قیمت، مشخصات و تأمین‌کننده‌ها را کامل کن. انتشار وارد صف بررسی
-            مدیر می‌شود.
+            {isEditing
+              ? "اطلاعات، قیمت و تصاویر جدید را بازبینی کن. با انتشار، همین محصول دوباره وارد صف بررسی می‌شود."
+              : "کپی، قیمت، مشخصات و تأمین‌کننده‌ها را کامل کن. انتشار وارد صف بررسی مدیر می‌شود."}
           </p>
         </div>
         <Link
-          href={`/seller/dashboard/products/new/design?raw=${rawProductId}&design=${designId}`}
+          href={`/seller/dashboard/products/new/design?raw=${rawProductId}&design=${designId}${editingProductId ? `&product=${editingProductId}` : ""}`}
         >
-          <Layers3 /> برگشت به طراحی
+          <Layers3 /> {isEditing ? "ویرایش طراحی و موکاپ‌ها" : "برگشت به طراحی"}
         </Link>
       </header>
       <main className="wizard-main">
@@ -641,7 +648,7 @@ function FinalProduct({
           <input
             type="hidden"
             name="productId"
-            value={state.id || draft?.id || ""}
+            value={state.id || editingProductId || draft?.id || ""}
           />
           <input
             ref={fileInput}
@@ -675,13 +682,39 @@ function FinalProduct({
               </div>
             </div>
           )}
+          {isEditing && (
+            <section className="wizard-section product-design-edit-callout">
+              <div>
+                <span>طراحی متصل به همین محصول</span>
+                <h2>طرح، رنگ‌ها یا موکاپ‌ها را تغییر می‌دهی؟</h2>
+                <p>همین design group با همه نماهای جلو، پشت و نسخه‌های رنگی باز می‌شود. بعد از انتخاب موکاپ، دوباره به همین محصول برمی‌گردی و رندرهای تازه به تصاویر آن اضافه می‌شوند.</p>
+              </div>
+              <Link href={`/seller/dashboard/products/new/design?raw=${rawProductId}&design=${designId}&product=${editingProductId}`}>
+                <Layers3 /> ویرایش طراحی و ساخت موکاپ جدید
+              </Link>
+            </section>
+          )}
           <section className="wizard-section product-image-section" data-error-field="productImages" tabIndex={-1}>
             <span>تصاویر محصول</span>
             <h2>موکاپ‌های نهایی و تصاویر دلخواه</h2>
             <p>
-              حداقل یک تصویر لازم است. موکاپ‌ها با طرح شما رندر می‌شوند و
-              می‌توانید حذفشان کنید یا تصویر دیگری اضافه کنید.
+              {isEditing
+                ? "موکاپ‌های انتخاب‌شده با نسخه جدید طرح رندر می‌شوند و پس از ذخیره به تصاویر فعلی همین محصول اضافه خواهند شد."
+                : "حداقل یک تصویر لازم است. موکاپ‌ها با طرح شما رندر می‌شوند و می‌توانید حذفشان کنید یا تصویر دیگری اضافه کنید."}
             </p>
+            {isEditing && Boolean(draft?.existingImages.length) && (
+              <div className="existing-product-images">
+                <header><b>تصاویر فعلی محصول</b><small>این تصاویر حفظ می‌شوند؛ رندرهای پایین پس از ذخیره به آن‌ها اضافه خواهند شد.</small></header>
+                <div>
+                  {draft!.existingImages.map((image) => (
+                    <span key={image.id}>
+                      <ResilientImage src={image.url} alt={draft?.title || "تصویر فعلی محصول"} fill sizes="110px" unoptimized />
+                      {image.isPrimary && <b>تصویر اصلی فعلی</b>}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="final-product-images">
               {renderedMockupViews
                 .filter((item) => visibleMockups.includes(item.key))
@@ -1090,7 +1123,7 @@ function FinalProduct({
           )}
           <footer className="wizard-actions">
             <button name="intent" value="draft" disabled={pending}>
-              <Save /> ذخیره پیش‌نویس
+              <Save /> {isEditing ? "ذخیره پیش‌نویس تغییرات" : "ذخیره پیش‌نویس"}
             </button>
             {data.woocommerceConnected ? (
               <div className="publish-channel-actions">
@@ -1106,7 +1139,7 @@ function FinalProduct({
               </div>
             ) : (
               <button className="next" name="intent" value="publish_chaplly" disabled={pending}>
-                <Sparkles /> ارسال برای بررسی و انتشار
+                <Sparkles /> {isEditing ? "ذخیره و ارسال دوباره برای بررسی" : "ارسال برای بررسی و انتشار"}
               </button>
             )}
           </footer>
@@ -1119,7 +1152,7 @@ function FinalProduct({
             <header className="publish-success-head">
               <span>🎉</span>
               <div>
-                <small>محصول با موفقیت ساخته شد</small>
+                <small>{isEditing ? "محصول با موفقیت به‌روزرسانی شد" : "محصول با موفقیت ساخته شد"}</small>
                 <h2 id="publish-success-title">{state.message}</h2>
               </div>
               <BadgeCheck />

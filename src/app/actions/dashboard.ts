@@ -3615,14 +3615,19 @@ export async function saveSellerProductAction(
           };
         }),
       );
-      const clearResult = await admin
-        .from("product_images")
-        .update({ is_primary: false })
-        .eq("seller_product_id", productId);
-      if (clearResult.error) throw clearResult.error;
-      const { error: imageError } = await admin
-        .from("product_images")
-        .insert(uploadedImages);
+      const { error: imageError } = await admin.rpc(
+        "service_append_product_images",
+        {
+          p_product_id: productId,
+          p_actor_id: context.user.id,
+          p_images: uploadedImages.map((image) => ({
+            fileId: image.file_id,
+            altText: image.alt_text,
+            sortOrder: image.sort_order,
+            isPrimary: image.is_primary,
+          })),
+        },
+      );
       if (imageError) throw imageError;
     }
   } catch (imageError) {

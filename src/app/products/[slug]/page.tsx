@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   CreditCard,
   PackageCheck,
+  Pencil,
   RotateCcw,
   ShieldCheck,
   Sparkles,
@@ -82,7 +83,7 @@ export default async function ProductPage({
   const [supplierResult, wishlistResult] = await Promise.all([
     admin
       .from("seller_products")
-      .select("primary:supplier_offers!seller_products_primary_supplier_offer_id_fkey(supplier_organization_id,capacity_per_day)")
+      .select("primary:supplier_offers!seller_products_primary_supplier_offer_id_fkey(supplier_organization_id,capacity_per_day),design:designs(owner_user_id)")
       .eq("id", product.id)
       .maybeSingle(),
     user
@@ -95,6 +96,8 @@ export default async function ProductPage({
       : Promise.resolve({ data: null, error: null }),
   ]);
   const supplier = supplierResult.data;
+  const productDesign = Array.isArray(supplier?.design) ? supplier.design[0] : supplier?.design;
+  const isProductCreator = Boolean(user?.id && productDesign?.owner_user_id === user.id);
   const initiallyLiked = Boolean(wishlistResult.data);
   const primary = Array.isArray(supplier?.primary)
     ? supplier.primary[0]
@@ -113,6 +116,14 @@ export default async function ProductPage({
   return (
     <main className="pdp-page">
       <ProductViewTracker productId={product.id} />
+      {isProductCreator && (
+        <div className="shop-container pdp-owner-toolbar">
+          <span>این محصول متعلق به فروشگاه شماست.</span>
+          <Link href={`/seller/dashboard/products/${product.id}/edit`}>
+            <Pencil /> ویرایش محصول
+          </Link>
+        </div>
+      )}
       {(product.visibility === "PRIVATE" || product.moderationStatus !== "APPROVED") && (
         <div className="shop-container direct-link-product-note">
           این محصول در ویترین و جست‌وجو نمایش داده نمی‌شود و فقط با لینک مستقیم در دسترس است.

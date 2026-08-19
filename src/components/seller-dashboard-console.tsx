@@ -687,7 +687,7 @@ function Designs({ data }: { data: SellerData }) {
               </div>
               <footer>
                 {design.lifecycle !== "ARCHIVED" && (
-                  <Link className="primary" href={`/seller/dashboard/products/new/design?raw=${design.raw_product_id}&design=${design.id}`}>
+                  <Link className="primary" href={`/seller/dashboard/products/new/design?raw=${design.raw_product_id}&design=${design.id}${design.product ? `&product=${design.product.id}` : ""}`}>
                     <Pencil /> {design.lifecycle === "EMPTY" || design.lifecycle === "DRAFT" ? "ادامه طراحی" : "بازکردن و ویرایش"}
                   </Link>
                 )}
@@ -815,7 +815,7 @@ function Products({ data }: { data: SellerData }) {
                     {product.design_id && (
                       <Link
                         className="seller-product-action edit"
-                        href={`/seller/dashboard/products/new/design?raw=${product.raw_product_id}&design=${product.design_id}`}
+                        href={`/seller/dashboard/products/new/design?raw=${product.raw_product_id}&design=${product.design_id}&product=${product.id}`}
                       >
                         <Pencil /> ویرایش طراحی و موکاپ
                       </Link>

@@ -5244,6 +5244,7 @@ export type Database = {
       "service_admin_seller_funnel": { Args: Record<string, unknown>; Returns: unknown };
       "service_apply_coupon_to_order": { Args: Record<string, unknown>; Returns: unknown };
       "service_apply_woocommerce_earnings": { Args: Record<string, unknown>; Returns: unknown };
+      "service_append_product_images": { Args: Record<string, unknown>; Returns: unknown };
       "service_catalog_products": { Args: Record<string, unknown>; Returns: unknown };
       "service_complete_buyer_bank_refund": { Args: Record<string, unknown>; Returns: unknown };
       "service_complete_payout": { Args: Record<string, unknown>; Returns: unknown };

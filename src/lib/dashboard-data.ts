@@ -630,7 +630,7 @@ export async function getSellerProductEditData(
   const { data: product, error } = await db
     .from("seller_products")
     .select(
-      "id,store_id,raw_product_id,design_id,primary_supplier_offer_id,backup_supplier_offer_id,title,slug,subtitle,description,price,discounted_price,gender,status,moderation_status,visibility,seo_title,seo_description,version",
+      "id,store_id,raw_product_id,design_id,primary_supplier_offer_id,backup_supplier_offer_id,title,slug,subtitle,description,price,discounted_price,gender,status,moderation_status,visibility,version",
     )
     .eq("id", productId)
     .eq("store_id", storeId)
@@ -2436,6 +2436,7 @@ export async function getDesignEditorData(
   designId?: string,
   userId?: string,
   includeEditorLibrary = true,
+  productId?: string,
 ) {
   const db = createSupabaseAdmin();
   const [creation, freeDesignRowsResult] = await Promise.all([
@@ -2472,6 +2473,7 @@ export async function getDesignEditorData(
     graphicStyleIds: string[];
     variantPrices: { rawProductVariantId: string; price: number; markupPercentage: number }[];
     propertyMarkups: { dimension: "COLOR" | "SIZE"; propertyId: string; markupPercentage: number }[];
+    existingImages: { id: string; url: string; isPrimary: boolean }[];
   } = null;
   const freeDesignUrls = await signedFileUrls(
     db,
@@ -2486,7 +2488,7 @@ export async function getDesignEditorData(
     url:
       (fileKey(item.file) && freeDesignUrls.get(fileKey(item.file)!)) || "",
   }));
-  if (userId && includeEditorLibrary) {
+  if (userId) {
     const { data: files, error: filesError } = await db
       .from("storage_files")
       .select("id,original_name,bucket,path,created_at")
@@ -2541,14 +2543,16 @@ export async function getDesignEditorData(
         .order("sort_order");
       if (selectionError) throw new Error(selectionError.message);
       selectedMockupIds = (selections || []).map((item) => item.mockup_id);
-      const { data: drafts, error: draftError } = await db
+      let draftQuery = db
         .from("seller_products")
         .select(
-          "id,title,slug,subtitle,description,price,discounted_price,gender,visibility,primary_supplier_offer_id,backup_supplier_offer_id,product_details(title,value,sort_order),product_graphic_styles(graphic_style_id),seller_product_variants(raw_product_variant_id,price,markup_percentage),seller_product_property_markups(dimension,color_id,size_id,markup_percentage)",
+          "id,title,slug,subtitle,description,price,discounted_price,gender,visibility,primary_supplier_offer_id,backup_supplier_offer_id,product_details(title,value,sort_order),product_graphic_styles(graphic_style_id),seller_product_variants(raw_product_variant_id,price,markup_percentage),seller_product_property_markups(dimension,color_id,size_id,markup_percentage),product_images(id,is_primary,sort_order,file:storage_files!product_images_file_id_fkey(bucket,path))",
         )
         .eq("store_id", record.store_id)
         .eq("design_id", record.id)
-        .neq("status", "ARCHIVED")
+        .neq("status", "ARCHIVED");
+      if (productId) draftQuery = draftQuery.eq("id", productId);
+      const { data: drafts, error: draftError } = await draftQuery
         .order("updated_at", { ascending: false })
         .limit(1);
       if (draftError) throw new Error(draftError.message);
@@ -2583,6 +2587,12 @@ export async function getDesignEditorData(
             propertyId: item.dimension === "COLOR" ? item.color_id || "" : item.size_id || "",
             markupPercentage: n(item.markup_percentage),
           })),
+          existingImages: [...(draft.product_images || [])]
+            .sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order)
+            .flatMap((image) => {
+              const url = publicFileUrl(image.file);
+              return url ? [{ id: image.id, url, isPrimary: image.is_primary }] : [];
+            }),
         };
     }
   }
