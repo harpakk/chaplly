@@ -13,20 +13,20 @@ export function SavingOverlay({
   steps?: string[];
 }) {
   const [mounted, setMounted] = useState(false);
-  const [progress, setProgress] = useState(8);
+  const [progress, setProgress] = useState(6);
   const anchorRef = useRef<HTMLSpanElement>(null);
   const submitterRef = useRef<HTMLButtonElement | null>(null);
   useEffect(() => setMounted(true), []);
   const stepSignature = steps?.join("|") || "";
   useEffect(() => {
     if (!visible || !steps?.length) {
-      setProgress(8);
+      setProgress(6);
       return;
     }
-    setProgress(8);
+    setProgress(6);
     const timer = window.setInterval(() => {
-      setProgress((value) => Math.min(94, value + Math.max(1, Math.round((94 - value) * 0.08))));
-    }, 700);
+      setProgress((value) => Math.min(97, value + 1));
+    }, 800);
     return () => window.clearInterval(timer);
   }, [visible, stepSignature]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -63,7 +63,7 @@ export function SavingOverlay({
             <strong>{text}</strong>
             {steps?.length ? (
               <div className="saving-progress">
-                <span><b>{Math.round(progress).toLocaleString("fa-IR")}٪</b>مرحله تقریبی: {steps[Math.min(steps.length - 1, Math.floor(progress / (95 / steps.length)))]}</span>
+                <span><b>{Math.round(progress).toLocaleString("fa-IR")}٪</b>مرحله تقریبی: {steps[Math.min(steps.length - 1, Math.floor(progress / (98 / steps.length)))]}</span>
                 <i><b style={{ width: `${progress}%` }} /></i>
               </div>
             ) : <small>لطفاً کمی منتظر بمانید…</small>}

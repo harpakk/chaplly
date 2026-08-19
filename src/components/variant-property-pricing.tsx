@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { formatRial } from "@/lib/catalog";
 
 export type PricingVariant = { rawProductVariantId: string; colorId: string; colorName: string; sizeId: string; sizeName: string; supplierCost: number; markupPercentage?: number };
@@ -17,6 +18,29 @@ function properties(variants: PricingVariant[], dimension: Dimension) {
 const highestSupplierCost = (variants: PricingVariant[]) => Math.max(1, ...variants.map((variant) => Number(variant.supplierCost || 0)));
 const priceFromMarkup = (cost: number, markup: number) => Math.ceil(cost * (1 + Math.max(0, markup) / 100));
 const markupFromPrice = (cost: number, price: number) => Math.round(Math.max(0, (price / cost - 1) * 100) * 10_000) / 10_000;
+const formattedPrice = (value: number) => Math.max(0, Math.floor(value)).toLocaleString("en-US");
+const parsedPrice = (value: string) => Number(value.replace(/[٬,\s]/g, "")) || 0;
+
+function PriceInput({ label, minimum, value, onChange }: { label: string; minimum: number; value: number; onChange: (value: number) => void }) {
+  const [draft, setDraft] = useState(formattedPrice(value));
+  const [focused, setFocused] = useState(false);
+  useEffect(() => {
+    if (!focused) setDraft(formattedPrice(value));
+  }, [focused, value]);
+  const commit = (nextDraft: string) => {
+    const nextValue = Math.max(minimum, parsedPrice(nextDraft));
+    onChange(nextValue);
+    return nextValue;
+  };
+  return <input dir="ltr" inputMode="numeric" aria-label={label} aria-valuemin={minimum} type="text" required value={draft} onFocus={() => setFocused(true)} onChange={(event) => {
+    const raw = event.target.value.replace(/[٬,\s]/g, "").replace(/\D/g, "");
+    setDraft(raw ? formattedPrice(Number(raw)) : "");
+    if (raw) onChange(Number(raw));
+  }} onBlur={() => {
+    setFocused(false);
+    setDraft(formattedPrice(commit(draft)));
+  }} />;
+}
 
 export function createPropertyPrices(variants: PricingVariant[], saved: SavedPropertyMarkup[] = []): PropertyPrices {
   const savedMap = new Map(saved.map((item) => [`${item.dimension}:${item.propertyId}`, item.markupPercentage]));
@@ -57,7 +81,7 @@ export function VariantPropertyPricing({ variants, value, onChange }: { variants
   const group = (dimension: Dimension, title: string) => <section className="property-price-group"><h4>{title}</h4><div className="variant-price-grid">{properties(variants, dimension).map((item) => {
     const supplierCost = highestSupplierCost(item.variants);
     const consumerPrice = effective(dimension, item.id, item.variants);
-    return <label key={item.id}><span className="property-price-name">{dimension === "colors" ? "🎨" : "📐"} {item.name}</span><div className="markup-input"><input dir="ltr" inputMode="numeric" aria-label={`قیمت فروش ${item.name}`} type="number" min={supplierCost} step="1" required value={consumerPrice} onChange={(event) => update(dimension, item.id, Number(event.target.value), item.variants)}/><b>ریال</b></div><small className="property-price-facts"><span>🛡️ حداقل {formatRial(supplierCost)}</span><span>✨ سود {formatRial(consumerPrice - supplierCost)}</span></small></label>;
+    return <label key={item.id}><span className="property-price-name">{dimension === "colors" ? "🎨" : "📐"} {item.name}</span><div className="markup-input"><PriceInput label={`قیمت فروش ${item.name}`} minimum={supplierCost} value={consumerPrice} onChange={(price) => update(dimension, item.id, price, item.variants)}/><b>ریال</b></div><small className="property-price-facts"><span>🛡️ حداقل {formatRial(supplierCost)}</span><span>✨ سود {formatRial(consumerPrice - supplierCost)}</span></small></label>;
   })}</div></section>;
   return <><div className="variant-price-heading"><div><h3>قیمت فروش به مشتری برای رنگ‌ها و سایزها</h3><small>قیمت نهایی را وارد کنید. درصد سود پشت‌صحنه محاسبه و ذخیره می‌شود؛ قیمت هیچ تنوعی نمی‌تواند از هزینه تأمین آن کمتر باشد.</small></div><div className="variant-price-bulk-actions"><button type="button" onClick={() => adjustAll(0.9)}>۱۰٪ کاهش همه قیمت‌ها</button><button type="button" onClick={() => adjustAll(1.1)}>۱۰٪ افزایش همه قیمت‌ها</button></div></div><div className="property-price-layout">{group("colors", "قیمت بر اساس رنگ")}{group("sizes", "قیمت بر اساس سایز")}</div></>;
 }

@@ -2244,6 +2244,11 @@ export async function getProductCreationData(rawProductId: string) {
         views: await Promise.all(
           (mockupViewsResult.data || [])
             .filter((view) => view.mockup_id === mockup.id)
+            .sort(
+              (a, b) =>
+                Number(b.side === mockup.side) - Number(a.side === mockup.side),
+            )
+            .slice(0, 1)
             .map(async (view) => ({
               ...view,
               backgroundUrl:

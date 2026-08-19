@@ -221,13 +221,18 @@ function FinalProduct({
       ),
     ),
   );
+  const requestedPrimarySupplierId =
+    supplierOfferId || draft?.primary_supplier_offer_id || "";
+  const initialPrimarySupplierId = eligible.some(
+    (offer) => offer.id === requestedPrimarySupplierId,
+  )
+    ? requestedPrimarySupplierId
+    : eligible[0]?.id || "";
   const [state, action, pending] = useActionState<ActionResult, FormData>(
     saveSellerProductAction,
     { ok: false, message: "" },
   );
-  const [primary, setPrimary] = useState(
-    supplierOfferId || draft?.primary_supplier_offer_id || "",
-  );
+  const [primary, setPrimary] = useState(initialPrimarySupplierId);
   const [clientError, setClientError] = useState<null | {
     message: string;
     field?: string;
@@ -236,6 +241,7 @@ function FinalProduct({
   const [successOpen, setSuccessOpen] = useState(true);
   const [linkCopied, setLinkCopied] = useState(false);
   const [expandedImage, setExpandedImage] = useState<{ src: string; label: string } | null>(null);
+  const [submittedPrimaryImage, setSubmittedPrimaryImage] = useState("");
   const [title, setTitle] = useState(draft?.title || "");
   const [subtitle, setSubtitle] = useState(draft?.subtitle || "");
   const [description, setDescription] = useState(draft?.description || "");
@@ -249,13 +255,14 @@ function FinalProduct({
   const pricingOffer = data.suppliers.find(
     (offer) => offer.id === primary,
   );
-  const renderedMockupViews = selectedMockups.flatMap((mockup) =>
-    mockup.views.map((view) => ({
-      mockup,
-      view,
-      key: `${mockup.id}:${view.id}`,
-    })),
-  );
+  const renderedMockupViews = selectedMockups.flatMap((mockup) => {
+    const view =
+      mockup.views.find((candidate) => candidate.side === mockup.side) ||
+      mockup.views[0];
+    return view
+      ? [{ mockup, view, key: `${mockup.id}:${view.id}` }]
+      : [];
+  });
   const [visibleMockups, setVisibleMockups] = useState(
     renderedMockupViews.map((item) => item.key),
   );
@@ -284,12 +291,36 @@ function FinalProduct({
   });
   const [propertyPrices, setPropertyPrices] = useState(() => createPropertyPrices(pricingVariants, draft?.propertyMarkups));
   const variantPrices = expandPropertyPrices(pricingVariants, propertyPrices);
+  const defaultDetails = [
+    { title: "جنس", value: raw?.material || "" },
+    { title: "وزن", value: raw?.weight_grams ? `${raw.weight_grams} گرم` : "" },
+    { title: "توضیحات تولید", value: raw?.production_notes || "" },
+    { title: "رنگ‌ها", value: raw?.colors.map((item) => item.name).join("، ") || "" },
+    { title: "سایزها", value: raw?.sizes.map((item) => item.name).join("، ") || "" },
+  ];
+  const detailTitleKeys = new Set<string>();
+  const initialDetails = (draft ? draft.details : defaultDetails)
+    .flatMap((item) => {
+      const title = String(item?.title || "").trim();
+      const value = String(item?.value || "").trim();
+      const key = title.toLocaleLowerCase("fa");
+      if (!title || !value || detailTitleKeys.has(key)) return [];
+      detailTitleKeys.add(key);
+      return [{ title, value }];
+    })
+    .slice(0, 5);
   const fileInput = useRef<HTMLInputElement>(null);
   const errorAlert = useRef<HTMLDivElement>(null);
   const preparing = useRef(false);
   useEffect(() => () => {
     if (expandedImage?.src.startsWith("blob:")) URL.revokeObjectURL(expandedImage.src);
   }, [expandedImage]);
+  useEffect(() => () => {
+    if (submittedPrimaryImage.startsWith("blob:")) URL.revokeObjectURL(submittedPrimaryImage);
+  }, [submittedPrimaryImage]);
+  useEffect(() => {
+    setPropertyPrices(createPropertyPrices(pricingVariants, draft?.propertyMarkups));
+  }, [primary]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (pending) setPreparingImages(false);
     if (!pending && state.message) preparing.current = false;
@@ -540,8 +571,8 @@ function FinalProduct({
             // identical. Raising pixelRatio adds real pixels without
             // stretching the already-rendered artwork or reflowing the clone.
             const outputPixelRatio = Math.max(
-              1,
-              Math.min(4, sourceWidth / Math.max(1, node.offsetWidth)),
+              3,
+              Math.min(8, sourceWidth / Math.max(1, node.offsetWidth)),
             );
             const blob = await toBlob(node, {
               pixelRatio: outputPixelRatio,
@@ -582,12 +613,14 @@ function FinalProduct({
     customImages.forEach((file, index) =>
       prepared.push({ key: `custom:${index}`, file }),
     );
-    prepared
-      .sort(
+    const orderedPrepared = prepared.sort(
         (a, b) =>
           Number(b.key === primaryImage) - Number(a.key === primaryImage),
-      )
-      .forEach((item) => transfer.items.add(item.file));
+      );
+    if (orderedPrepared[0]) {
+      setSubmittedPrimaryImage(URL.createObjectURL(orderedPrepared[0].file));
+    }
+    orderedPrepared.forEach((item) => transfer.items.add(item.file));
     if (failedRenderLabels.length) {
       const labels = [...new Set(failedRenderLabels)].slice(0, 3).join("، ");
       showClientError(
@@ -760,7 +793,7 @@ function FinalProduct({
                             points={mockupView.perspective_points}
                             clip={mockupView.artwork_clip}
                             fabricTextureUrl={exportSafeImageUrl(mockupView.backgroundUrl)}
-                            renderPixelRatio={4}
+                            renderPixelRatio={6}
                             style={{
                               left: `${Number(mockupView.area_x) * 100}%`,
                               top: `${Number(mockupView.area_y) * 100}%`,
@@ -1026,24 +1059,12 @@ function FinalProduct({
                 <div key={index}>
                   <input
                     name={`detailTitle${index}`}
-                    defaultValue={
-                      draft?.details[index]?.title ||
-                      ["جنس", "وزن", "توضیحات تولید", "رنگ‌ها", "سایزها"][index]
-                    }
+                    defaultValue={initialDetails[index]?.title || ""}
                     placeholder="عنوان؛ مثل جنس"
                   />
                   <input
                     name={`detailValue${index}`}
-                    defaultValue={
-                      draft?.details[index]?.value ||
-                      [
-                          raw?.material || "",
-                          raw?.weight_grams ? `${raw.weight_grams} گرم` : "",
-                          raw?.production_notes || "",
-                          raw?.colors.map((item) => item.name).join("، ") || "",
-                          raw?.sizes.map((item) => item.name).join("، ") || "",
-                        ][index]
-                    }
+                    defaultValue={initialDetails[index]?.value || ""}
                     placeholder="مقدار؛ مثل پنبه دورس"
                   />
                 </div>
@@ -1157,6 +1178,15 @@ function FinalProduct({
               </div>
               <BadgeCheck />
             </header>
+            {submittedPrimaryImage && (
+              <figure className="publish-success-product-image">
+                <ResilientImg
+                  src={submittedPrimaryImage}
+                  alt={title || "تصویر اصلی محصول"}
+                />
+                <figcaption>تصویر اصلی محصول</figcaption>
+              </figure>
+            )}
             <p className="publish-success-explanation">تا زمان تأیید، محصول در ویترین‌ها دیده نمی‌شود؛ اما خریدار می‌تواند با لینک مستقیم آن را ببیند و بخرد.</p>
             <small className="publish-link-label">لینک مستقیم محصول</small>
             <div className="publish-share-link" dir="ltr">
