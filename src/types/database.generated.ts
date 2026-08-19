@@ -5266,6 +5266,8 @@ export type Database = {
       "service_save_product_metadata": { Args: Record<string, unknown>; Returns: unknown };
       "service_save_raw_product_media": { Args: Record<string, unknown>; Returns: unknown };
       "service_save_seller_onboarding_answers": { Args: Record<string, unknown>; Returns: unknown };
+      "service_reserve_seller_ai_copy": { Args: Record<string, unknown>; Returns: unknown };
+      "service_release_seller_ai_copy": { Args: Record<string, unknown>; Returns: unknown };
       "service_set_raw_product_quality_descriptions": { Args: Record<string, unknown>; Returns: unknown };
       "service_supplier_catalog_stats": { Args: Record<string, unknown>; Returns: unknown };
       "service_upsert_raw_product": { Args: Record<string, unknown>; Returns: unknown };

@@ -17276,12 +17276,21 @@ button[data-action-waiting="true"]::after {
 }
 .configured-mockup-list {
   display: grid;
-  gap: 14px;
+  grid-auto-flow: column;
+  grid-auto-columns: 210px;
+  gap: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 2px 10px;
+  scroll-snap-type: x proximity;
 }
 .configured-mockup {
+  position: relative;
+  min-width: 0;
   padding: 12px;
   border-radius: 16px;
   background: #fff;
+  scroll-snap-align: start;
 }
 .configured-mockup h3 {
   margin: 0 0 8px;
@@ -17292,9 +17301,10 @@ button[data-action-waiting="true"]::after {
 }
 .configured-mockup-views {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: 1fr;
   gap: 9px;
 }
+.configured-mockup-actions{display:flex;gap:6px}.configured-mockup-actions button{display:grid;width:30px;height:30px;place-items:center;border:1px solid #ded8e7;border-radius:9px;background:#f8f6fa;color:#6048cf;cursor:pointer}.configured-mockup-actions button.remove{color:#b42318;background:#fff4f2}.configured-mockup-actions svg{width:15px}.configured-mockup h3>span:first-child{display:grid;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.configured-mockup.expanded{position:fixed;z-index:400;inset:4vh 4vw;display:grid;grid-template-rows:auto minmax(0,1fr);width:auto;max-width:none;padding:20px;box-shadow:0 0 0 100vmax #16101dbd,0 30px 100px #0006}.configured-mockup.expanded .configured-mockup-views{height:100%;grid-template-columns:repeat(auto-fit,minmax(0,1fr))}.configured-mockup.expanded .configured-mockup-canvas{height:100%;max-height:calc(92vh - 82px);aspect-ratio:auto}.configured-mockup.expanded .configured-mockup-canvas>img{object-fit:contain}
 .configured-mockup-canvas {
   position: relative;
   aspect-ratio: 1.25;
@@ -19667,6 +19677,14 @@ button[data-action-waiting="true"]::after {
 .chapli-brand-copy>b{font-size:inherit;font-weight:950}.chapli-brand-copy>small{margin-top:2px;color:inherit;font-size:8px;font-weight:700;opacity:.68}
 .chapli-brand--white{color:#fff!important}.admin-brand>.chapli-brand,.supplier-brand>.chapli-brand{flex:1}.admin-brand .chapli-brand-mark,.supplier-brand .chapli-brand-mark,.admin-login-brand .chapli-brand-mark,.sd-side-brand .chapli-brand-mark{width:40px;height:40px}
 .is-collapsed .sd-side-brand .chapli-brand-copy{display:none!important}.is-collapsed .sd-side-brand .chapli-brand{justify-content:center}.is-collapsed .sd-side-brand .chapli-brand-mark{width:38px;height:38px}
+
+/* Compact mockup review and seller product authoring */
+.review-flow{overflow:hidden}.review-flow>.configured-mockup-list{max-height:250px}.review-flow>.mockup-quality-guide{margin-top:12px;padding:12px 16px}.review-flow>.mockup-quality-guide h2{margin:0;font-size:14px}.review-flow>.mockup-quality-guide ol{display:flex;gap:18px;margin:8px 0;padding-right:20px;font-size:9px}.review-flow>.mockup-quality-guide>button{min-height:34px;padding:6px 11px}.review-flow>.redo-mockups,.review-flow>button:last-child{margin-top:12px!important}.design-flow:has(.mockup-choice-grid)>.mockup-choice-grid{max-height:50vh;overflow-y:auto;padding-bottom:8px}.design-flow:has(.mockup-choice-grid)>button:not(.close){margin-top:26px}.variant-step-heading+div+button,.fixed-variant-list+button{margin-top:18px!important}
+.final-product-images{display:grid;grid-auto-flow:column;grid-auto-columns:176px;grid-template-columns:none;justify-content:start;gap:10px;overflow-x:auto;overflow-y:hidden;padding:3px 2px 10px;scroll-snap-type:x proximity}.final-product-images>article,.final-product-images>.add-product-image{width:176px;min-height:185px;scroll-snap-align:start}.final-product-images>article>.product-render-canvas{max-height:142px;overflow:hidden}.final-product-images>article>img{height:142px}.final-product-images>article>.choose-primary-image{right:6px;bottom:6px;max-width:112px;padding:6px 8px;font-size:8px}.final-product-images>article>.remove-product-image{left:6px;bottom:6px;width:32px;height:29px;justify-content:center;padding:0;font-size:0}.final-product-images>article>.remove-product-image svg{width:14px}.final-product-images>article>.expand-product-image{z-index:6;top:7px;left:7px;right:auto;bottom:auto;display:grid;width:31px;height:31px;place-items:center;padding:0;color:#6048cf;box-shadow:0 3px 12px #251c3426}.final-product-images>article>.expand-product-image svg{width:15px}.product-image-lightbox{position:fixed;z-index:1000;inset:0;display:grid;place-items:center;padding:5vh 5vw;background:#17121dcc;backdrop-filter:blur(7px)}.product-image-lightbox>img{max-width:90vw;max-height:90vh;border-radius:18px;object-fit:contain;box-shadow:0 28px 90px #0008}.product-image-lightbox>button{position:absolute;top:24px;left:24px;display:grid;width:42px;height:42px;place-items:center;border:0;border-radius:50%;background:#fff;color:#241d2a;cursor:pointer}.product-image-lightbox>button svg{width:20px}
+.ai-copy-assistant{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px 18px;margin:14px 0 18px;border:1px solid #dcd2ff;border-radius:16px;background:linear-gradient(135deg,#f7f3ff,#fff9ee);padding:14px 16px}.ai-copy-assistant>div{display:flex;align-items:center;gap:10px}.ai-copy-assistant>div>svg{width:32px;height:32px;padding:7px;border-radius:10px;background:#7357ff;color:#fff}.ai-copy-assistant>div span{display:grid;gap:3px}.ai-copy-assistant small{color:#756d7e}.ai-copy-assistant>button{min-height:40px;border:0;border-radius:11px;background:#7357ff;padding:0 15px;color:#fff;font:800 11px Vazirmatn;cursor:pointer}.ai-copy-assistant>button:disabled{opacity:.55}.ai-copy-assistant>p{grid-column:1/-1;margin:0;border-top:1px solid #e7dfff;padding-top:9px;color:#5d4c69;font-size:10px}
+.property-price-group .variant-price-grid{gap:12px}.property-price-group .variant-price-grid>label{display:grid;min-width:0;gap:7px;border:1px solid #ebe5ef;border-radius:13px;background:#fff;padding:12px}.property-price-name{font-weight:850}.property-price-group .markup-input{display:grid;grid-template-columns:minmax(0,1fr) auto;overflow:visible}.property-price-group .markup-input input{width:100%;min-width:0;height:46px;padding:0 14px!important;text-align:left;font:800 16px/1 Vazirmatn;direction:ltr}.property-price-group .markup-input b{display:grid;min-width:54px;place-items:center;border-right:1px solid #eee8f1;padding:0 10px;font-size:11px;white-space:nowrap}.property-price-facts{display:flex!important;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;color:#736a7b!important;font-size:9px!important}.property-price-facts span:last-child{color:#128052}.wizard-section [aria-invalid="true"]{border-color:#d92d20!important;box-shadow:0 0 0 3px #d92d2014!important}.wizard-section [data-error-field]:focus{outline:3px solid #7357ff33;outline-offset:5px}
+@media(max-width:700px){.review-flow>.mockup-quality-guide ol{display:block}.ai-copy-assistant{grid-template-columns:1fr}.ai-copy-assistant>button{width:100%}.final-product-images{grid-auto-columns:150px}.final-product-images>article,.final-product-images>.add-product-image{width:150px}.property-price-facts{align-items:flex-start;flex-direction:column}}
+@media(max-height:700px){.review-flow{overflow:auto}.review-flow>.configured-mockup-list{max-height:210px}}
 
 /* Product detail readability and zero-review state */
 .breadcrumbs{flex-wrap:wrap;line-height:1.8}.breadcrumbs a,.breadcrumbs b{white-space:nowrap}.pdp-story-spine>p,.long-description p,.quality-description p{white-space:pre-wrap}.pdp-quality-story>p{display:-webkit-box;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:3;white-space:pre-wrap}.pdp-quality-story>a{display:inline-flex;margin-top:8px;color:#6547cc;font-size:10px;font-weight:900;text-decoration:underline;text-underline-offset:3px}.long-description{width:100%;max-width:none}.product-tabs-section{position:relative}.product-tab-anchor{position:absolute;top:-105px;visibility:hidden}.pdp-seller-logo{width:26px;height:26px;margin-left:3px;border:1px solid #e3e8e5;border-radius:8px;object-fit:cover}.pdp-new-product{display:flex;align-items:center;min-height:48px;border-bottom:1px solid #edf0ef}.new-product-badge{position:relative;isolation:isolate;display:inline-flex!important;width:max-content;min-width:42px;align-items:center;justify-content:center;overflow:hidden;border-radius:999px;padding:5px 10px;background:#7357ff;color:#fff!important;font:900 9px/1.2 system-ui,sans-serif;letter-spacing:.08em}.new-product-badge:before{content:"";position:absolute;z-index:0;inset:0;background:#16a36b;opacity:0;animation:new-product-color 3.2s ease-in-out infinite}.new-product-badge>i{position:relative;z-index:1;font-style:normal}.store-product-card footer>.new-product-badge{color:#fff}.graphic-style-picker>.field-error{display:block;margin:0 12px 12px}.final-suppliers>label{max-width:640px}

@@ -28,6 +28,8 @@ import {
   Keyboard,
   Layers3,
   Lock,
+  Maximize2,
+  Minimize2,
   MousePointer2,
   Move,
   Package,
@@ -249,6 +251,7 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
     ),
     [mockupSideFilter, setMockupSideFilter] = useState("ALL"),
     [mockupColorFilter, setMockupColorFilter] = useState("ALL"),
+    [expandedMockupId, setExpandedMockupId] = useState(""),
     [chatGuideOpen, setChatGuideOpen] = useState(false),
     [fileDragActive, setFileDragActive] = useState(false),
     [blockingSave, setBlockingSave] = useState("");
@@ -1087,12 +1090,13 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
     );
   };
   const renderConfiguredMockup = (mockup: (typeof data.mockups)[number]) => (
-    <article className="configured-mockup" key={mockup.id}>
+    <article className={`configured-mockup ${expandedMockupId === mockup.id ? "expanded" : ""}`} key={mockup.id}>
       <h3>
-        {mockup.name}
-        <small className={`mockup-side-badge ${mockup.side.toLowerCase()}`}>
-          {mockup.side === "BACK" ? "نمای پشت" : "نمای جلو"}
-        </small>
+        <span>{mockup.name}<small className={`mockup-side-badge ${mockup.side.toLowerCase()}`}>{mockup.side === "BACK" ? "نمای پشت" : "نمای جلو"}</small></span>
+        <span className="configured-mockup-actions">
+          <button type="button" onClick={() => setExpandedMockupId((current) => current === mockup.id ? "" : mockup.id)} aria-label={expandedMockupId === mockup.id ? "بستن نمایش بزرگ" : "نمایش بزرگ"}>{expandedMockupId === mockup.id ? <Minimize2 /> : <Maximize2 />}</button>
+          <button type="button" className="remove" onClick={() => { setSelectedMockups((current) => current.filter((id) => id !== mockup.id)); setExpandedMockupId(""); }} aria-label={`حذف ${mockup.name}`}><Trash2 /></button>
+        </span>
       </h3>
       <div className="configured-mockup-views">
         {mockup.views.map((mockupView) => {
@@ -2040,7 +2044,7 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
                   انتخاب دوباره
                 </button>
                 <button
-                  disabled={Boolean(blockingSave)}
+                  disabled={!selectedMockups.length || Boolean(blockingSave)}
                   data-action-waiting={blockingSave ? "true" : undefined}
                   onClick={finish}
                 >

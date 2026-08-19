@@ -12,12 +12,15 @@ import {
   Copy,
   ExternalLink,
   Layers3,
+  Maximize2,
   ImagePlus,
   Package,
   Palette,
   Save,
   Sparkles,
   Trash2,
+  WandSparkles,
+  X,
 } from "lucide-react";
 import {
   saveSellerProductAction,
@@ -225,6 +228,13 @@ function FinalProduct({
   const [submittedIntent, setSubmittedIntent] = useState("");
   const [successOpen, setSuccessOpen] = useState(true);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [expandedImage, setExpandedImage] = useState<{ src: string; label: string } | null>(null);
+  const [title, setTitle] = useState(draft?.title || "");
+  const [subtitle, setSubtitle] = useState(draft?.subtitle || "");
+  const [description, setDescription] = useState(draft?.description || "");
+  const [aiPending, setAiPending] = useState(false);
+  const [aiMessage, setAiMessage] = useState("");
+  const [aiRemaining, setAiRemaining] = useState<number | null>(null);
   const selectedMockups = data.mockups.filter((mockup) =>
     data.selectedMockupIds.includes(mockup.id),
   );
@@ -269,24 +279,33 @@ function FinalProduct({
   const fileInput = useRef<HTMLInputElement>(null);
   const errorAlert = useRef<HTMLDivElement>(null);
   const preparing = useRef(false);
+  useEffect(() => () => {
+    if (expandedImage?.src.startsWith("blob:")) URL.revokeObjectURL(expandedImage.src);
+  }, [expandedImage]);
   useEffect(() => {
     if (!pending && state.message) preparing.current = false;
   }, [pending, state.message]);
   useEffect(() => {
     if (pending || state.ok || !state.message) return;
-    errorAlert.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     const firstField = Object.keys(state.fieldErrors || {})[0];
-    if (!firstField) return;
+    if (!firstField) {
+      errorAlert.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
     const field = document.querySelector<HTMLElement>(`[data-error-field="${firstField}"]`) || document.querySelector<HTMLElement>(`[name="${firstField}"]`);
-    field?.focus({ preventScroll: true });
+    field?.scrollIntoView({ behavior: "smooth", block: "center" });
+    window.setTimeout(() => field?.focus({ preventScroll: true }), 350);
   }, [pending, state.fieldErrors, state.message, state.ok]);
   const showClientError = (message: string, field?: string) => {
     setClientError({ message, field });
     requestAnimationFrame(() => {
-      errorAlert.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      if (!field) return;
+      if (!field) {
+        errorAlert.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
+      }
       const input = document.querySelector<HTMLElement>(`[data-error-field="${field}"]`) || document.querySelector<HTMLElement>(`[name="${field}"]`);
-      input?.focus({ preventScroll: true });
+      input?.scrollIntoView({ behavior: "smooth", block: "center" });
+      window.setTimeout(() => input?.focus({ preventScroll: true }), 350);
     });
   };
   const fieldError = (name: string) =>
@@ -307,6 +326,63 @@ function FinalProduct({
         visibility: "بخش نحوه نمایش محصول",
       } as Record<string, string>)[errorField]
     : undefined;
+  const fileAsDataUrl = (file: Blob) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+  const captureImage = async (key: string, pixelRatio = 2) => {
+    if (key.startsWith("custom:")) {
+      const file = customImages[Number(key.split(":")[1])];
+      return file ? fileAsDataUrl(file) : "";
+    }
+    const item = renderedMockupViews.find((candidate) => candidate.key === key);
+    if (!item) return "";
+    const node = document.getElementById(`product-render-${item.mockup.id}-${item.view.id}`);
+    if (!node) return "";
+    const blob = await toBlob(node, {
+      pixelRatio,
+      cacheBust: true,
+      includeQueryParams: true,
+      backgroundColor: "transparent",
+      skipFonts: true,
+      filter: (candidate) => !candidate.classList?.contains("artwork-warp-raster-source") && !candidate.classList?.contains("artwork-warp-loading"),
+    });
+    return blob ? fileAsDataUrl(blob) : "";
+  };
+  const openImagePreview = async (key: string, label: string) => {
+    try {
+      const dataUrl = await captureImage(key, 2);
+      if (dataUrl) setExpandedImage({ src: dataUrl, label });
+    } catch {
+      setAiMessage("نمایش بزرگ این تصویر آماده نشد؛ دوباره تلاش کنید.");
+    }
+  };
+  const generateAiCopy = async () => {
+    if (!window.confirm("دستیار هوشمند عنوان، زیرعنوان و توضیحات فعلی را با یک متن تازه جایگزین کند؟")) return;
+    setAiPending(true);
+    setAiMessage("دستیار در حال دیدن محصول و نوشتن متن فارسی است…");
+    try {
+      const imageDataUrl = await captureImage(primaryImage || visibleMockups[0] || "", 1);
+      const response = await fetch("/api/seller/product-copy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ designId, requestId: crypto.randomUUID(), imageDataUrl: imageDataUrl || undefined }),
+      });
+      const payload = await response.json() as { copy?: { title: string; subtitle: string; description: string }; quota?: { remaining: number }; message?: string };
+      if (!response.ok || !payload.copy) throw new Error(payload.message || "ساخت متن انجام نشد.");
+      setTitle(payload.copy.title);
+      setSubtitle(payload.copy.subtitle);
+      setDescription(payload.copy.description);
+      setAiRemaining(payload.quota?.remaining ?? null);
+      setAiMessage("متن آماده شد؛ می‌توانید هر بخش را قبل از ثبت ویرایش کنید.");
+    } catch (error) {
+      setAiMessage(error instanceof Error ? error.message : "ساخت متن انجام نشد؛ دوباره تلاش کنید.");
+    } finally {
+      setAiPending(false);
+    }
+  };
   const prepareImages = async (event: React.FormEvent<HTMLFormElement>) => {
     if (preparing.current) return;
     event.preventDefault();
@@ -700,6 +776,7 @@ function FinalProduct({
                         {mockup.name} ·{" "}
                         {mockupView.side === "FRONT" ? "نمای جلو" : "نمای پشت"}
                       </small>
+                      <button type="button" className="expand-product-image" onClick={() => void openImagePreview(key, mockup.name)} aria-label="نمایش بزرگ تصویر"><Maximize2 /></button>
                       <button
                         type="button"
                         className={`choose-primary-image ${primaryImage === key ? "active" : ""}`}
@@ -732,6 +809,7 @@ function FinalProduct({
               {customImages.map((file, index) => (
                 <article key={`${file.name}-${index}`}>
                   <img src={URL.createObjectURL(file)} alt={file.name} />
+                  <button type="button" className="expand-product-image" onClick={() => void openImagePreview(`custom:${index}`, file.name)} aria-label="نمایش بزرگ تصویر"><Maximize2 /></button>
                   <button
                     type="button"
                     className={`choose-primary-image ${primaryImage === `custom:${index}` ? "active" : ""}`}
@@ -780,9 +858,21 @@ function FinalProduct({
                 />
               </label>
             </div>
+            {expandedImage && (
+              <div className="product-image-lightbox" role="dialog" aria-modal="true" aria-label={expandedImage.label} onClick={() => setExpandedImage(null)}>
+                <button type="button" onClick={() => setExpandedImage(null)} aria-label="بستن"><X /></button>
+                <img src={expandedImage.src} alt={expandedImage.label} onClick={(event) => event.stopPropagation()} />
+              </div>
+            )}
+            {fieldError("productImages") && <small className="field-error product-section-error">{fieldError("productImages")}</small>}
           </section>
           <section className="wizard-section">
             <span>معرفی محصول</span>
+            <div className="ai-copy-assistant">
+              <div><WandSparkles /><span><b>نوشتن با دستیار هوشمند</b><small>با توجه به نوع محصول، تنوع‌ها و یک تصویر، متن فارسی اختصاصی می‌سازد. دو هفته اول روزی ۱۵ بار و بعد از آن روزی یک بار رایگان است.</small></span></div>
+              <button type="button" onClick={() => void generateAiCopy()} disabled={aiPending}>{aiPending ? "در حال نوشتن…" : "ساخت متن با AI"}</button>
+              {aiMessage && <p role="status">{aiMessage}{aiRemaining !== null ? ` · ${aiRemaining.toLocaleString("fa-IR")} استفاده رایگان باقی مانده` : ""}</p>}
+            </div>
             <div className="wizard-fields">
               <label>
                 عنوان رسمی
@@ -790,7 +880,8 @@ function FinalProduct({
                   name="title"
                   required
                   minLength={3}
-                  defaultValue={draft?.title || ""}
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
                   placeholder={`${raw?.name || "محصول"} — نام طرح`}
                   aria-invalid={Boolean(fieldError("title"))}
                 />
@@ -810,7 +901,8 @@ function FinalProduct({
                 زیرعنوان کوتاه
                 <input
                   name="subtitle"
-                  defaultValue={draft?.subtitle || ""}
+                  value={subtitle}
+                  onChange={(event) => setSubtitle(event.target.value)}
                 />
               </label>
               <label className="wide">
@@ -819,7 +911,8 @@ function FinalProduct({
                   name="description"
                   required
                   rows={6}
-                  defaultValue={draft?.description || ""}
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
                   aria-invalid={Boolean(fieldError("description"))}
                 />
                 {fieldError("description") && (
