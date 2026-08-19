@@ -460,6 +460,11 @@ function FinalProduct({
             const blob = await toBlob(node, {
               pixelRatio: outputPixelRatio,
               cacheBust: true,
+              // Every protected mockup is served through /api/render-image
+              // with the real file URL in the query string. html-to-image
+              // otherwise drops that query when building its cache key and
+              // reuses the first mockup background for every later render.
+              includeQueryParams: true,
               backgroundColor: "transparent",
               skipFonts: true,
               filter: (candidate) =>

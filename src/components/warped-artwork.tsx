@@ -168,6 +168,9 @@ async function rasterizeArtwork(
       height,
       pixelRatio,
       cacheBust: false,
+      // Proxied artwork URLs only differ by their query string. Preserve it
+      // in html-to-image's cache key so parallel mockups cannot share pixels.
+      includeQueryParams: true,
       backgroundColor: "transparent",
       style: {
         position: "relative",
