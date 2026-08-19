@@ -2,7 +2,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { toBlob } from "html-to-image";
 import {
@@ -17,6 +16,7 @@ import {
   Package,
   Palette,
   Save,
+  ShoppingBag,
   Sparkles,
   Trash2,
   WandSparkles,
@@ -43,6 +43,7 @@ import {
 import { croppedArtworkImageStyle, hasManualArtworkCrop } from "@/lib/design-artwork-style";
 import { SellerOnboardingTour, SellerTourReplayButton, type SellerTourStep } from "@/components/seller-onboarding-tour";
 import type { SellerTourState } from "@/lib/seller-tour-shared";
+import { ResilientImage, ResilientImg } from "@/components/resilient-image";
 
 type CreationData = Awaited<ReturnType<typeof getProductStartData>>;
 type EditorData = Awaited<ReturnType<typeof getDesignEditorData>>;
@@ -135,7 +136,7 @@ function StartProduct({ data, tourState }: { data: CreationData | EditorData; to
                 onClick={() => setCategory(item.id)}
                 key={item.id}
               >
-                {item.imageUrl ? <Image src={item.imageUrl} alt={item.name} width={72} height={72} unoptimized /> : <Palette />}
+                {item.imageUrl ? <ResilientImage src={item.imageUrl} alt={item.name} width={72} height={72} unoptimized /> : <Palette />}
                 <b>{item.name}</b>
               </button>
             ))}
@@ -150,7 +151,7 @@ function StartProduct({ data, tourState }: { data: CreationData | EditorData; to
                 <article key={raw.id}>
                   <div>
                     {raw.mainImageUrl ? (
-                      <Image
+                      <ResilientImage
                         src={raw.mainImageUrl}
                         alt={raw.name}
                         width={640}
@@ -233,6 +234,7 @@ function FinalProduct({
   const [subtitle, setSubtitle] = useState(draft?.subtitle || "");
   const [description, setDescription] = useState(draft?.description || "");
   const [aiPending, setAiPending] = useState(false);
+  const [preparingImages, setPreparingImages] = useState(false);
   const [aiMessage, setAiMessage] = useState("");
   const [aiRemaining, setAiRemaining] = useState<number | null>(null);
   const selectedMockups = data.mockups.filter((mockup) =>
@@ -283,6 +285,7 @@ function FinalProduct({
     if (expandedImage?.src.startsWith("blob:")) URL.revokeObjectURL(expandedImage.src);
   }, [expandedImage]);
   useEffect(() => {
+    if (pending) setPreparingImages(false);
     if (!pending && state.message) preparing.current = false;
   }, [pending, state.message]);
   useEffect(() => {
@@ -457,6 +460,7 @@ function FinalProduct({
         return;
       }
     }
+    setPreparingImages(true);
     const transfer = new DataTransfer();
     const prepared: { key: string; file: File }[] = [];
     const failedRenderLabels: string[] = [];
@@ -584,6 +588,7 @@ function FinalProduct({
         `رندر ${labels} کامل نشد. در بخش «تصاویر محصول» همان موکاپ را حذف و دوباره انتخاب کنید؛ یا آن را حذف کنید و یک تصویر دلخواه اضافه کنید.`,
         "productImages",
       );
+      setPreparingImages(false);
       return;
     }
     if (!transfer.files.length) {
@@ -591,6 +596,7 @@ function FinalProduct({
         "در بخش «تصاویر محصول» حداقل یک موکاپ را نگه دارید یا از دکمه «افزودن تصویر» استفاده کنید.",
         "productImages",
       );
+      setPreparingImages(false);
       return;
     }
     if (fileInput.current) fileInput.current.files = transfer.files;
@@ -598,6 +604,7 @@ function FinalProduct({
       showClientError(
         "فرم دیگر در صفحه فعال نیست؛ صفحه را تازه‌سازی و دوباره تلاش کنید.",
       );
+      setPreparingImages(false);
       return;
     }
     preparing.current = true;
@@ -625,8 +632,9 @@ function FinalProduct({
       <main className="wizard-main">
         <form action={action} onSubmit={prepareImages} noValidate>
           <SavingOverlay
-            visible={pending}
+            visible={pending || preparingImages}
             text="در حال ذخیره و آماده‌سازی محصول…"
+            steps={["رندر تصاویر موکاپ", "بارگذاری تصاویر", "ذخیره مشخصات محصول", "ثبت قیمت و تنوع‌ها", "نهایی‌سازی انتشار"]}
           />
           <input type="hidden" name="designId" value={designId} />
           <input type="hidden" name="rawProductId" value={rawProductId} />
@@ -707,7 +715,7 @@ function FinalProduct({
                         className="configured-mockup-canvas product-render-canvas"
                       >
                         <div key={mockupView.id}>
-                          <img
+                          <ResilientImg
                             src={exportSafeImageUrl(mockupView.backgroundUrl)}
                             alt={mockup.name}
                             crossOrigin="anonymous"
@@ -755,7 +763,7 @@ function FinalProduct({
                                     <span
                                       className="cropped-artwork-image"
                                     >
-                                    <img
+                                    <ResilientImg
                                       src={exportSafeImageUrl(String(object.src))}
                                       alt="طرح"
                                       crossOrigin="anonymous"
@@ -808,7 +816,7 @@ function FinalProduct({
                 })}
               {customImages.map((file, index) => (
                 <article key={`${file.name}-${index}`}>
-                  <img src={URL.createObjectURL(file)} alt={file.name} />
+                  <ResilientImg src={URL.createObjectURL(file)} alt={file.name} />
                   <button type="button" className="expand-product-image" onClick={() => void openImagePreview(`custom:${index}`, file.name)} aria-label="نمایش بزرگ تصویر"><Maximize2 /></button>
                   <button
                     type="button"
@@ -861,7 +869,7 @@ function FinalProduct({
             {expandedImage && (
               <div className="product-image-lightbox" role="dialog" aria-modal="true" aria-label={expandedImage.label} onClick={() => setExpandedImage(null)}>
                 <button type="button" onClick={() => setExpandedImage(null)} aria-label="بستن"><X /></button>
-                <img src={expandedImage.src} alt={expandedImage.label} onClick={(event) => event.stopPropagation()} />
+                <ResilientImg src={expandedImage.src} alt={expandedImage.label} onClick={(event) => event.stopPropagation()} />
               </div>
             )}
             {fieldError("productImages") && <small className="field-error product-section-error">{fieldError("productImages")}</small>}
@@ -937,7 +945,7 @@ function FinalProduct({
                         value={style.id}
                         defaultChecked={draft?.graphicStyleIds.includes(style.id)}
                       />
-                      {style.imageUrl && <Image src={style.imageUrl} alt={style.name} width={52} height={52} unoptimized />}
+                      {style.imageUrl && <ResilientImage src={style.imageUrl} alt={style.name} width={52} height={52} unoptimized />}
                       <span>
                         <b>{style.name}</b>
                         {style.caption && <small>{style.caption}</small>}
@@ -1105,12 +1113,19 @@ function FinalProduct({
         </form>
       </main>
       {state.ok && successOpen && ["publish", "publish_chaplly", "publish_both"].includes(submittedIntent) && (
-        <div className="publish-success">
-          <div>
-            <span>🎉</span>
-            <small>محصول با موفقیت ساخته شد</small>
-            <h2>{state.message}</h2>
-            <p>تا زمان تأیید، محصول در ویترین‌ها دیده نمی‌شود؛ اما خریدار می‌تواند با این لینک آن را ببیند و بخرد.</p>
+        <div className="publish-success" role="dialog" aria-modal="true" aria-labelledby="publish-success-title">
+          <div className="publish-success-card">
+            <button type="button" className="publish-success-close" aria-label="بستن" onClick={() => setSuccessOpen(false)}><X /></button>
+            <header className="publish-success-head">
+              <span>🎉</span>
+              <div>
+                <small>محصول با موفقیت ساخته شد</small>
+                <h2 id="publish-success-title">{state.message}</h2>
+              </div>
+              <BadgeCheck />
+            </header>
+            <p className="publish-success-explanation">تا زمان تأیید، محصول در ویترین‌ها دیده نمی‌شود؛ اما خریدار می‌تواند با لینک مستقیم آن را ببیند و بخرد.</p>
+            <small className="publish-link-label">لینک مستقیم محصول</small>
             <div className="publish-share-link" dir="ltr">
               <input readOnly value={`/products/${productSlug}`} aria-label="لینک مستقیم محصول" />
               <button type="button" onClick={async () => {
@@ -1119,24 +1134,22 @@ function FinalProduct({
               }}><Copy /> {linkCopied ? "کپی شد" : "کپی لینک"}</button>
             </div>
             <div className="publish-success-actions">
-              <Link href="/seller/dashboard/products/new">
+              <Link className="publish-action-primary" href="/seller/dashboard/products/new">
                 ساخت محصول جدید <Sparkles />
               </Link>
-              <Link href={`/products/${productSlug}`} target="_blank">
+              <Link className="publish-action-secondary" href={`/products/${productSlug}`} target="_blank">
                 مشاهده محصول <ExternalLink />
               </Link>
-              <Link href="/seller/dashboard?section=products">
+              <Link className="publish-action-tertiary" href="/seller/dashboard?section=products">
                 بازگشت به محصولات <ChevronLeft />
               </Link>
-              <button type="button" onClick={() => setSuccessOpen(false)}>بستن</button>
             </div>
             {data.woocommerceConnected && submittedIntent !== "publish_both" && state.id && (
               <ActionForm action={publishSellerProductToWooCommerceAction} refreshAfterSuccess={false} savingText="در حال افزودن محصول به ووکامرس…" onSuccess={(result) => { if (result.detail?.startsWith("http")) window.open(result.detail, "_blank", "noopener,noreferrer"); }} className="publish-to-woo-form">
                 <input type="hidden" name="productId" value={state.id} />
-                <button type="submit">افزودن به ووکامرس</button>
+                <button type="submit"><ShoppingBag /> افزودن همین محصول به ووکامرس</button>
               </ActionForm>
             )}
-            <BadgeCheck />
           </div>
         </div>
       )}

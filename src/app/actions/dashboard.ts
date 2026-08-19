@@ -558,6 +558,30 @@ export async function moderateProductAction(
   );
 }
 
+export async function approveAllPendingProductsAction(
+  _: ActionResult,
+  _formData: FormData,
+): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  const { data, error } = await createSupabaseAdmin().rpc(
+    "service_approve_all_pending_products",
+    { p_actor_id: admin.id },
+  );
+  if (error) return fail(error.message);
+  const count = Number(data || 0);
+  revalidatePath("/admin/pending-products");
+  revalidatePath("/");
+  revalidateTag("catalog");
+  revalidateTag("products");
+  revalidateTag("marketplace-home");
+  clearMarketplaceMemoryCache();
+  return ok(
+    count
+      ? `${count.toLocaleString("fa-IR")} محصول در یک عملیات تأیید شد.`
+      : "محصولی در صف تأیید نبود.",
+  );
+}
+
 export async function unapproveProductAction(
   _: ActionResult,
   formData: FormData,
@@ -2337,6 +2361,34 @@ export async function archiveSellerProductAction(
   return ok("محصول از فهرست فروش حذف شد.", data.id);
 }
 
+export async function archiveSellerDesignsAction(
+  _: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  const context = await requireSeller();
+  const designIds = [
+    ...new Set(formData.getAll("designIds").map(String).filter(Boolean)),
+  ].slice(0, 100);
+  if (!designIds.length) return fail("حداقل یک طرح را انتخاب کنید.");
+  const now = new Date().toISOString();
+  const { data, error } = await createSupabaseAdmin()
+    .from("designs")
+    .update({ status: "ARCHIVED", archived_at: now, updated_at: now })
+    .eq("owner_user_id", context.user.id)
+    .in("id", designIds)
+    .neq("status", "ARCHIVED")
+    .select("id");
+  if (error) return fail(error.message);
+  const count = data?.length || 0;
+  revalidatePath("/seller/dashboard");
+  revalidatePath("/seller/dashboard/designs");
+  return ok(
+    count
+      ? `${count.toLocaleString("fa-IR")} طرح از کتابخانه حذف و بایگانی شد.`
+      : "طرح قابل حذفی پیدا نشد.",
+  );
+}
+
 export async function deleteBankAccountAction(
   _: ActionResult,
   formData: FormData,
@@ -3496,6 +3548,18 @@ export async function saveSellerProductAction(
   });
   if (error) return databaseFailure(error, productAlreadyExists ? productId : undefined);
   productId = String(data);
+  const { error: designNameError } = await admin
+    .from("designs")
+    .update({ name: title, updated_at: new Date().toISOString() })
+    .eq("id", designId)
+    .eq("owner_user_id", context.user.id);
+  if (designNameError)
+    return fail(
+      "محصول ذخیره شد، اما نام طرح با عنوان محصول هماهنگ نشد. دوباره تلاش کنید.",
+      { title: "ذخیره نام طرح کامل نشد." },
+      productId,
+      designNameError.message,
+    );
   try {
     const { error: metadataError } = await admin.rpc(
       "service_save_product_metadata",

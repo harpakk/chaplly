@@ -1,11 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ImagePlus, Link2, Plus, Save, Trash2 } from "lucide-react";
 import { updateStorefrontAction } from "@/app/actions/dashboard";
 import { ActionForm } from "@/components/action-form";
 import { normalizeStorefrontConfig } from "@/lib/storefront";
+import { ResilientImage } from "@/components/resilient-image";
 
 export function StorefrontBuilder({
   store,
@@ -94,7 +94,7 @@ export function StorefrontBuilder({
               <b>بنر {index + 1}</b>
               <input type="hidden" name={`currentBanner${index}`} value={banner?.url || ""} />
               <label className={`promo-image-input ${preview ? "has-preview" : ""}`}>
-                {preview ? <Image src={preview} alt={`پیش‌نمایش بنر ${index + 1}`} fill sizes="260px" unoptimized /> : <ImagePlus />}
+                {preview ? <ResilientImage src={preview} alt={`پیش‌نمایش بنر ${index + 1}`} fill sizes="260px" unoptimized /> : <ImagePlus />}
                 <input type="file" name={`promoBanner${index}`} accept="image/png,image/jpeg,image/webp" onChange={(event) => previewBanner(index, event.target.files?.[0])} />
                 <span>{preview ? "تغییر تصویر" : "انتخاب تصویر"}</span>
               </label>

@@ -1,12 +1,12 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, BadgeCheck, ChevronLeft, Instagram, Search, ShoppingBag, Sparkles, Star } from "lucide-react";
 import { ReelsGallery } from "@/components/reels-gallery";
 import { formatPrice, type Product, type Reel } from "@/lib/catalog";
 import type { StorefrontConfig } from "@/lib/storefront";
+import { ResilientImage } from "@/components/resilient-image";
 
 type Store = {
   name: string;
@@ -26,7 +26,7 @@ function StoreProductCard({ product, storeSlug }: { product: Product; storeSlug:
   const href = `/products/${product.slug}?fromStore=${encodeURIComponent(storeSlug)}`;
   return <article className="store-product-card">
     <Link href={href} className="store-product-image">
-      <Image src={product.image} alt={product.title} fill sizes="(max-width: 700px) 92vw, 45vw" />
+      <ResilientImage src={product.image} alt={product.title} fill sizes="(max-width: 700px) 92vw, 45vw" />
       {product.compareAtPrice && <span>{Math.round((1 - product.price / product.compareAtPrice) * 100).toLocaleString("fa-IR")}٪ تخفیف</span>}
     </Link>
     <div>
@@ -73,13 +73,13 @@ export function StorefrontLanding({ store, products, reels }: { store: Store; pr
   return <div className="exclusive-store" style={{ "--store-color": store.brand_color, "--store-accent": store.accent_color } as React.CSSProperties}>
     {config.announcementEnabled && config.announcement && <div className="store-announcement">{config.announcement}</div>}
     <header className="exclusive-nav">
-      <Link href={`/stores/${store.slug}`}><Image src={store.logoUrl} alt="" width={72} height={72} /><b>{store.name}</b>{store.is_verified && <BadgeCheck />}</Link>
+      <Link href={`/stores/${store.slug}`}><ResilientImage src={store.logoUrl} alt="" width={72} height={72} /><b>{store.name}</b>{store.is_verified && <BadgeCheck />}</Link>
       <nav>{hasProductSections && <a href="#store-products">محصولات</a>}{config.reelsEnabled && reels.length > 0 && <a href="#store-reels">ویدیوها</a>}{config.aboutEnabled && aboutParagraphs.length > 0 && <a href="#about-store">درباره ما</a>}{config.faqEnabled && config.faqs.length >= 3 && <a href="#store-faq">سؤالات متداول</a>}</nav>
       <div><Link href={`/search?shop=${store.slug}`} aria-label="جست‌وجو"><Search /></Link><Link href="/cart" aria-label="سبد خرید"><ShoppingBag /></Link></div>
     </header>
 
     {config.heroEnabled && <section className="exclusive-hero" style={{ backgroundImage: `linear-gradient(90deg,rgba(12,10,17,.9),rgba(12,10,17,.18)),url("${store.bannerUrl}")` }}>
-      <div><span><Sparkles /> فروشگاه اختصاصی</span><Image src={store.logoUrl} alt={`لوگوی ${store.name}`} width={160} height={160} /><h1>{store.name}</h1><p>{config.tagline || store.description || "محصول‌هایی با امضای خودمان؛ ساخته‌شده برای سلیقه‌هایی که تکراری نیستند."}</p><a href={hasProductSections ? "#store-products" : `/search?shop=${store.slug}`}>دیدن کالکشن</a></div>
+      <div><span><Sparkles /> فروشگاه اختصاصی</span><ResilientImage src={store.logoUrl} alt={`لوگوی ${store.name}`} width={160} height={160} /><h1>{store.name}</h1><p>{config.tagline || store.description || "محصول‌هایی با امضای خودمان؛ ساخته‌شده برای سلیقه‌هایی که تکراری نیستند."}</p><a href={hasProductSections ? "#store-products" : `/search?shop=${store.slug}`}>دیدن کالکشن</a></div>
       <aside><b>{storeProducts.length.toLocaleString("fa-IR")}</b><span>محصول در کالکشن</span>{store.social_url && <a href={store.social_url} target="_blank" rel="noreferrer"><Instagram /> شبکه اجتماعی برند</a>}</aside>
     </section>}
     {config.heroEnabled && <section className="exclusive-marquee"><span>اوریجینال باش ✦ انتخاب خودت باش ✦ ترند را خودت بساز ✦ {store.name} ✦</span></section>}
@@ -103,6 +103,6 @@ export function StorefrontLanding({ store, products, reels }: { store: Store; pr
       {config.faqEnabled && config.faqs.length >= 3 && <section className="store-faq-section" id="store-faq"><header><span>قبل از خرید</span><h2>سؤالات متداول</h2></header><div>{config.faqs.map((faq, index) => <details key={`${faq.question}-${index}`}><summary>{faq.question}<span>+</span></summary><p>{faq.answer}</p></details>)}</div></section>}
     </main>
 
-    <footer className="storefront-footer"><div><Image src={store.logoUrl} alt="" width={70} height={70} /><div><b>{store.name}</b><p>{config.tagline || store.description}</p></div></div><nav><Link href={hasProductSections ? "#store-products" : `/search?shop=${store.slug}`}>محصولات</Link><Link href="/cart">سبد خرید چاپلی</Link><Link href="/">بازگشت به بازار چاپلی</Link></nav><small>پرداخت و سفارش‌ها با زیرساخت امن چاپلی انجام می‌شوند.</small></footer>
+    <footer className="storefront-footer"><div><ResilientImage src={store.logoUrl} alt="" width={70} height={70} /><div><b>{store.name}</b><p>{config.tagline || store.description}</p></div></div><nav><Link href={hasProductSections ? "#store-products" : `/search?shop=${store.slug}`}>محصولات</Link><Link href="/cart">سبد خرید چاپلی</Link><Link href="/">بازگشت به بازار چاپلی</Link></nav><small>پرداخت و سفارش‌ها با زیرساخت امن چاپلی انجام می‌شوند.</small></footer>
   </div>;
 }

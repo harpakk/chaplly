@@ -1,9 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useState } from "react";
 import { BadgeCheck, Minus, Plus, Star } from "lucide-react";
 import type { Product } from "@/lib/catalog";
+import { ResilientImage } from "@/components/resilient-image";
 
 type Review = {
   id: string;
@@ -117,7 +117,7 @@ export function ProductTabs({
                 )}
                 {review.images.length > 0 && (
                   <div className="review-public-images">
-                    {review.images.map((url) => <Image src={url} alt="تصویر خریدار" width={130} height={130} key={url} />)}
+                    {review.images.map((url) => <ResilientImage src={url} alt="تصویر خریدار" width={130} height={130} key={url} />)}
                   </div>
                 )}
                 <time>{new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium" }).format(new Date(review.created_at))}</time>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import Image from "next/image";
 import {
   BadgeCheck,
   Copy,
@@ -18,6 +17,7 @@ import {
 } from "@/app/actions/dashboard";
 import { ActionForm } from "@/components/action-form";
 import { SavingOverlay } from "@/components/saving-overlay";
+import { ResilientImage } from "@/components/resilient-image";
 
 type Store = {
   name: string;
@@ -70,7 +70,7 @@ export function ExclusiveStoreControl({ store }: { store: Store }) {
             type="file"
             accept="image/png,image/jpeg,image/webp"
           />
-          <span className="store-media-current square">{store.logoUrl ? <Image src={store.logoUrl} alt="لوگوی فعلی فروشگاه" fill sizes="72px" unoptimized /> : "بدون لوگو"}</span>
+          <span className="store-media-current square">{store.logoUrl ? <ResilientImage src={store.logoUrl} alt="لوگوی فعلی فروشگاه" fill sizes="72px" unoptimized /> : "بدون لوگو"}</span>
         </label>
         <label>
           بنر عریض
@@ -79,7 +79,7 @@ export function ExclusiveStoreControl({ store }: { store: Store }) {
             type="file"
             accept="image/png,image/jpeg,image/webp"
           />
-          <span className="store-media-current banner">{store.bannerUrl ? <Image src={store.bannerUrl} alt="بنر فعلی فروشگاه" fill sizes="180px" unoptimized /> : "بدون بنر"}</span>
+          <span className="store-media-current banner">{store.bannerUrl ? <ResilientImage src={store.bannerUrl} alt="بنر فعلی فروشگاه" fill sizes="180px" unoptimized /> : "بدون بنر"}</span>
         </label>
         <button>ذخیره تصاویر</button>
       </ActionForm>
@@ -148,7 +148,7 @@ export function ExclusiveStoreControl({ store }: { store: Store }) {
               <span>
                 <Crown /> فروشگاه اختصاصی من
               </span>
-              <Image
+              <ResilientImage
                 src={store.logoUrl || "/images/product-placeholder.png"}
                 alt=""
                 width={160}

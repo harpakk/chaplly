@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
@@ -31,6 +30,7 @@ import { ExclusiveStoreControl } from "@/components/exclusive-store-control";
 import { StorefrontBuilder } from "@/components/storefront-builder";
 import {
   archiveSellerProductAction,
+  archiveSellerDesignsAction,
   assignSupplierToProductAction,
   deleteBankAccountAction,
   requestPayoutAction,
@@ -42,6 +42,7 @@ import {
 import { formatRial } from "@/lib/catalog";
 import type { getSellerDashboardData } from "@/lib/dashboard-data";
 import { WooCommercePanel } from "@/components/woocommerce-panel";
+import { ResilientImage } from "@/components/resilient-image";
 
 type SellerData = Awaited<ReturnType<typeof getSellerDashboardData>>;
 const sections = [
@@ -427,7 +428,7 @@ function StorePanel({ data }: { data: SellerData }) {
         className={`sd-store-cover ${data.store.bannerUrl ? "has-store-banner" : ""}`}
         style={{ background: data.store.bannerUrl ? `linear-gradient(90deg,#171522d9,#17152270),url("${data.store.bannerUrl}") center/cover` : data.store.brand_color || undefined }}
       >
-        <div className="sd-store-orb">{data.store.logoUrl ? <Image src={data.store.logoUrl} alt={`لوگوی ${data.store.name}`} width={72} height={72} unoptimized /> : data.store.name.slice(0, 1)}</div>
+        <div className="sd-store-orb">{data.store.logoUrl ? <ResilientImage src={data.store.logoUrl} alt={`لوگوی ${data.store.name}`} width={72} height={72} unoptimized /> : data.store.name.slice(0, 1)}</div>
         <div>
           <span>
             {data.store.brand_tone === "EXCLUSIVE"
@@ -551,13 +552,13 @@ function StoreMediaSettings({ store }: { store: SellerData["store"] }) {
       <div className="store-media-manager-grid">
         <label className="store-media-picker logo-picker">
           <input type="file" name="storeLogo" accept="image/png,image/jpeg,image/webp" onChange={(event) => selectPreview(event.target.files?.[0], logoPreview, setLogoPreview)} />
-          <span className="store-media-preview">{logoPreview ? <Image src={logoPreview} alt="پیش‌نمایش لوگوی فروشگاه" fill sizes="180px" unoptimized /> : <ImagePlus />}</span>
+          <span className="store-media-preview">{logoPreview ? <ResilientImage src={logoPreview} alt="پیش‌نمایش لوگوی فروشگاه" fill sizes="180px" unoptimized /> : <ImagePlus />}</span>
           <span className="store-media-picker-copy"><b>{logoPreview ? "تغییر لوگو" : "افزودن لوگو"}</b><small>تصویر مربعی، پیشنهاد: ۸۰۰ × ۸۰۰ پیکسل</small></span>
           <i><Upload /></i>
         </label>
         <label className="store-media-picker banner-picker">
           <input type="file" name="storeBanner" accept="image/png,image/jpeg,image/webp" onChange={(event) => selectPreview(event.target.files?.[0], bannerPreview, setBannerPreview)} />
-          <span className="store-media-preview">{bannerPreview ? <Image src={bannerPreview} alt="پیش‌نمایش بنر بالای فروشگاه" fill sizes="700px" unoptimized /> : <ImagePlus />}</span>
+          <span className="store-media-preview">{bannerPreview ? <ResilientImage src={bannerPreview} alt="پیش‌نمایش بنر بالای فروشگاه" fill sizes="700px" unoptimized /> : <ImagePlus />}</span>
           <span className="store-media-picker-copy"><b>{bannerPreview ? "تغییر تصویر کاور" : "افزودن تصویر کاور"}</b><small>تصویر عریض، پیشنهاد: ۲۴۰۰ × ۸۰۰ پیکسل</small></span>
           <i><Upload /></i>
         </label>
@@ -569,6 +570,8 @@ function StoreMediaSettings({ store }: { store: SellerData["store"] }) {
 
 function Designs({ data }: { data: SellerData }) {
   const [filter, setFilter] = useState<"ALL" | "DRAFT" | "REVIEW" | "PUBLISHED" | "ARCHIVED">("ALL");
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const visible = data.designs.filter((design) =>
     filter === "ALL"
       ? design.lifecycle !== "ARCHIVED"
@@ -592,6 +595,12 @@ function Designs({ data }: { data: SellerData }) {
     REJECTED: "نیازمند اصلاح",
     ARCHIVED: "بایگانی‌شده",
   } as Record<string, string>)[value] || value;
+  const selectableIds = visible
+    .filter((design) => design.lifecycle !== "ARCHIVED")
+    .map((design) => design.id);
+  const allVisibleSelected = selectableIds.length > 0 && selectableIds.every((id) => selectedIds.includes(id));
+  const toggleSelection = (id: string) =>
+    setSelectedIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
   return (
     <div className="sd-stack seller-design-library">
       <section className="sd-intro-row">
@@ -599,7 +608,19 @@ function Designs({ data }: { data: SellerData }) {
           <h2>کارگاه طرح‌های تو</h2>
           <p>هر گروه، نمای جلو و پشت و نسخه‌های مخصوص رنگ‌ها را با هم نگه می‌دارد. از هرجا رها کنی، همین‌جا ادامه می‌دهی.</p>
         </div>
-        <Link className="sd-primary" href="/seller/dashboard/products/new"><Plus /> ساخت طرح تازه</Link>
+        <div className="design-library-head-actions">
+          <button
+            type="button"
+            className={selectionMode ? "design-multi-select active" : "design-multi-select"}
+            onClick={() => {
+              setSelectionMode((value) => !value);
+              setSelectedIds([]);
+            }}
+          >
+            <Check /> {selectionMode ? "لغو انتخاب" : "انتخاب چندتایی"}
+          </button>
+          <Link className="sd-primary" href="/seller/dashboard/products/new"><Plus /> ساخت طرح تازه</Link>
+        </div>
       </section>
       <nav className="design-library-tabs" aria-label="فیلتر طرح‌ها">
         {tabs.map(([key, label]) => (
@@ -609,13 +630,49 @@ function Designs({ data }: { data: SellerData }) {
           </button>
         ))}
       </nav>
+      {selectionMode && selectableIds.length > 0 && (
+        <ActionForm
+          action={archiveSellerDesignsAction}
+          confirmMessage={`این ${selectedIds.length.toLocaleString("fa-IR")} طرح از کتابخانه حذف و بایگانی شوند؟`}
+          savingText="در حال حذف طرح‌های انتخاب‌شده…"
+          className="design-bulk-toolbar"
+          onSuccess={() => {
+            setSelectedIds([]);
+            setSelectionMode(false);
+          }}
+        >
+          {selectedIds.map((id) => <input type="hidden" name="designIds" value={id} key={id} />)}
+          <button
+            type="button"
+            className="design-select-all"
+            onClick={() => setSelectedIds(allVisibleSelected ? [] : selectableIds)}
+          >
+            <Check /> {allVisibleSelected ? "برداشتن همه" : "انتخاب همه این صفحه"}
+          </button>
+          <span>{selectedIds.length.toLocaleString("fa-IR")} طرح انتخاب شده</span>
+          <button type="submit" className="danger-button" disabled={!selectedIds.length}>
+            <Trash2 /> حذف انتخاب‌شده‌ها
+          </button>
+        </ActionForm>
+      )}
       {visible.length ? (
         <section className="design-library-grid">
           {visible.map((design) => (
-            <article className="design-library-card" key={design.id}>
+            <article className={`design-library-card${selectedIds.includes(design.id) ? " selected" : ""}`} key={design.id}>
               <div className="design-library-preview">
-                {design.mainImageUrl ? <Image src={design.mainImageUrl} alt={design.name} fill sizes="(max-width:700px) 100vw, 320px" unoptimized /> : <Palette />}
+                {design.mainImageUrl ? <ResilientImage src={design.mainImageUrl} alt={design.name} fill sizes="(max-width:700px) 100vw, 320px" unoptimized /> : <Palette />}
                 <span className={`design-lifecycle design-lifecycle-${design.lifecycle.toLowerCase()}`}>{lifecycleLabel(design.lifecycle)}</span>
+                {selectionMode && design.lifecycle !== "ARCHIVED" && (
+                  <button
+                    type="button"
+                    className="design-select-toggle"
+                    aria-label={`${design.name} را ${selectedIds.includes(design.id) ? "از انتخاب خارج کن" : "انتخاب کن"}`}
+                    aria-pressed={selectedIds.includes(design.id)}
+                    onClick={() => toggleSelection(design.id)}
+                  >
+                    <Check />
+                  </button>
+                )}
               </div>
               <div className="design-library-body">
                 <small>{design.rawProductName}</small>
@@ -689,7 +746,7 @@ function Products({ data }: { data: SellerData }) {
                 <article className="seller-product-row" key={product.id}>
                   <div className="seller-product-image">
                     {product.mainImageUrl ? (
-                      <Image
+                      <ResilientImage
                         src={product.mainImageUrl}
                         alt={product.title}
                         fill
@@ -960,7 +1017,7 @@ function Tutorials({ data }: { data: SellerData }) {
               key={item.id}
             >
               <div className="tutorial-media">
-                <Image
+                <ResilientImage
                   src={item.thumbnailUrl}
                   alt={`تصویر آموزش ${item.title}`}
                   fill

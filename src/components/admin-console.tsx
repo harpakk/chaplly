@@ -39,6 +39,7 @@ import {
   completePayoutAction,
   completeBuyerRefundAction,
   deleteApprovedProductAction,
+  approveAllPendingProductsAction,
   moderateProductAction,
   unapproveProductAction,
   resolveDisputeAction,
@@ -59,6 +60,7 @@ import {
   upsertRawProductAction,
 } from "@/app/actions/dashboard";
 import type { getAdminDashboardData } from "@/lib/dashboard-data";
+import { ResilientImage } from "@/components/resilient-image";
 
 type AdminData = Awaited<ReturnType<typeof getAdminDashboardData>>;
 type Section =
@@ -951,6 +953,18 @@ function PendingProducts({ data }: { data: AdminData }) {
           <h2>صف بررسی محصول</h2>
           <p>هر تصمیم در تاریخچه دائمی ثبت و اعلان در outbox ایجاد می‌کند.</p>
         </div>
+        {data.pending.length > 0 && (
+          <ActionForm
+            action={approveAllPendingProductsAction}
+            confirmMessage={`همه ${data.pending.length.toLocaleString("fa-IR")} محصول منتظر بررسی تأیید شوند؟ این کار یک‌جا انجام می‌شود.`}
+            savingText="در حال تأیید همه محصولات منتظر…"
+            className="approve-all-products-form"
+          >
+            <button className="admin-primary approve-all-products">
+              <BadgeCheck /> تأیید همه ({data.pending.length.toLocaleString("fa-IR")})
+            </button>
+          </ActionForm>
+        )}
       </div>
       {data.pending.length ? (
         <section className="pending-grid">
@@ -958,7 +972,7 @@ function PendingProducts({ data }: { data: AdminData }) {
             <article className="admin-card" key={item.id}>
               <div className="pending-product-image">
                 {item.product?.mainImageUrl ? (
-                  <Image
+                  <ResilientImage
                     src={item.product.mainImageUrl}
                     alt={item.product.title}
                     width={640}

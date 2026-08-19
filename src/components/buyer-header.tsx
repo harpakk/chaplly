@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Heart, Menu, Search, ShoppingBag, UserRound, X } from "lucide-react";
 import { useCart } from "@/components/cart-context";
 import { BrandLogo } from "@/components/brand-logo";
 import { formatPrice } from "@/lib/catalog";
+import { ResilientImage } from "@/components/resilient-image";
 
 export function BuyerHeader() {
   const pathname = usePathname();
@@ -41,7 +41,7 @@ export function BuyerHeader() {
               </Link>
               {items.length > 0 && <aside className="cart-hover-preview">
                 <strong>{count.toLocaleString("fa-IR")} کالا در سبد</strong>
-                {items.slice(0,3).map((item)=><Link href={`/products/${item.slug}`} key={item.variantId}><Image src={item.image} alt="" width={44} height={44}/><span>{item.title}<small>{item.color} · {item.size} · {item.quantity.toLocaleString("fa-IR")}</small></span></Link>)}
+                {items.slice(0,3).map((item)=><Link href={`/products/${item.slug}`} key={item.variantId}><ResilientImage src={item.image} alt="" width={44} height={44}/><span>{item.title}<small>{item.color} · {item.size} · {item.quantity.toLocaleString("fa-IR")}</small></span></Link>)}
                 {items.length>3&&<small>و {(items.length-3).toLocaleString("fa-IR")} مورد دیگر</small>}
                 <div><b>{formatPrice(total)}</b><Link href="/cart">مشاهده و ادامه خرید</Link></div>
               </aside>}

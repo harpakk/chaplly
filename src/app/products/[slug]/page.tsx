@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -20,6 +19,7 @@ import { ProductCard } from "@/components/product-card";
 import { ProductViewTracker } from "@/components/product-view-tracker";
 import { SizeGuideModal } from "@/components/size-guide-modal";
 import { ReelsGallery } from "@/components/reels-gallery";
+import { ResilientImage } from "@/components/resilient-image";
 import { formatPrice, type Product } from "@/lib/catalog";
 import {
   findProduct,
@@ -217,7 +217,7 @@ export default async function ProductPage({
           {product.badge && <span className="pdp-badge">{product.badge}</span>}
           <p className="pdp-seller store-hover-card">
             {product.sellerLogo && (
-              <Image
+              <ResilientImage
                 className="pdp-seller-logo"
                 src={product.sellerLogo}
                 alt={`لوگوی ${product.seller}`}

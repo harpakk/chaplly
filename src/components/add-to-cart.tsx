@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
-import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, Minus, Plus, ShoppingBag, X } from "lucide-react";
 import { useCart } from "@/components/cart-context";
 import { formatPrice, type Product } from "@/lib/catalog";
+import { ResilientImage } from "@/components/resilient-image";
 
 export function AddToCart({ product, redirectToCart = false }: { product: Product; redirectToCart?: boolean }) {
   const router = useRouter();
@@ -28,6 +29,8 @@ export function AddToCart({ product, redirectToCart = false }: { product: Produc
   );
   const [added, setAdded] = useState(false);
   const [cartPromptOpen, setCartPromptOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const variant = sellableVariants.find(
     (item) => item.color === color && item.size === size,
   );
@@ -139,7 +142,7 @@ export function AddToCart({ product, redirectToCart = false }: { product: Produc
           </button>
         )}
       </div>
-      {cartPromptOpen && (
+      {mounted && cartPromptOpen && createPortal(
         <div
           className="cart-prompt-backdrop"
           role="presentation"
@@ -162,11 +165,12 @@ export function AddToCart({ product, redirectToCart = false }: { product: Produc
               <X />
             </button>
             <span><Check /></span>
-            <Image className="cart-prompt-image" src={product.image} alt={product.title} width={88} height={88} />
+            <ResilientImage className="cart-prompt-image" src={product.image} alt={product.title} width={88} height={88} />
             <h2 id="cart-prompt-title">به سبد خرید اضافه شد</h2>
             <p>
               «{product.title}» با رنگ {color} و اندازه {size} در سبد توست.
             </p>
+            <p className="cart-variant-reminder">🎨📐 لطفاً رنگ و اندازه را همین حالا دوباره بررسی کن تا دقیقاً انتخاب درستت ثبت شده باشد.</p>
             <div>
               <Link href="/cart" autoFocus>
                 مشاهده سبد خرید <ArrowLeft />
@@ -176,7 +180,7 @@ export function AddToCart({ product, redirectToCart = false }: { product: Produc
               </button>
             </div>
           </section>
-        </div>
+        </div>, document.body
       )}
     </div>
   );

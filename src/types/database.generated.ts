@@ -5254,6 +5254,7 @@ export type Database = {
       "service_guest_checkout_create_pending_order": { Args: Record<string, unknown>; Returns: unknown };
       "service_marketplace_context": { Args: Record<string, unknown>; Returns: unknown };
       "service_moderate_product": { Args: Record<string, unknown>; Returns: unknown };
+      "service_approve_all_pending_products": { Args: Record<string, unknown>; Returns: unknown };
       "service_quote_coupon": { Args: Record<string, unknown>; Returns: unknown };
       "service_record_profile_login": { Args: Record<string, unknown>; Returns: unknown };
       "service_record_reel_view": { Args: Record<string, unknown>; Returns: unknown };

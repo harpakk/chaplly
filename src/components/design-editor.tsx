@@ -5,6 +5,7 @@ import "@fontsource/vazirmatn/400.css";
 import "@fontsource/vazirmatn/700.css";
 import "@fontsource/estedad/400.css";
 import "@fontsource/estedad/700.css";
+import { ResilientImg } from "@/components/resilient-image";
 import {
   ChangeEvent,
   DragEvent as ReactDragEvent,
@@ -1123,7 +1124,7 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
             : [];
           return (
             <div className="configured-mockup-canvas" key={mockupView.id}>
-              <img
+              <ResilientImg
                 src={mockupView.backgroundUrl}
                 alt={`${mockup.name} ${mockupView.side}`}
               />
@@ -1159,7 +1160,7 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
                   >
                     {entry.kind === "text" && entry.text}
                     {entry.kind === "image" && entry.src && (
-                      <img
+                      <ResilientImg
                         src={entry.src}
                         alt="طرح"
                         data-manual-crop={hasManualArtworkCrop(entry) ? "true" : undefined}
@@ -1487,7 +1488,7 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
                       })
                     }
                   >
-                    <img src={file.url} alt={file.name} />
+                    <ResilientImg src={file.url} alt={file.name} />
                     <span>{file.name}</span>
                   </button>
                 ))}
@@ -1534,7 +1535,7 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
                       })
                     }
                   >
-                    <img src={file.url} alt={file.title} />
+                    <ResilientImg src={file.url} alt={file.title} />
                     <span>{file.title}</span>
                     <small>{file.style_name}</small>
                   </button>
@@ -1586,7 +1587,7 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
             }}
           >
             {background ? (
-              <img
+              <ResilientImg
                 className="design-background"
                 src={background}
                 alt={raw.name}
@@ -1638,7 +1639,7 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
                     <span
                       className="canvas-image-clip"
                     >
-                      <img
+                      <ResilientImg
                         src={entry.src}
                         alt="design"
                         draggable={false}
@@ -1682,7 +1683,7 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
               ))}
             </div>
             {overlay && (
-              <img
+              <ResilientImg
                 className="design-overlay"
                 src={overlay}
                 alt="لایه رویی محصول"
@@ -1754,7 +1755,7 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
             <header><div><Crop/><h2>برش تصویر</h2></div><button type="button" onClick={()=>setCropOpen(false)}>×</button></header>
             <p>کادر روشن را جابه‌جا کن و از گوشه‌ها اندازه‌اش را آزادانه تغییر بده. نسبت نهایی تصویر همان نسبت کادر خواهد بود.</p>
             <div className="manual-crop-stage" style={{ aspectRatio: cropImageAspect }}>
-              <img src={item.src} alt="تصویر اصلی برای برش" draggable={false} onLoad={(event)=>{
+              <ResilientImg src={item.src} alt="تصویر اصلی برای برش" draggable={false} onLoad={(event)=>{
                 const image=event.currentTarget;
                 if(image.naturalWidth&&image.naturalHeight)setCropImageAspect(image.naturalWidth/image.naturalHeight);
               }}/>
@@ -1962,7 +1963,7 @@ export function DesignEditor({ data, tourState }: { data: EditorData; tourState:
                         >
                           <div>
                             {mockup.views[0]?.backgroundUrl && (
-                              <img
+                              <ResilientImg
                                 src={mockup.views[0].backgroundUrl}
                                 alt={mockup.name}
                               />
