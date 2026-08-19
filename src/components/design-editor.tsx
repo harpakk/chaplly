@@ -29,8 +29,6 @@ import {
   Keyboard,
   Layers3,
   Lock,
-  Maximize2,
-  Minimize2,
   MousePointer2,
   Move,
   Package,
@@ -252,7 +250,6 @@ export function DesignEditor({ data, tourState, productId }: { data: EditorData;
     ),
     [mockupSideFilter, setMockupSideFilter] = useState("ALL"),
     [mockupColorFilter, setMockupColorFilter] = useState("ALL"),
-    [expandedMockupId, setExpandedMockupId] = useState(""),
     [chatGuideOpen, setChatGuideOpen] = useState(false),
     [fileDragActive, setFileDragActive] = useState(false),
     [blockingSave, setBlockingSave] = useState("");
@@ -1036,9 +1033,12 @@ export function DesignEditor({ data, tourState, productId }: { data: EditorData;
     return () => window.removeEventListener("keydown", keyboard);
   });
   const finish = async () => {
+    if (productId && !window.confirm(
+      "با ادامه، رنگ‌ها و سایزهای انتخاب‌شده برای همین محصول ذخیره می‌شوند. پس از تأیید نهایی در مرحله بعد، همه تصاویر فعلی محصول حذف و موکاپ‌های تازه جایگزین آن‌ها خواهند شد. آیا مطمئن هستید؟",
+    )) return;
     const productDetailsUrl = (savedDesignId: string) =>
       productId
-        ? `/seller/dashboard/products/${productId}/edit?supplier=${selectedSupplierOfferId}`
+        ? `/seller/dashboard/products/${productId}/edit?supplier=${selectedSupplierOfferId}&replaceImages=1`
         : `/seller/dashboard/products/new?raw=${raw.id}&design=${savedDesignId}&supplier=${selectedSupplierOfferId}`;
     setBlockingSave("در حال ذخیره نسخه نهایی طراحی…");
     const timeout = <T,>(promise: Promise<T>, milliseconds: number) =>
@@ -1052,7 +1052,7 @@ export function DesignEditor({ data, tourState, productId }: { data: EditorData;
     try {
       if (id) {
         const [savedId, selection] = await Promise.all([
-          timeout(persist(), 15000).catch(() => id),
+          timeout(persist(), 15000),
           timeout(saveDesignMockupSelectionAction(id, selectedMockups), 10000),
         ]);
         if (!selection.ok) {
@@ -1076,14 +1076,8 @@ export function DesignEditor({ data, tourState, productId }: { data: EditorData;
         }
       }
     } catch {
-      if (designId) {
-        location.assign(
-          productDetailsUrl(designId),
-        );
-        return;
-      }
       setBlockingSave("");
-      setSaveState("ذخیره نهایی طول کشید؛ اتصال را بررسی و دوباره تلاش کنید.");
+      setSaveState("ذخیره رنگ‌ها، سایزها یا موکاپ‌ها کامل نشد؛ اتصال را بررسی و دوباره تلاش کنید. تا ذخیره کامل، به مرحله بعد منتقل نمی‌شوید.");
       return;
     }
     if (!id) {
@@ -1095,12 +1089,11 @@ export function DesignEditor({ data, tourState, productId }: { data: EditorData;
     );
   };
   const renderConfiguredMockup = (mockup: (typeof data.mockups)[number]) => (
-    <article className={`configured-mockup ${expandedMockupId === mockup.id ? "expanded" : ""}`} key={mockup.id}>
+    <article className="configured-mockup" key={mockup.id}>
       <h3>
         <span>{mockup.name}<small className={`mockup-side-badge ${mockup.side.toLowerCase()}`}>{mockup.side === "BACK" ? "نمای پشت" : "نمای جلو"}</small></span>
         <span className="configured-mockup-actions">
-          <button type="button" onClick={() => setExpandedMockupId((current) => current === mockup.id ? "" : mockup.id)} aria-label={expandedMockupId === mockup.id ? "بستن نمایش بزرگ" : "نمایش بزرگ"}>{expandedMockupId === mockup.id ? <Minimize2 /> : <Maximize2 />}</button>
-          <button type="button" className="remove" onClick={() => { setSelectedMockups((current) => current.filter((id) => id !== mockup.id)); setExpandedMockupId(""); }} aria-label={`حذف ${mockup.name}`}><Trash2 /></button>
+          <button type="button" className="remove" onClick={() => setSelectedMockups((current) => current.filter((id) => id !== mockup.id))} aria-label={`حذف ${mockup.name}`}><Trash2 /></button>
         </span>
       </h3>
       <div className="configured-mockup-views">
@@ -1113,18 +1106,8 @@ export function DesignEditor({ data, tourState, productId }: { data: EditorData;
                 `${rawView.id}:${mockup.color_id && independentColorIds.includes(mockup.color_id) ? mockup.color_id : sharedColorId}`
               ]
             : undefined;
-          const activeColorArtwork = rawView
-            ? objects[`${rawView.id}:${designColorId}`]
-            : undefined;
           const artwork = rawView
-            ? requestedArtwork?.length
-              ? requestedArtwork
-              : activeColorArtwork?.length
-                ? activeColorArtwork
-                : Object.entries(objects).find(
-                    ([key, entries]) =>
-                      key.startsWith(`${rawView.id}:`) && entries.length > 0,
-                  )?.[1] || []
+            ? requestedArtwork || []
             : [];
           return (
             <div className="configured-mockup-canvas" key={mockupView.id}>
@@ -1132,7 +1115,7 @@ export function DesignEditor({ data, tourState, productId }: { data: EditorData;
                 src={mockupView.backgroundUrl}
                 alt={`${mockup.name} ${mockupView.side}`}
               />
-              <WarpedArtwork
+              {artwork.length > 0 && <WarpedArtwork
                 points={mockupView.perspective_points}
                 clip={mockupView.artwork_clip}
                 fabricTextureUrl={mockupView.backgroundUrl}
@@ -1176,7 +1159,7 @@ export function DesignEditor({ data, tourState, productId }: { data: EditorData;
                     )}
                   </div>
                 ))}
-              </WarpedArtwork>
+              </WarpedArtwork>}
             </div>
           );
         })}

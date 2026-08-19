@@ -30,6 +30,7 @@ import { ExclusiveStoreControl } from "@/components/exclusive-store-control";
 import { StorefrontBuilder } from "@/components/storefront-builder";
 import {
   archiveSellerProductAction,
+  archiveSellerProductsAction,
   archiveSellerDesignsAction,
   assignSupplierToProductAction,
   deleteBankAccountAction,
@@ -705,6 +706,17 @@ function Designs({ data }: { data: SellerData }) {
 }
 
 function Products({ data }: { data: SellerData }) {
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const selectableIds = data.products.map((product) => product.id);
+  const allSelected =
+    selectableIds.length > 0 && selectableIds.every((id) => selectedIds.includes(id));
+  const toggleSelection = (id: string) =>
+    setSelectedIds((current) =>
+      current.includes(id)
+        ? current.filter((item) => item !== id)
+        : [...current, id],
+    );
   return (
     <div className="sd-stack">
       <section className="sd-intro-row">
@@ -714,9 +726,21 @@ function Products({ data }: { data: SellerData }) {
             پیش‌نویس، منتظر بررسی، منتشرشده و ردشده همگی از دیتابیس می‌آیند.
           </p>
         </div>
-        <Link className="sd-primary" href="/seller/dashboard/products/new">
-          <Plus /> ساخت محصول جدید
-        </Link>
+        <div className="design-library-head-actions">
+          <button
+            type="button"
+            className={selectionMode ? "design-multi-select active" : "design-multi-select"}
+            onClick={() => {
+              setSelectionMode((value) => !value);
+              setSelectedIds([]);
+            }}
+          >
+            <Check /> {selectionMode ? "لغو انتخاب" : "انتخاب چندتایی"}
+          </button>
+          <Link className="sd-primary" href="/seller/dashboard/products/new">
+            <Plus /> ساخت محصول جدید
+          </Link>
+        </div>
       </section>
       {data.products.length ? (
         <section className="sd-card seller-products-card">
@@ -729,6 +753,31 @@ function Products({ data }: { data: SellerData }) {
               <ShoppingBag /> مشاهده فروشگاه
             </Link>
           </header>
+          {selectionMode && (
+            <ActionForm
+              action={archiveSellerProductsAction}
+              confirmMessage={`حذف نهایی ${selectedIds.length.toLocaleString("fa-IR")} محصول انتخاب‌شده؟ این محصولات فوراً از فروشگاه، لینک عمومی و جست‌وجو حذف و بایگانی می‌شوند. سوابق سفارش‌ها محفوظ می‌مانند. فقط اگر کاملاً مطمئن هستید تأیید کنید.`}
+              savingText="در حال حذف محصولات انتخاب‌شده…"
+              className="design-bulk-toolbar seller-product-bulk-toolbar"
+              onSuccess={() => {
+                setSelectedIds([]);
+                setSelectionMode(false);
+              }}
+            >
+              {selectedIds.map((id) => <input type="hidden" name="productIds" value={id} key={id} />)}
+              <button
+                type="button"
+                className="design-select-all"
+                onClick={() => setSelectedIds(allSelected ? [] : selectableIds)}
+              >
+                <Check /> {allSelected ? "برداشتن همه" : "انتخاب همه"}
+              </button>
+              <span>{selectedIds.length.toLocaleString("fa-IR")} محصول انتخاب شده</span>
+              <button type="submit" className="danger-button" disabled={!selectedIds.length}>
+                <Trash2 /> حذف انتخاب‌شده‌ها
+              </button>
+            </ActionForm>
+          )}
           <div className="seller-product-list">
             {data.products.map((product) => {
               const canViewAsBuyer =
@@ -743,7 +792,7 @@ function Products({ data }: { data: SellerData }) {
                   (variant) => variant.status === "OUT_OF_STOCK",
                 ).length;
               return (
-                <article className="seller-product-row" key={product.id}>
+                <article className={`seller-product-row${selectedIds.includes(product.id) ? " selected" : ""}`} key={product.id}>
                   <div className="seller-product-image">
                     {product.mainImageUrl ? (
                       <ResilientImage
@@ -762,6 +811,17 @@ function Products({ data }: { data: SellerData }) {
                     <span className={`product-status product-status-${product.status.toLowerCase()}`}>
                       {statusFa(product.status)}
                     </span>
+                    {selectionMode && (
+                      <button
+                        type="button"
+                        className="seller-product-select-toggle"
+                        aria-label={`${product.title} را ${selectedIds.includes(product.id) ? "از انتخاب خارج کن" : "انتخاب کن"}`}
+                        aria-pressed={selectedIds.includes(product.id)}
+                        onClick={() => toggleSelection(product.id)}
+                      >
+                        <Check />
+                      </button>
+                    )}
                   </div>
                   <div className="seller-product-main">
                     <div className="seller-product-title-row">

@@ -9,13 +9,13 @@ export default async function SellerProductEditPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ supplier?: string }>;
+  searchParams: Promise<{ supplier?: string; replaceImages?: string }>;
 }) {
   const context = await requireSeller();
   const store = context.membership.organization.stores[0];
   if (!store) notFound();
   const { id } = await params;
-  const { supplier } = await searchParams;
+  const { supplier, replaceImages } = await searchParams;
   const editData = await getSellerProductEditData(id, store.id);
   if (!editData?.product.design_id) notFound();
   const data = await getDesignEditorData(
@@ -35,6 +35,7 @@ export default async function SellerProductEditPage({
       designId={editData.product.design_id}
       supplierOfferId={supplier || editData.product.primary_supplier_offer_id || undefined}
       editingProductId={editData.product.id}
+      replaceProductImages={replaceImages === "1"}
     />
   );
 }

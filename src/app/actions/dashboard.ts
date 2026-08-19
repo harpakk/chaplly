@@ -2361,6 +2361,40 @@ export async function archiveSellerProductAction(
   return ok("محصول از فهرست فروش حذف شد.", data.id);
 }
 
+export async function archiveSellerProductsAction(
+  _: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  const context = await requireSeller();
+  const storeId = context.membership.organization.stores[0]?.id;
+  const productIds = [
+    ...new Set(formData.getAll("productIds").map(String).filter(Boolean)),
+  ].slice(0, 100);
+  if (!storeId) return fail("فروشگاه پیدا نشد.");
+  if (!productIds.length) return fail("حداقل یک محصول را انتخاب کنید.");
+  const { data, error } = await createSupabaseAdmin()
+    .from("seller_products")
+    .update({ status: "ARCHIVED", updated_at: new Date().toISOString() })
+    .eq("store_id", storeId)
+    .in("id", productIds)
+    .neq("status", "ARCHIVED")
+    .select("id,slug");
+  if (error) return fail(error.message);
+  for (const product of data || []) revalidatePath(`/products/${product.slug}`);
+  revalidatePath("/seller/dashboard");
+  revalidatePath("/");
+  revalidateTag("catalog");
+  revalidateTag("products");
+  revalidateTag("marketplace-home");
+  clearMarketplaceMemoryCache();
+  const count = data?.length || 0;
+  return ok(
+    count
+      ? `${count.toLocaleString("fa-IR")} محصول از فروشگاه حذف و بایگانی شد.`
+      : "محصول قابل حذفی پیدا نشد.",
+  );
+}
+
 export async function archiveSellerDesignsAction(
   _: ActionResult,
   formData: FormData,
@@ -3291,6 +3325,22 @@ export async function saveSellerProductAction(
   const productImages = formData
     .getAll("productImages")
     .filter((value): value is File => value instanceof File && value.size > 0);
+  const replaceProductImages =
+    productAlreadyExists && String(formData.get("replaceProductImages") || "") === "true";
+  let removedProductImageIds: string[] = [];
+  try {
+    const parsed: unknown = JSON.parse(
+      String(formData.get("removedProductImageIds") || "[]"),
+    );
+    if (Array.isArray(parsed))
+      removedProductImageIds = [...new Set(parsed.map(String).filter(Boolean))].slice(0, 100);
+  } catch {
+    return fail(
+      "فهرست تصاویر حذف‌شده معتبر نیست. صفحه را تازه‌سازی کنید.",
+      { productImages: "تصاویر محصول را دوباره بررسی کنید." },
+      productAlreadyExists ? productId : undefined,
+    );
+  }
   if (!productAlreadyExists && !productImages.length)
     return fail(
       "ساخت محصول بدون تصویر ممکن نیست؛ حداقل یک موکاپ یا تصویر اضافه کنید.",
@@ -3587,7 +3637,17 @@ export async function saveSellerProductAction(
     );
   }
   try {
-    if (productImages.length) {
+    if (productImages.length || removedProductImageIds.length || replaceProductImages) {
+      const { data: currentImages, error: currentImagesError } = await admin
+        .from("product_images")
+        .select("id,file_id,sort_order,is_primary")
+        .eq("seller_product_id", productId)
+        .order("sort_order");
+      if (currentImagesError) throw currentImagesError;
+      const currentImageIds = new Set((currentImages || []).map((image) => image.id));
+      const deleteIds = replaceProductImages
+        ? (currentImages || []).map((image) => image.id)
+        : removedProductImageIds.filter((id) => currentImageIds.has(id));
       const uploadedImages = await Promise.all(
         productImages.map(async (file, index) => {
           const path = `${context.user.id}/products/${productId}/${randomUUID()}-${file.name.replace(/[^\w.-]+/g, "-")}`;
@@ -3611,24 +3671,78 @@ export async function saveSellerProductAction(
             file_id: fileId,
             alt_text: payload.title,
             sort_order: index,
-            is_primary: index === 0,
+            is_primary: false,
           };
         }),
       );
-      const { error: imageError } = await admin.rpc(
-        "service_append_product_images",
-        {
-          p_product_id: productId,
-          p_actor_id: context.user.id,
-          p_images: uploadedImages.map((image) => ({
-            fileId: image.file_id,
-            altText: image.alt_text,
-            sortOrder: image.sort_order,
-            isPrimary: image.is_primary,
-          })),
-        },
+      const retainedImages = (currentImages || []).filter(
+        (image) => !deleteIds.includes(image.id),
       );
-      if (imageError) throw imageError;
+      const sortOffset = replaceProductImages
+        ? 0
+        : Math.max(-1, ...retainedImages.map((image) => image.sort_order)) + 1;
+      let insertedImages: { id: string; file_id: string }[] = [];
+      if (uploadedImages.length) {
+        const { data: inserted, error: insertError } = await admin
+          .from("product_images")
+          .insert(
+            uploadedImages.map((image, index) => ({
+              ...image,
+              sort_order: sortOffset + index,
+            })),
+          )
+          .select("id,file_id");
+        if (insertError) throw insertError;
+        insertedImages = inserted || [];
+      }
+      if (deleteIds.length) {
+        const { error: deleteError } = await admin
+          .from("product_images")
+          .delete()
+          .eq("seller_product_id", productId)
+          .in("id", deleteIds);
+        if (deleteError) throw deleteError;
+      }
+      const { data: remainingImages, error: remainingError } = await admin
+        .from("product_images")
+        .select("id,is_primary")
+        .eq("seller_product_id", productId)
+        .order("sort_order");
+      if (remainingError) throw remainingError;
+      const nextPrimaryId =
+        insertedImages[0]?.id ||
+        remainingImages?.find((image) => image.is_primary)?.id ||
+        remainingImages?.[0]?.id;
+      if (nextPrimaryId) {
+        const { error: clearPrimaryError } = await admin
+          .from("product_images")
+          .update({ is_primary: false })
+          .eq("seller_product_id", productId)
+          .eq("is_primary", true);
+        if (clearPrimaryError) throw clearPrimaryError;
+        const { error: primaryError } = await admin
+          .from("product_images")
+          .update({ is_primary: true })
+          .eq("id", nextPrimaryId)
+          .eq("seller_product_id", productId);
+        if (primaryError) throw primaryError;
+      }
+      const deletedFileIds = (currentImages || [])
+        .filter((image) => deleteIds.includes(image.id))
+        .map((image) => image.file_id);
+      if (deletedFileIds.length) {
+        const { data: deletedFiles } = await admin
+          .from("storage_files")
+          .select("id,bucket,path")
+          .in("id", deletedFileIds);
+        for (const bucket of [...new Set((deletedFiles || []).map((file) => file.bucket))]) {
+          const paths = (deletedFiles || [])
+            .filter((file) => file.bucket === bucket)
+            .map((file) => file.path);
+          if (paths.length) await admin.storage.from(bucket).remove(paths);
+        }
+        await admin.from("storage_files").delete().in("id", deletedFileIds);
+      }
     }
   } catch (imageError) {
     console.error("Product image save failed", imageError);

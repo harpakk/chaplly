@@ -74,6 +74,7 @@ export function ProductCreationFlow({
   designId,
   supplierOfferId,
   editingProductId,
+  replaceProductImages = false,
   tourState,
 }: {
   data: CreationData | EditorData;
@@ -81,6 +82,7 @@ export function ProductCreationFlow({
   designId?: string;
   supplierOfferId?: string;
   editingProductId?: string;
+  replaceProductImages?: boolean;
   tourState: SellerTourState;
 }) {
   if (rawProductId && designId && "design" in data && data.design)
@@ -91,6 +93,7 @@ export function ProductCreationFlow({
         designId={designId}
         supplierOfferId={supplierOfferId}
         editingProductId={editingProductId}
+        replaceProductImages={replaceProductImages}
       />
     );
   return <StartProduct data={data} tourState={tourState} />;
@@ -202,16 +205,19 @@ function FinalProduct({
   designId,
   supplierOfferId,
   editingProductId,
+  replaceProductImages,
 }: {
   data: EditorData;
   rawProductId: string;
   designId: string;
   supplierOfferId?: string;
   editingProductId?: string;
+  replaceProductImages: boolean;
 }) {
   const raw = data.rawProducts[0];
   const draft = data.productDraft;
   const isEditing = Boolean(editingProductId);
+  const showFreshMockupRenders = !isEditing || replaceProductImages;
   const productSlug =
     draft?.slug || `${raw?.slug || "product"}-${designId.slice(0, 8)}`;
   const eligible = data.suppliers.filter((offer) =>
@@ -241,7 +247,11 @@ function FinalProduct({
   const [successOpen, setSuccessOpen] = useState(true);
   const [linkCopied, setLinkCopied] = useState(false);
   const [expandedImage, setExpandedImage] = useState<{ src: string; label: string } | null>(null);
-  const [submittedPrimaryImage, setSubmittedPrimaryImage] = useState("");
+  const [submittedPrimaryImage, setSubmittedPrimaryImage] = useState(
+    draft?.existingImages.find((image) => image.isPrimary)?.url ||
+      draft?.existingImages[0]?.url ||
+      "",
+  );
   const [title, setTitle] = useState(draft?.title || "");
   const [subtitle, setSubtitle] = useState(draft?.subtitle || "");
   const [description, setDescription] = useState(draft?.description || "");
@@ -264,12 +274,15 @@ function FinalProduct({
       : [];
   });
   const [visibleMockups, setVisibleMockups] = useState(
-    renderedMockupViews.map((item) => item.key),
+    showFreshMockupRenders ? renderedMockupViews.map((item) => item.key) : [],
   );
   const [primaryImage, setPrimaryImage] = useState(
-    renderedMockupViews[0]?.key || "",
+    showFreshMockupRenders ? renderedMockupViews[0]?.key || "" : "",
   );
   const [customImages, setCustomImages] = useState<File[]>([]);
+  const [retainedExistingImages, setRetainedExistingImages] = useState(
+    replaceProductImages ? [] : draft?.existingImages || [],
+  );
   const savedVariantMarkups = new Map(
     (draft?.variantPrices || []).map((item) => [item.rawProductVariantId, item.markupPercentage]),
   );
@@ -630,7 +643,7 @@ function FinalProduct({
       setPreparingImages(false);
       return;
     }
-    if (!transfer.files.length) {
+    if (!transfer.files.length && !retainedExistingImages.length) {
       showClientError(
         "در بخش «تصاویر محصول» حداقل یک موکاپ را نگه دارید یا از دکمه «افزودن تصویر» استفاده کنید.",
         "productImages",
@@ -684,6 +697,20 @@ function FinalProduct({
             value={state.id || editingProductId || draft?.id || ""}
           />
           <input
+            type="hidden"
+            name="replaceProductImages"
+            value={replaceProductImages ? "true" : "false"}
+          />
+          <input
+            type="hidden"
+            name="removedProductImageIds"
+            value={JSON.stringify(
+              (draft?.existingImages || [])
+                .filter((image) => !retainedExistingImages.some((retained) => retained.id === image.id))
+                .map((image) => image.id),
+            )}
+          />
+          <input
             ref={fileInput}
             type="file"
             name="productImages"
@@ -720,7 +747,7 @@ function FinalProduct({
               <div>
                 <span>طراحی متصل به همین محصول</span>
                 <h2>طرح، رنگ‌ها یا موکاپ‌ها را تغییر می‌دهی؟</h2>
-                <p>همین design group با همه نماهای جلو، پشت و نسخه‌های رنگی باز می‌شود. بعد از انتخاب موکاپ، دوباره به همین محصول برمی‌گردی و رندرهای تازه به تصاویر آن اضافه می‌شوند.</p>
+                <p>همین گروه طراحی با همه نماهای جلو، پشت و نسخه‌های رنگی باز می‌شود. بعد از انتخاب موکاپ‌ها با هشدار به این صفحه برمی‌گردی؛ در ذخیره نهایی، تصاویر فعلی حذف و رندرهای تازه جایگزین می‌شوند.</p>
               </div>
               <Link href={`/seller/dashboard/products/new/design?raw=${rawProductId}&design=${designId}&product=${editingProductId}`}>
                 <Layers3 /> ویرایش طراحی و ساخت موکاپ جدید
@@ -731,25 +758,46 @@ function FinalProduct({
             <span>تصاویر محصول</span>
             <h2>موکاپ‌های نهایی و تصاویر دلخواه</h2>
             <p>
-              {isEditing
-                ? "موکاپ‌های انتخاب‌شده با نسخه جدید طرح رندر می‌شوند و پس از ذخیره به تصاویر فعلی همین محصول اضافه خواهند شد."
+              {isEditing && replaceProductImages
+                ? "موکاپ‌های تازه با نسخه جدید طرح رندر می‌شوند. هنگام ذخیره، تصاویر قبلی محصول حذف و این خروجی‌ها جایگزین می‌شوند."
+                : isEditing
+                  ? "تصاویر فعلی محصول را نگه دارید یا موارد دلخواه را حذف و تصویر تازه اضافه کنید. پیش‌نمایش طراحی‌های قبلاً رندرشده دوباره ساخته نمی‌شود."
                 : "حداقل یک تصویر لازم است. موکاپ‌ها با طرح شما رندر می‌شوند و می‌توانید حذفشان کنید یا تصویر دیگری اضافه کنید."}
             </p>
-            {isEditing && Boolean(draft?.existingImages.length) && (
-              <div className="existing-product-images">
-                <header><b>تصاویر فعلی محصول</b><small>این تصاویر حفظ می‌شوند؛ رندرهای پایین پس از ذخیره به آن‌ها اضافه خواهند شد.</small></header>
-                <div>
-                  {draft!.existingImages.map((image) => (
+            {isEditing && !replaceProductImages && Boolean(draft?.existingImages.length) && (
+              <div className="existing-product-images editable">
+                <header><b>تصاویر فعلی محصول</b><small>حذف‌ها پس از زدن دکمه ذخیره اعمال می‌شوند.</small></header>
+                {retainedExistingImages.length ? <div>
+                  {retainedExistingImages.map((image) => (
                     <span key={image.id}>
                       <ResilientImage src={image.url} alt={draft?.title || "تصویر فعلی محصول"} fill sizes="110px" unoptimized />
                       {image.isPrimary && <b>تصویر اصلی فعلی</b>}
+                      <button
+                        type="button"
+                        aria-label="حذف این تصویر محصول"
+                        onClick={() => setRetainedExistingImages((current) => {
+                          const next = current.filter((item) => item.id !== image.id);
+                          if (submittedPrimaryImage === image.url)
+                            setSubmittedPrimaryImage(
+                              next.find((item) => item.isPrimary)?.url || next[0]?.url || "",
+                            );
+                          return next;
+                        })}
+                      >
+                        <Trash2 />
+                      </button>
                     </span>
                   ))}
-                </div>
+                </div> : <button type="button" className="restore-product-images" onClick={() => {
+                  setRetainedExistingImages(draft?.existingImages || []);
+                  setSubmittedPrimaryImage(
+                    draft?.existingImages.find((image) => image.isPrimary)?.url || draft?.existingImages[0]?.url || "",
+                  );
+                }}>همه تصاویر برای حذف علامت خورده‌اند — بازگرداندن تصاویر</button>}
               </div>
             )}
             <div className="final-product-images">
-              {renderedMockupViews
+              {showFreshMockupRenders && renderedMockupViews
                 .filter((item) => visibleMockups.includes(item.key))
                 .map(({ mockup, view: mockupView, key }) => {
                   const rawView = raw.views.find(
@@ -768,7 +816,7 @@ function FinalProduct({
                   const colorArtwork = mockup.color_id
                     ? document?.colorObjects?.[mockup.color_id]
                     : undefined;
-                  const mockupArtwork = colorArtwork?.length
+                  const mockupArtwork = colorArtwork !== undefined
                     ? colorArtwork
                     : document?.objects || [];
                   return (
@@ -788,7 +836,7 @@ function FinalProduct({
                             data-mockup-background
                             data-mockup-view-id={mockupView.id}
                           />
-                          <WarpedArtwork
+                          {mockupArtwork.length > 0 && <WarpedArtwork
                             key={`${mockup.id}:${mockupView.id}:${mockup.color_id || "default"}`}
                             points={mockupView.perspective_points}
                             clip={mockupView.artwork_clip}
@@ -843,7 +891,7 @@ function FinalProduct({
                                   )}
                               </div>
                             ))}
-                          </WarpedArtwork>
+                          </WarpedArtwork>}
                         </div>
                       </div>
                       <small className="mockup-side-label">
