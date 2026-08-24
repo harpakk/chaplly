@@ -33,7 +33,7 @@ function PriceInput({ label, minimum, value, onChange }: { label: string; minimu
     onChange(nextValue);
     return nextValue;
   };
-  return <input dir="ltr" inputMode="numeric" aria-label={label} aria-valuemin={minimum} type="text" required value={draft} onFocus={() => setFocused(true)} onChange={(event) => {
+  return <input dir="ltr" inputMode="numeric" aria-label={label} type="text" required value={draft} onFocus={() => setFocused(true)} onChange={(event) => {
     const raw = event.target.value.replace(/[٬,\s]/g, "").replace(/\D/g, "");
     setDraft(raw ? formattedPrice(Number(raw)) : "");
     if (raw) onChange(Number(raw));

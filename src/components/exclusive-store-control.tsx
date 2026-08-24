@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { activateExclusiveStoreAction, type ActionResult } from "@/app/actions/dashboard";
 import { SavingOverlay } from "@/components/saving-overlay";
+import { ResilientImage } from "@/components/resilient-image";
 
 type Store = {
   name: string;

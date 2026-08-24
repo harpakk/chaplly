@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element -- DOM images are rasterized into product PNG files. */
 "use client";
 
 import Link from "next/link";

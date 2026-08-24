@@ -585,6 +585,8 @@ export async function approveAllPendingProductsAction(
   _: ActionResult,
   _formData: FormData,
 ): Promise<ActionResult> {
+  void _;
+  void _formData;
   const admin = await requireAdmin();
   const db = createSupabaseAdmin();
   const { data, error } = await db.rpc(

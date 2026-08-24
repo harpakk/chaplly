@@ -22,6 +22,7 @@ import {
   X,
   BadgePercent,
   Video,
+  SearchCheck,
 } from "lucide-react";
 import { adminLogoutAction } from "@/app/admin/actions";
 import { BrandLogo } from "@/components/brand-logo";
@@ -40,6 +41,7 @@ const links = [
   ["/admin/coupons", "کدهای تخفیف", BadgePercent],
   ["/admin/tickets", "پشتیبانی", Headphones],
   ["/admin/ai-assistant", "دستیار هوشمند", Bot],
+  ["/admin/seo", "بهینه‌سازی SEO", SearchCheck],
   ["/admin/settings", "تنظیمات", Settings],
 ] as const;
 export function AdminShell({

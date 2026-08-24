@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { CheckCircle2, ExternalLink, Trash2, XCircle } from "lucide-react";
 import { ActionForm } from "@/components/action-form";
 import { deleteReelAction, moderateReelAction } from "@/app/actions/dashboard";

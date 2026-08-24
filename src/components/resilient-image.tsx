@@ -36,7 +36,7 @@ function useImageRetry(source: string) {
   return { src: useMemo(() => retrySource(source, attempt), [attempt, source]), retry: () => setFailed(true), loaded: () => setFailed(false) };
 }
 
-export function ResilientImage({ src, onError, onLoad, ...props }: ImageProps) {
+export function ResilientImage({ src, alt, onError, onLoad, ...props }: ImageProps) {
   const source =
     typeof src === "string"
       ? src
@@ -46,10 +46,11 @@ export function ResilientImage({ src, onError, onLoad, ...props }: ImageProps) {
           ? src.src
           : src.default.src;
   const retry = useImageRetry(source);
-  return <Image {...props} src={retry.src || src} onError={(event) => { retry.retry(); onError?.(event); }} onLoad={(event) => { retry.loaded(); onLoad?.(event); }} />;
+  return <Image {...props} src={retry.src || src} alt={alt} onError={(event) => { retry.retry(); onError?.(event); }} onLoad={(event) => { retry.loaded(); onLoad?.(event); }} />;
 }
 
-export function ResilientImg({ src = "", onError, onLoad, ...props }: ImgHTMLAttributes<HTMLImageElement>) {
+export function ResilientImg({ src = "", alt = "", onError, onLoad, ...props }: ImgHTMLAttributes<HTMLImageElement>) {
   const retry = useImageRetry(typeof src === "string" ? src : "");
-  return <img {...props} src={retry.src || src} onError={(event) => { retry.retry(); onError?.(event); }} onLoad={(event) => { retry.loaded(); onLoad?.(event); }} />;
+  // eslint-disable-next-line @next/next/no-img-element -- used by the rasterizing design renderer
+  return <img {...props} src={retry.src || src} alt={alt} onError={(event) => { retry.retry(); onError?.(event); }} onLoad={(event) => { retry.loaded(); onLoad?.(event); }} />;
 }

@@ -6,6 +6,15 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
   public: {
     Tables: {
+      "articles": {
+        Row: { id: string; slug: string; title: string; excerpt: string; seo_title: string; seo_description: string; keywords: string[]; content: Json; hero_file_id: string | null; author_id: string; status: string; reading_minutes: number; published_at: string | null; created_at: string; updated_at: string };
+        Insert: { id?: string; slug: string; title: string; excerpt: string; seo_title: string; seo_description: string; keywords?: string[]; content?: Json; hero_file_id?: string | null; author_id: string; status?: string; reading_minutes?: number; published_at?: string | null; created_at?: string; updated_at?: string };
+        Update: { id?: string; slug?: string; title?: string; excerpt?: string; seo_title?: string; seo_description?: string; keywords?: string[]; content?: Json; hero_file_id?: string | null; author_id?: string; status?: string; reading_minutes?: number; published_at?: string | null; created_at?: string; updated_at?: string };
+        Relationships: [
+          { foreignKeyName: "articles_author_id_fkey"; columns: ["author_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "articles_hero_file_id_fkey"; columns: ["hero_file_id"]; isOneToOne: false; referencedRelation: "storage_files"; referencedColumns: ["id"] },
+        ];
+      };
       "admin_mockup_test_assets": {
         Row: {
           "singleton": boolean;
@@ -5300,7 +5309,7 @@ export type Database = {
     Enums: {
       "account_role": "BUYER" | "SELLER" | "SUPPLIER" | "ADMIN";
       "account_state": "PENDING" | "ACTIVE" | "RESTRICTED" | "SUSPENDED" | "CLOSED";
-      "asset_kind": "PRODUCT_IMAGE" | "RAW_PRODUCT_IMAGE" | "RAW_BACKGROUND" | "RAW_OVERLAY" | "VARIANT_MOCKUP" | "DESIGN_SOURCE" | "DESIGN_PREVIEW" | "PRINTABLE_EXPORT" | "AI_IMAGE" | "PAYOUT_RECEIPT" | "TICKET_ATTACHMENT" | "STORE_LOGO" | "STORE_BANNER" | "TUTORIAL_VIDEO" | "TUTORIAL_FILE" | "TUTORIAL_THUMBNAIL" | "REEL_VIDEO" | "CATEGORY_IMAGE" | "GRAPHIC_STYLE_IMAGE";
+      "asset_kind": "PRODUCT_IMAGE" | "RAW_PRODUCT_IMAGE" | "RAW_BACKGROUND" | "RAW_OVERLAY" | "VARIANT_MOCKUP" | "DESIGN_SOURCE" | "DESIGN_PREVIEW" | "PRINTABLE_EXPORT" | "AI_IMAGE" | "PAYOUT_RECEIPT" | "TICKET_ATTACHMENT" | "STORE_LOGO" | "STORE_BANNER" | "TUTORIAL_VIDEO" | "TUTORIAL_FILE" | "TUTORIAL_THUMBNAIL" | "REEL_VIDEO" | "CATEGORY_IMAGE" | "GRAPHIC_STYLE_IMAGE" | "ARTICLE_IMAGE";
       "earning_state": "PENDING" | "AVAILABLE" | "RESERVED" | "PAID" | "REVERSED";
       "file_state": "PENDING" | "READY" | "QUARANTINED" | "REJECTED" | "DELETED";
       "fulfilment_status": "ASSIGNED" | "IN_PRODUCTION" | "QUALITY_CHECK" | "READY_TO_SEND" | "SENT" | "DONE" | "CANCELLED" | "RETURNED";

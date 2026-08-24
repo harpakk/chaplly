@@ -18,7 +18,8 @@ export async function insertStorageFileDirect(input: {
     | "SUPPLIER_LOGO"
     | "SUPPLIER_BANNER"
     | "CATEGORY_IMAGE"
-    | "GRAPHIC_STYLE_IMAGE";
+    | "GRAPHIC_STYLE_IMAGE"
+    | "ARTICLE_IMAGE";
   originalName: string;
   mimeType: string;
   sizeBytes: number;

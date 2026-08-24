@@ -8,6 +8,7 @@ import { AttributionTracker } from "@/components/attribution-tracker";
 import { brandConfig } from "@/lib/brand-config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import "./globals.css";
+import "./article.css";
 
 // Liara injects application secrets at runtime rather than while building the
 // image. Every route depends on Supabase-backed navigation or user data, so it

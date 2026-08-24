@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import "@fontsource/vazirmatn/400.css";
@@ -729,6 +728,7 @@ export function DesignEditor({ data, tourState, productId }: { data: EditorData;
     try {
       const result = await uploadDesignAssetAction(form);
       if (result.ok && result.url && result.fileId) {
+        const uploadedFileId = result.fileId;
         setObjects((current) => ({
           ...current,
           [activeKey]: (current[activeKey] || []).map((entry) =>
@@ -736,18 +736,18 @@ export function DesignEditor({ data, tourState, productId }: { data: EditorData;
               ? {
                   ...entry,
                   src: result.url,
-                  storageFileId: result.fileId,
+                  storageFileId: uploadedFileId,
                 }
               : entry,
           ),
         }));
         setUploads((current) => [
           {
-            id: result.fileId,
+            id: uploadedFileId,
             name: file.name,
             url: result.url!,
           },
-          ...current.filter((item) => item.id !== result.fileId),
+          ...current.filter((item) => item.id !== uploadedFileId),
         ]);
         URL.revokeObjectURL(temporaryUrl);
         setSaveState("تصویر آپلود و ذخیره شد");
