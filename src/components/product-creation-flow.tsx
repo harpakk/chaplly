@@ -67,6 +67,7 @@ const productTourSteps: SellerTourStep[] = [
   { target: '[data-tour="raw-products"]', emoji: "👕", title: "حالا محصول خام را بردار", body: "هر کارت رنگ‌ها، اندازه‌ها و نمای قابل طراحی را نشون می‌ده. محصولی را انتخاب کن که به طرحت میاد." },
   { target: '[data-tour="enter-design"]', emoji: "✨", title: "ورود به استودیو", body: "با این دکمه وارد طراحی می‌شی؛ هنوز چیزی منتشر نمی‌شه و هر وقت بخوای می‌تونی برگردی.", hint: "بعد از کلیک، راهنمای خود استودیو هم منتظرته." },
 ];
+productTourSteps[0].title = "محصول خامتو انتخاب کن";
 
 export function ProductCreationFlow({
   data,

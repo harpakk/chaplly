@@ -106,6 +106,13 @@ export function SellerOnboardingTour({
   const position = useMemo(() => {
     if (!target) return { top: "50%", left: "50%", transform: "translate(-50%,-50%)" };
     const width = Math.min(390, window.innerWidth - 28);
+    const fitsOnLeft = target.left - width - 18 >= 14;
+    const fitsOnRight = target.left + target.width + width + 18 <= window.innerWidth - 14;
+    if (fitsOnLeft || fitsOnRight) {
+      const left = fitsOnLeft ? target.left - width - 18 : target.left + target.width + 18;
+      const top = Math.max(14, Math.min(window.innerHeight - 520, target.top + target.height / 2 - 230));
+      return { top, left, width, transform: "none" };
+    }
     const below = target.top + target.height + 18;
     const top = below + 330 < window.innerHeight ? below : Math.max(14, target.top - 338);
     const left = Math.max(14, Math.min(window.innerWidth - width - 14, target.left + target.width / 2 - width / 2));
