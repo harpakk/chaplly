@@ -253,7 +253,8 @@ export function DesignEditor({ data, tourState, productId }: { data: EditorData;
     [chatGuideOpen, setChatGuideOpen] = useState(false),
     [fileDragActive, setFileDragActive] = useState(false),
     [blockingSave, setBlockingSave] = useState(""),
-    [pendingUploads, setPendingUploads] = useState(0);
+    [pendingUploads, setPendingUploads] = useState(0),
+    [retryNotice, setRetryNotice] = useState(false);
   const uploadRef = useRef<HTMLInputElement>(null),
     copiedObject = useRef<ObjectItem | null>(null),
     saving = useRef(false);
@@ -1072,6 +1073,7 @@ export function DesignEditor({ data, tourState, productId }: { data: EditorData;
     }
   };
   const finish = async () => {
+    setRetryNotice(false);
     if (productId && !window.confirm(
       "با ادامه، رنگ‌ها و سایزهای انتخاب‌شده برای همین محصول ذخیره می‌شوند. پس از تأیید نهایی در مرحله بعد، همه تصاویر فعلی محصول حذف و موکاپ‌های تازه جایگزین آن‌ها خواهند شد. آیا مطمئن هستید؟",
     )) return;
@@ -1097,6 +1099,7 @@ export function DesignEditor({ data, tourState, productId }: { data: EditorData;
         if (!selection.ok) {
           setBlockingSave("");
           setSaveState(selection.message);
+          setRetryNotice(true);
           return;
         }
         id = savedId || id;
@@ -1110,6 +1113,7 @@ export function DesignEditor({ data, tourState, productId }: { data: EditorData;
           if (!selection.ok) {
             setBlockingSave("");
             setSaveState(selection.message);
+            setRetryNotice(true);
             return;
           }
         }
@@ -1117,10 +1121,12 @@ export function DesignEditor({ data, tourState, productId }: { data: EditorData;
     } catch {
       setBlockingSave("");
       setSaveState("ذخیره رنگ‌ها، سایزها یا موکاپ‌ها کامل نشد؛ اتصال را بررسی و دوباره تلاش کنید. تا ذخیره کامل، به مرحله بعد منتقل نمی‌شوید.");
+      setRetryNotice(true);
       return;
     }
     if (!id) {
       setBlockingSave("");
+      setRetryNotice(true);
       return;
     }
     location.assign(
@@ -1811,6 +1817,7 @@ export function DesignEditor({ data, tourState, productId }: { data: EditorData;
             <button className="close" onClick={() => setPhase("design")}>
               ×
             </button>
+            <button type="button" className="flow-previous" onClick={() => phase === "supplier" ? setPhase("design") : phase === "variants" ? (variantStep === "sizes" ? setVariantStep("colors") : setPhase("supplier")) : phase === "mockups" ? setPhase("variants") : setPhase("mockups")}><ArrowRight /> مرحله قبل</button>
             {phase === "supplier" ? (
               <>
                 <Package />
@@ -2070,6 +2077,7 @@ export function DesignEditor({ data, tourState, productId }: { data: EditorData;
                 >
                   انتخاب دوباره
                 </button>
+                {retryNotice && <p className="design-retry-notice"><strong>این مرحله هنوز کامل نشده است.</strong> لطفاً دکمه زیر را دوباره بزنید.</p>}
                 <button
                   disabled={!selectedMockups.length || Boolean(blockingSave)}
                   data-action-waiting={blockingSave ? "true" : undefined}

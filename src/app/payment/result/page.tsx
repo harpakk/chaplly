@@ -7,7 +7,7 @@ import { PaymentSuccessCleanup } from "@/components/payment-success-cleanup";
 export default async function PaymentResultPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; order?: string; receipt?: string; ref?: string }>;
+  searchParams: Promise<{ status?: string; order?: string; receipt?: string; ref?: string; reason?: string }>;
 }) {
   const query = await searchParams;
   const user = await getCurrentUser();
@@ -51,6 +51,7 @@ export default async function PaymentResultPage({
           </>
         ) : (
           <>
+            {query.reason && <p className="payment-failure-reason"><b>علت:</b> {query.reason}</p>}
             <p>سفارش شما محفوظ است و مبلغی در چاپلی تأیید نشده. برای بررسی دوباره یا ادامه پرداخت از دکمه زیر استفاده کنید.</p>
             <a className="market-button primary" href={recover}><CreditCard /> ادامه یا بررسی پرداخت</a>
             <Link className="market-button secondary" href="/">بازگشت به فروشگاه</Link>

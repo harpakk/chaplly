@@ -536,6 +536,11 @@ export async function moderateProductAction(
   const customMessage =
     String(formData.get("customMessage") || "").trim() || null;
   const db = createSupabaseAdmin();
+  const { data: productContext } = await db
+    .from("seller_products")
+    .select("id,title,slug,stores(organization_id)")
+    .eq("id", productId)
+    .maybeSingle();
   const { data, error } = await db.rpc("service_moderate_product", {
     p_product_id: productId,
     p_decision: decision,
@@ -544,6 +549,24 @@ export async function moderateProductAction(
     p_actor_id: admin.id,
   });
   if (error) return fail(error.message);
+  if (decision === "APPROVED") {
+    const { error: publishError } = await db.from("seller_products").update({ status: "PUBLISHED", visibility: "VISIBLE" }).eq("id", productId).eq("moderation_status", "APPROVED");
+    if (publishError) return fail(`محصول تأیید شد اما ورود به ویترین انجام نشد: ${publishError.message}`);
+  } else if (productContext) {
+    const store = one(productContext.stores) as { organization_id?: string } | undefined;
+    const { data: queue } = await db.from("product_moderation_queue").select("seller_id").eq("seller_product_id", productId).order("submitted_at", { ascending: false }).limit(1).maybeSingle();
+    const { data: rejectionReason } = reasonId ? await db.from("rejection_reasons").select("title").eq("id", reasonId).maybeSingle() : { data: null };
+    if (store?.organization_id && queue?.seller_id) {
+      const body = `محصول «${productContext.title}» رد شد.\nشناسه محصول: ${productContext.id}\nآدرس: ${productContext.slug}\nدلیل رد: ${rejectionReason?.title || "نیازمند اصلاح"}${customMessage ? `\nتوضیح تکمیلی مدیر: ${customMessage}` : ""}`;
+      const { data: ticket, error: ticketError } = await db.from("tickets").insert({ organization_id: store.organization_id, opened_by_user_id: queue.seller_id, subject: `نیاز به اصلاح محصول: ${productContext.title}`, category: "PRODUCT", priority: "HIGH", status: "WAITING_USER", reference_type: "PRODUCT", reference_id: productId, last_message_at: new Date().toISOString() }).select("id").single();
+      if (!ticketError && ticket) {
+        const { data: message, error: messageError } = await db.from("ticket_messages").insert({ ticket_id: ticket.id, sender_id: admin.id, sender_role: "ADMIN", body, visibility: "PUBLIC" }).select("id").single();
+        await db.from("ticket_participants").insert({ ticket_id: ticket.id, user_id: queue.seller_id, organization_id: store.organization_id, role: "REQUESTER" });
+        await db.from("ticket_read_states").upsert({ ticket_id: ticket.id, user_id: queue.seller_id, unread_count: 1, last_read_message_id: null, last_read_at: null });
+        if (messageError || !message) console.error("Product rejection ticket message failed", { productId, ticketId: ticket.id, error: messageError?.message });
+      } else console.error("Product rejection ticket failed", { productId, error: ticketError?.message });
+    }
+  }
   revalidatePath("/admin/pending-products");
   revalidatePath("/");
   revalidateTag("catalog");
@@ -590,6 +613,8 @@ export async function approveAllPendingProductsAction(
       count += 1;
     }
   }
+  const { error: visibilityError } = await db.from("seller_products").update({ visibility: "VISIBLE" }).eq("moderation_status", "APPROVED").eq("status", "PUBLISHED");
+  if (visibilityError) return fail(`تأیید انجام شد اما نمایش محصولات کامل نشد: ${visibilityError.message}`);
   revalidatePath("/admin/pending-products");
   revalidatePath("/");
   revalidateTag("catalog");
@@ -2997,11 +3022,13 @@ export async function checkoutOrderAction(
       };
     } catch (gatewayError) {
       const message = errorMessage(gatewayError, "ارتباط با زرین‌پال برقرار نشد.");
+      const traceId = randomUUID();
+      console.error("Zarinpal payment request failed", { traceId, orderId, orderNumber: order.number, payableTotal, callbackUrl: process.env.ZARINPAL_CALLBACK_URL || "https://chaplly.ir/api/payments/zarinpal/callback", error: gatewayError });
       await admin
         .from("payment_attempts")
-        .update({ status: "FAILED", failure_message: message })
+        .update({ status: "FAILED", failure_code: traceId, failure_message: message, response_payload: { traceId, stage: "gateway_request", message } })
         .eq("id", existingAttempt.id);
-      return fail(`سفارش ذخیره شد، اما درگاه زرین‌پال پاسخ نداد: ${message}`);
+      return fail(`انتقال به زرین‌پال انجام نشد. علت: ${message} — کد پیگیری فنی: ${traceId}`);
     }
   }
   const capturedAt = new Date().toISOString();
@@ -3384,6 +3411,11 @@ export async function saveSellerProductAction(
   const graphicStyleIds = [
     ...new Set(formData.getAll("graphicStyleIds").map(String).filter(Boolean)),
   ];
+  let duplicateTitleQuery = admin.from("seller_products").select("id", { count: "exact", head: true }).eq("store_id", storeId).ilike("title", title);
+  if (productId) duplicateTitleQuery = duplicateTitleQuery.neq("id", productId);
+  const { count: duplicateTitleCount, error: duplicateTitleError } = await duplicateTitleQuery;
+  if (duplicateTitleError) return databaseFailure(duplicateTitleError, productAlreadyExists ? productId : undefined);
+  if ((duplicateTitleCount || 0) > 0) return fail("محصولی با همین نام قبلاً در فروشگاه شما ساخته شده است؛ یک نام متفاوت انتخاب کنید.", { title: "نام محصول باید بین تمام پیش‌نویس‌ها و محصولات شما یکتا باشد." }, productAlreadyExists ? productId : undefined);
   const slug = String(formData.get("slug") || "")
     .trim()
     .toLowerCase()

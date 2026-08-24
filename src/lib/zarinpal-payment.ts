@@ -54,20 +54,23 @@ export async function finalizeZarinpalPayment(authority: string): Promise<Zarinp
 
   try {
     const verified = await verifyZarinpalPayment(authority, Number(attempt.amount));
-    const { data: paymentId, error: paymentError } = await db.rpc("record_payment", {
-      p_order_id: attempt.order_id,
-      p_provider: "ZARINPAL",
-      p_provider_payment_id: authority,
-      p_idempotency_key: `${attempt.idempotency_key}:capture`,
-      p_amount: Number(attempt.amount),
-      p_provider_response: verified.response,
-    });
+    const { data: payment, error: paymentError } = await db.from("payments").upsert({
+      order_id: attempt.order_id,
+      provider: "ZARINPAL",
+      provider_payment_id: authority,
+      idempotency_key: `${attempt.idempotency_key}:capture`,
+      amount: Number(attempt.amount),
+      status: "CAPTURED",
+      provider_response: verified.response as Json,
+      captured_at: new Date().toISOString(),
+    }, { onConflict: "idempotency_key" }).select("id").single();
     if (paymentError) throw paymentError;
-    await db.from("orders").update({ status: "CONFIRMED" }).eq("id", attempt.order_id).eq("status", "PENDING");
+    const { error: orderError } = await db.from("orders").update({ status: "CONFIRMED", paid_at: new Date().toISOString() }).eq("id", attempt.order_id).is("paid_at", null);
+    if (orderError) throw orderError;
     await db
       .from("payment_attempts")
       .update({
-        payment_id: String(paymentId),
+        payment_id: String(payment.id),
         status: "SUCCEEDED",
         response_payload: { ...previous, verification: verified.response },
         completed_at: new Date().toISOString(),
@@ -88,6 +91,7 @@ export async function finalizeZarinpalPayment(authority: string): Promise<Zarinp
     };
   } catch (verificationError) {
     const value = verificationError as { message?: string; code?: string | number; response?: unknown };
+    console.error("Zarinpal payment verification failed", { authority, attemptId: attempt.id, orderId: attempt.order_id, amount: attempt.amount, error: verificationError });
     await db
       .from("payment_attempts")
       .update({

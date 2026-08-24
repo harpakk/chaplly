@@ -49,11 +49,13 @@ export function SellerDashboardShell({
   storeName,
   logoUrl,
   tourState,
+  unreadTickets,
 }: {
   children: ReactNode;
   storeName: string;
   logoUrl: string | null;
   tourState: SellerTourState;
+  unreadTickets: number;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobile, setMobile] = useState(false);
@@ -194,6 +196,7 @@ export function SellerDashboardShell({
             >
               <Headphones />
               <span>پشتیبانی</span>
+              {unreadTickets > 0 && <b className="sd-unread-badge">{Math.min(99,unreadTickets).toLocaleString("fa-IR")}</b>}
             </Link>
           </nav>
           <SellerTourReplayButton tour="sidebar" />

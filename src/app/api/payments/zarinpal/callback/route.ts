@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
       order: result.orderNumber,
       receipt: result.guest ? result.receipt : undefined,
       ref: result.refId,
+      reason: result.ok ? undefined : result.message,
     }),
   );
 }
