@@ -3474,12 +3474,12 @@ export async function saveSellerProductAction(
       rawProductVariantId: String(
         (item as { rawProductVariantId?: unknown }).rawProductVariantId || "",
       ),
-      consumerPrice: Math.floor(Number((item as { consumerPrice?: unknown }).consumerPrice)),
+      consumerPrice: Math.ceil(Number((item as { consumerPrice?: unknown }).consumerPrice) / 1000) * 1000,
     }));
     submittedPropertyPrices = parsedProperties.map((item) => ({
       dimension: String((item as { dimension?: unknown }).dimension || "") as "COLOR" | "SIZE",
       propertyId: String((item as { propertyId?: unknown }).propertyId || ""),
-      consumerPrice: Math.floor(Number((item as { consumerPrice?: unknown }).consumerPrice)),
+      consumerPrice: Math.ceil(Number((item as { consumerPrice?: unknown }).consumerPrice) / 1000) * 1000,
     }));
   } catch {
     return fail(

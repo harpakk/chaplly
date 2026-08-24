@@ -6,6 +6,7 @@ import { CartProvider } from "@/components/cart-context";
 import { NavigationFeedback } from "@/components/navigation-feedback";
 import { AttributionTracker } from "@/components/attribution-tracker";
 import { brandConfig } from "@/lib/brand-config";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import "./globals.css";
 
 // Liara injects application secrets at runtime rather than while building the
@@ -26,7 +27,14 @@ export const metadata: Metadata = {
     "خرید محصولات خاص و چاپی از طراحان مستقل ایرانی با تضمین کیفیت و ارسال قابل پیگیری.",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const db = await createSupabaseServerClient();
+  const { data: graphicStyles } = await db
+    .from("graphic_styles")
+    .select("slug,name")
+    .eq("status", "ACTIVE")
+    .order("sort_order")
+    .order("name");
   return (
     <html lang="fa" dir="rtl">
       <body>
@@ -37,7 +45,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <CartProvider>
           <BuyerHeader />
           {children}
-          <BuyerFooter />
+          <BuyerFooter graphicStyles={graphicStyles || []} />
         </CartProvider>
       </body>
     </html>

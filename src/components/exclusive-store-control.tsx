@@ -10,14 +10,8 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
-import {
-  activateExclusiveStoreAction,
-  updateStoreMediaAction,
-  type ActionResult,
-} from "@/app/actions/dashboard";
-import { ActionForm } from "@/components/action-form";
+import { activateExclusiveStoreAction, type ActionResult } from "@/app/actions/dashboard";
 import { SavingOverlay } from "@/components/saving-overlay";
-import { ResilientImage } from "@/components/resilient-image";
 
 type Store = {
   name: string;
@@ -54,35 +48,6 @@ export function ExclusiveStoreControl({ store }: { store: Store }) {
 
   return (
     <>
-      <ActionForm
-        action={updateStoreMediaAction}
-        className="sd-card store-media-settings"
-      >
-        <div>
-          <span>تصاویر برند</span>
-          <h2>لوگو و بنر فروشگاه</h2>
-          <p>هم در پنل و هم در فروشگاه اختصاصی استفاده می‌شوند.</p>
-        </div>
-        <label>
-          لوگوی مربع
-          <input
-            name="storeLogo"
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-          />
-          <span className="store-media-current square">{store.logoUrl ? <ResilientImage src={store.logoUrl} alt="لوگوی فعلی فروشگاه" fill sizes="72px" unoptimized /> : "بدون لوگو"}</span>
-        </label>
-        <label>
-          بنر عریض
-          <input
-            name="storeBanner"
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-          />
-          <span className="store-media-current banner">{store.bannerUrl ? <ResilientImage src={store.bannerUrl} alt="بنر فعلی فروشگاه" fill sizes="180px" unoptimized /> : "بدون بنر"}</span>
-        </label>
-        <button>ذخیره تصاویر</button>
-      </ActionForm>
       <section className="sd-exclusive-card">
         <div>
           <Crown />

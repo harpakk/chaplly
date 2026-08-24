@@ -1082,40 +1082,23 @@ export function DesignEditor({ data, tourState, productId }: { data: EditorData;
         ? `/seller/dashboard/products/${productId}/edit?supplier=${selectedSupplierOfferId}&replaceImages=1`
         : `/seller/dashboard/products/new?raw=${raw.id}&design=${savedDesignId}&supplier=${selectedSupplierOfferId}`;
     setBlockingSave("در حال ذخیره نسخه نهایی طراحی…");
-    const timeout = <T,>(promise: Promise<T>, milliseconds: number) =>
-      Promise.race<T>([
-        promise,
-        new Promise<T>((_, reject) =>
-          setTimeout(() => reject(new Error("TIMEOUT")), milliseconds),
-        ),
-      ]);
     let id = designId;
     try {
+      // Persist the canvas first. Saving the selection in parallel used to race
+      // a newly-created design (and fixed timeouts produced false failures on
+      // slower production connections).
+      id = (await persist()) || id;
       if (id) {
-        const [savedId, selection] = await Promise.all([
-          timeout(persist(), 15000),
-          timeout(saveDesignMockupSelectionAction(id, selectedMockups), 10000),
-        ]);
+        let selection = await saveDesignMockupSelectionAction(id, selectedMockups);
+        if (!selection.ok) {
+          await new Promise((resolve) => setTimeout(resolve, 350));
+          selection = await saveDesignMockupSelectionAction(id, selectedMockups);
+        }
         if (!selection.ok) {
           setBlockingSave("");
           setSaveState(selection.message);
           setRetryNotice(true);
           return;
-        }
-        id = savedId || id;
-      } else {
-        id = await timeout(persist(), 15000);
-        if (id) {
-          const selection = await timeout(
-            saveDesignMockupSelectionAction(id, selectedMockups),
-            10000,
-          );
-          if (!selection.ok) {
-            setBlockingSave("");
-            setSaveState(selection.message);
-            setRetryNotice(true);
-            return;
-          }
         }
       }
     } catch {

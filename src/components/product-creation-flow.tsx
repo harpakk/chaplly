@@ -549,7 +549,7 @@ function FinalProduct({
                   canvas.dataset.warpReady === "true" || canvas.dataset.warpReady === "failed"
                     ? Promise.resolve()
                     : new Promise<void>((resolve) => {
-                        const timeout = window.setTimeout(resolve, 2500);
+                        const timeout = window.setTimeout(resolve, 12000);
                         canvas.addEventListener("warpready", () => {
                           window.clearTimeout(timeout);
                           resolve();
@@ -557,9 +557,9 @@ function FinalProduct({
                       }),
               ),
             );
-            if (warpedCanvases.some((canvas) => canvas.dataset.warpReady === "failed")) {
-              throw new Error("MOCKUP_ARTWORK_RENDER_FAILED");
-            }
+            // A failed warp canvas still has the visible artwork fallback.
+            // html-to-image can export that fallback, so it must not turn a
+            // usable preview into a false production-only blocking error.
             const images = Array.from(node.querySelectorAll("img"));
             await Promise.all(
               images.map(async (image) => {
@@ -594,20 +594,24 @@ function FinalProduct({
               3,
               Math.min(8, sourceWidth / Math.max(1, node.offsetWidth)),
             );
-            const blob = await toBlob(node, {
-              pixelRatio: outputPixelRatio,
-              cacheBust: true,
-              // Every protected mockup is served through /api/render-image
-              // with the real file URL in the query string. html-to-image
-              // otherwise drops that query when building its cache key and
-              // reuses the first mockup background for every later render.
-              includeQueryParams: true,
-              backgroundColor: "transparent",
-              skipFonts: true,
-              filter: (candidate) =>
-                !candidate.classList?.contains("artwork-warp-raster-source") &&
-                !candidate.classList?.contains("artwork-warp-loading"),
-            });
+            let blob: Blob | null = null;
+            for (let attempt = 0; attempt < 3 && !blob; attempt += 1) {
+              if (attempt) await new Promise((resolve) => window.setTimeout(resolve, 400));
+              blob = await toBlob(node, {
+                pixelRatio: outputPixelRatio,
+                cacheBust: true,
+                // Every protected mockup is served through /api/render-image
+                // with the real file URL in the query string. html-to-image
+                // otherwise drops that query when building its cache key and
+                // reuses the first mockup background for every later render.
+                includeQueryParams: true,
+                backgroundColor: "transparent",
+                skipFonts: true,
+                filter: (candidate) =>
+                  !candidate.classList?.contains("artwork-warp-raster-source") &&
+                  !candidate.classList?.contains("artwork-warp-loading"),
+              }).catch(() => null);
+            }
             if (blob) {
               prepared.push({
                 key: id,

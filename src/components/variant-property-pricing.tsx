@@ -8,6 +8,7 @@ export type PropertyPrices = { colors: Record<string, number>; sizes: Record<str
 export type SavedPropertyMarkup = { dimension: "COLOR" | "SIZE"; propertyId: string; markupPercentage: number };
 type Dimension = "colors" | "sizes";
 const DEFAULT_MARKUP = 30;
+const roundRial = (value: number) => Math.ceil(Math.max(0, value) / 1000) * 1000;
 
 function properties(variants: PricingVariant[], dimension: Dimension) {
   const idKey = dimension === "colors" ? "colorId" : "sizeId";
@@ -16,7 +17,7 @@ function properties(variants: PricingVariant[], dimension: Dimension) {
 }
 
 const highestSupplierCost = (variants: PricingVariant[]) => Math.max(1, ...variants.map((variant) => Number(variant.supplierCost || 0)));
-const priceFromMarkup = (cost: number, markup: number) => Math.ceil(cost * (1 + Math.max(0, markup) / 100));
+const priceFromMarkup = (cost: number, markup: number) => roundRial(cost * (1 + Math.max(0, markup) / 100));
 const markupFromPrice = (cost: number, price: number) => Math.round(Math.max(0, (price / cost - 1) * 100) * 10_000) / 10_000;
 const formattedPrice = (value: number) => Math.max(0, Math.floor(value)).toLocaleString("en-US");
 const parsedPrice = (value: string) => Number(value.replace(/[٬,\s]/g, "")) || 0;
@@ -28,7 +29,7 @@ function PriceInput({ label, minimum, value, onChange }: { label: string; minimu
     if (!focused) setDraft(formattedPrice(value));
   }, [focused, value]);
   const commit = (nextDraft: string) => {
-    const nextValue = Math.max(minimum, parsedPrice(nextDraft));
+    const nextValue = roundRial(Math.max(minimum, parsedPrice(nextDraft)));
     onChange(nextValue);
     return nextValue;
   };
@@ -56,7 +57,7 @@ export function expandPropertyPrices(variants: PricingVariant[], prices: Propert
   return variants.map((variant) => {
     const defaultPrice = priceFromMarkup(variant.supplierCost, variant.markupPercentage ?? DEFAULT_MARKUP);
     const consumerPrice = Math.max(variant.supplierCost, Number(prices.colors[variant.colorId] || defaultPrice), Number(prices.sizes[variant.sizeId] || defaultPrice));
-    return { rawProductVariantId: variant.rawProductVariantId, consumerPrice: Math.ceil(consumerPrice) };
+    return { rawProductVariantId: variant.rawProductVariantId, consumerPrice: roundRial(consumerPrice) };
   });
 }
 
@@ -64,7 +65,8 @@ export function serializePropertyPrices(variants: PricingVariant[], prices: Prop
   return (["colors", "sizes"] as Dimension[]).flatMap((dimension) => properties(variants, dimension).map((item) => {
     const cost = highestSupplierCost(item.variants);
     const consumerPrice = Math.max(cost, Number(prices[dimension][item.id] || cost));
-    return { dimension: dimension === "colors" ? "COLOR" as const : "SIZE" as const, propertyId: item.id, consumerPrice: Math.ceil(consumerPrice), markupPercentage: markupFromPrice(cost, consumerPrice) };
+    const roundedPrice = roundRial(consumerPrice);
+    return { dimension: dimension === "colors" ? "COLOR" as const : "SIZE" as const, propertyId: item.id, consumerPrice: roundedPrice, markupPercentage: markupFromPrice(cost, roundedPrice) };
   }));
 }
 
@@ -74,7 +76,7 @@ export function VariantPropertyPricing({ variants, value, onChange }: { variants
   const adjustAll = (factor: number) => {
     const adjust = (dimension: Dimension) => Object.fromEntries(properties(variants, dimension).map((item) => {
       const minimum = highestSupplierCost(item.variants);
-      return [item.id, Math.max(minimum, Math.ceil(effective(dimension, item.id, item.variants) * factor))];
+      return [item.id, roundRial(Math.max(minimum, effective(dimension, item.id, item.variants) * factor))];
     }));
     onChange({ colors: adjust("colors"), sizes: adjust("sizes"), touched: Object.fromEntries((["colors", "sizes"] as Dimension[]).flatMap((dimension) => properties(variants, dimension).map((item) => [`${dimension === "colors" ? "COLOR" : "SIZE"}:${item.id}`, true]))) });
   };
