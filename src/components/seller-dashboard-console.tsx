@@ -783,6 +783,11 @@ function Products({ data }: { data: SellerData }) {
               const canViewAsBuyer =
                 product.status === "PUBLISHED" &&
                 product.moderation_status === "APPROVED";
+              const displayStatus = canViewAsBuyer
+                ? "PUBLISHED"
+                : product.moderation_status === "APPROVED"
+                  ? product.status
+                  : product.moderation_status;
               const inventory = product.seller_product_variants.reduce(
                 (sum, variant) => sum + variantInventory(variant),
                 0,
@@ -808,8 +813,8 @@ function Products({ data }: { data: SellerData }) {
                         <small>بدون تصویر</small>
                       </div>
                     )}
-                    <span className={`product-status product-status-${product.status.toLowerCase()}`}>
-                      {statusFa(product.status)}
+                    <span className={`product-status product-status-${displayStatus.toLowerCase()}`}>
+                      {statusFa(displayStatus)}
                     </span>
                     {selectionMode && (
                       <button

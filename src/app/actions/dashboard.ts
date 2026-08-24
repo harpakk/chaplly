@@ -563,12 +563,33 @@ export async function approveAllPendingProductsAction(
   _formData: FormData,
 ): Promise<ActionResult> {
   const admin = await requireAdmin();
-  const { data, error } = await createSupabaseAdmin().rpc(
+  const db = createSupabaseAdmin();
+  const { data, error } = await db.rpc(
     "service_approve_all_pending_products",
     { p_actor_id: admin.id },
   );
-  if (error) return fail(error.message);
-  const count = Number(data || 0);
+  let count = Number(data || 0);
+  if (error) {
+    const missingFunction = error.message.includes("service_approve_all_pending_products") && error.message.includes("schema cache");
+    if (!missingFunction) return fail(error.message);
+    const { data: pendingRows, error: pendingError } = await db
+      .from("product_moderation_queue")
+      .select("seller_product_id")
+      .eq("status", "PENDING");
+    if (pendingError) return fail(pendingError.message);
+    const productIds = [...new Set((pendingRows || []).map((row) => row.seller_product_id))];
+    for (const productId of productIds) {
+      const { error: moderationError } = await db.rpc("service_moderate_product", {
+        p_product_id: productId,
+        p_decision: "APPROVED",
+        p_rejection_reason_id: null,
+        p_custom_message: null,
+        p_actor_id: admin.id,
+      });
+      if (moderationError) return fail(moderationError.message);
+      count += 1;
+    }
+  }
   revalidatePath("/admin/pending-products");
   revalidatePath("/");
   revalidateTag("catalog");
@@ -636,9 +657,10 @@ export async function deleteApprovedProductAction(
   await requireAdmin();
   const productId = String(formData.get("productId") || "");
   if (!productId) return fail("محصول نامعتبر است.");
-  const { data, error } = await createSupabaseAdmin()
+  const db = createSupabaseAdmin();
+  const { data, error } = await db
     .from("seller_products")
-    .delete()
+    .update({ status: "ARCHIVED", visibility: "PRIVATE" })
     .eq("id", productId)
     .eq("moderation_status", "APPROVED")
     .select("id")
@@ -647,7 +669,11 @@ export async function deleteApprovedProductAction(
   if (!data) return fail("محصول تأییدشده پیدا نشد.");
   revalidatePath("/admin/pending-products");
   revalidatePath("/");
-  return ok("محصول حذف شد.");
+  revalidateTag("catalog");
+  revalidateTag("products");
+  revalidateTag("marketplace-home");
+  clearMarketplaceMemoryCache();
+  return ok("محصول حذف و از همه ویترین‌ها خارج شد.");
 }
 
 export async function sendSupportAiMessageAction(formData: FormData) {

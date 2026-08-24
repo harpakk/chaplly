@@ -79,6 +79,9 @@ export default async function ProductPage({
       inventory: inventory.get(variant.id) || 0,
     })),
   };
+  const otherProducts = products.filter((item) => item.id !== product.id);
+  const sameCategoryProducts = otherProducts.filter((item) => item.categorySlug === product.categorySlug);
+  const sameStyleProducts = otherProducts.filter((item) => item.graphicStyles.some((style) => product.graphicStyles.some((current) => current.slug === style.slug)));
   const admin = createSupabaseAdmin();
   const [supplierResult, wishlistResult] = await Promise.all([
     admin
@@ -297,26 +300,12 @@ export default async function ProductPage({
       <SimilarityRow
         eyebrow="از همین دسته"
         title={`بیشتر از ${product.category}`}
-        items={products.filter(
-          (item) =>
-            item.id !== product.id &&
-            item.categorySlug === product.categorySlug,
-        )}
+        items={sameCategoryProducts.length ? sameCategoryProducts : otherProducts}
       />
       <SimilarityRow
         eyebrow="همین سبک"
         title="محصول‌های مشابه"
-        items={products
-          .filter(
-            (item) =>
-              item.id !== product.id &&
-              item.graphicStyles.some((style) =>
-                product.graphicStyles.some(
-                  (current) => current.slug === style.slug,
-                ),
-              ),
-          )
-          .slice(0, 4)}
+        items={(sameStyleProducts.length ? sameStyleProducts : otherProducts).slice(0, 4)}
       />
     </main>
   );
