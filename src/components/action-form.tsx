@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { ActionResult } from "@/app/actions/dashboard";
 import { SavingOverlay } from "@/components/saving-overlay";
 
@@ -31,6 +31,7 @@ export function ActionForm({
   backgroundConcurrent?: boolean;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [contextText, setContextText] = useState(
     savingText || "در حال ذخیره اطلاعات…",
   );
@@ -88,11 +89,12 @@ export function ActionForm({
       {children}
       <SavingOverlay visible={isPending} text={contextText} />
       {currentState.message && (
-        <p className={`action-note ${currentState.ok ? "success" : "error"}`}>
+        <div className={`action-note ${currentState.ok ? "success" : "error"}`}>
           {currentState.ok
             ? onSuccessText || currentState.message
             : currentState.message}
-        </p>
+          {!currentState.ok && pathname.startsWith("/seller") && <button type="button" className="error-call-support" onClick={() => window.dispatchEvent(new Event("chapli:call-support"))}>تماس با پشتیبانی</button>}
+        </div>
       )}
     </form>
   );

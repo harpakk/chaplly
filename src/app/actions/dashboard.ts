@@ -2412,6 +2412,40 @@ export async function archiveSellerProductAction(
   return ok("محصول از فهرست فروش حذف شد.", data.id);
 }
 
+export async function saveSupportPhoneAction(
+  _: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  await requireAdmin();
+  const id = String(formData.get("id") || "");
+  const label = String(formData.get("label") || "").trim();
+  const phone = String(formData.get("phone") || "").replace(/[^\d+]/g, "");
+  const sortOrder = Math.max(0, Number(formData.get("sortOrder") || 0));
+  if (label.length < 2) return fail("عنوان شماره تماس را وارد کنید.");
+  if (!/^(?:\+98|0)\d{10}$/.test(phone)) return fail("شماره تماس معتبر نیست.");
+  const db = createSupabaseAdmin();
+  const payload = { label, phone, sort_order: sortOrder, status: "ACTIVE" };
+  const { error } = id
+    ? await db.from("support_phone_numbers").update(payload).eq("id", id)
+    : await db.from("support_phone_numbers").insert(payload);
+  if (error) return fail(error.message);
+  revalidatePath("/admin/settings");
+  revalidatePath("/seller/dashboard", "layout");
+  return ok("شماره پشتیبانی ذخیره شد.");
+}
+
+export async function deleteSupportPhoneAction(
+  _: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  await requireAdmin();
+  const { error } = await createSupabaseAdmin().from("support_phone_numbers").delete().eq("id", String(formData.get("id") || ""));
+  if (error) return fail(error.message);
+  revalidatePath("/admin/settings");
+  revalidatePath("/seller/dashboard", "layout");
+  return ok("شماره پشتیبانی حذف شد.");
+}
+
 export async function archiveSellerProductsAction(
   _: ActionResult,
   formData: FormData,
@@ -3656,6 +3690,15 @@ export async function saveSellerProductAction(
   });
   if (error) return databaseFailure(error, productAlreadyExists ? productId : undefined);
   productId = String(data);
+  const { data: persistedVariants, error: persistedVariantsError } = await admin
+    .from("seller_product_variants")
+    .select("raw_product_variant_id")
+    .eq("seller_product_id", productId);
+  if (persistedVariantsError) return databaseFailure(persistedVariantsError, productId);
+  const persistedVariantIds = new Set((persistedVariants || []).map((item) => item.raw_product_variant_id));
+  const persistedVariantMarkups = variantMarkups.filter((item) => persistedVariantIds.has(item.rawProductVariantId));
+  if (persistedVariantMarkups.length !== persistedVariantIds.size)
+    return fail("قیمت یکی از تنوع‌های ذخیره‌شده پیدا نشد. رنگ‌ها و سایزها را دوباره بررسی کنید.", { variantPrices: "برای همه تنوع‌های محصول قیمت وارد کنید." }, productId);
   const { error: designNameError } = await admin
     .from("designs")
     .update({ name: title, updated_at: new Date().toISOString() })
@@ -3674,7 +3717,7 @@ export async function saveSellerProductAction(
       {
         p_product_id: productId,
         p_graphic_style_ids: graphicStyleIds,
-        p_variant_markups: variantMarkups,
+        p_variant_markups: persistedVariantMarkups,
         p_property_markups: propertyMarkupPayload,
       },
     );

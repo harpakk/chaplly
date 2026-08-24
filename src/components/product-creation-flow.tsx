@@ -748,6 +748,7 @@ function FinalProduct({
                   <small>جزئیات خطا: {state.detail}</small>
                 )}
                 <span>اطلاعات واردشده حفظ شده؛ مورد بالا را اصلاح و دوباره تلاش کنید.</span>
+                <button type="button" className="error-call-support" onClick={() => window.dispatchEvent(new Event("chapli:call-support"))}>تماس با پشتیبانی</button>
               </div>
             </div>
           )}

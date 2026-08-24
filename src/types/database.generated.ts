@@ -4345,6 +4345,12 @@ export type Database = {
         Relationships: [
         ];
       };
+      "support_phone_numbers": {
+        Row: { id: string; label: string; phone: string; sort_order: number; status: string; created_at: string; updated_at: string };
+        Insert: { id?: string; label: string; phone: string; sort_order?: number; status?: string; created_at?: string; updated_at?: string };
+        Update: { id?: string; label?: string; phone?: string; sort_order?: number; status?: string; created_at?: string; updated_at?: string };
+        Relationships: [];
+      };
       "support_knowledge_base": {
         Row: {
           "id": string;

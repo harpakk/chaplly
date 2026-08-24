@@ -21,6 +21,7 @@ import {
   Plus,
   Receipt,
   Settings2,
+  Phone,
   ShoppingBag,
   Truck,
   Trash2,
@@ -53,6 +54,8 @@ import {
   saveGraphicStyleAction,
   saveSupportKnowledgeAction,
   saveSupportAiSettingsAction,
+  saveSupportPhoneAction,
+  deleteSupportPhoneAction,
   saveSmsEventConfigAction,
   testSmsEventAction,
   uploadSupportKnowledgeFileAction,
@@ -1362,6 +1365,27 @@ function Settings({ data }: { data: AdminData }) {
             این داده‌ها از دیتابیس خوانده می‌شوند و در تصمیم بررسی استفاده
             می‌شوند.
           </p>
+        </div>
+      </section>
+      <section className="admin-card support-phone-settings">
+        <header><Phone /><div><h2>شماره‌های تماس پشتیبانی</h2><p>شماره‌هایی که فروشندگان هنگام نیاز به تماس فوری می‌بینند.</p></div></header>
+        <ActionForm action={saveSupportPhoneAction} className="support-phone-form">
+          <label>عنوان<input name="label" required placeholder="مثلاً پشتیبانی فروشندگان" /></label>
+          <label>شماره تماس<input name="phone" dir="ltr" type="tel" required placeholder="021xxxxxxxx یا 09xxxxxxxxx" /></label>
+          <label>ترتیب<input name="sortOrder" type="number" min="0" defaultValue="0" /></label>
+          <button><Plus /> افزودن شماره</button>
+        </ActionForm>
+        <div className="support-phone-admin-list">
+          {data.supportPhones.map((item) => <article key={item.id}>
+            <ActionForm action={saveSupportPhoneAction} className="support-phone-form">
+              <input type="hidden" name="id" value={item.id} />
+              <input name="label" required defaultValue={item.label} />
+              <input name="phone" dir="ltr" type="tel" required defaultValue={item.phone} />
+              <input name="sortOrder" type="number" min="0" defaultValue={item.sort_order} />
+              <button>ذخیره</button>
+            </ActionForm>
+            <ActionForm action={deleteSupportPhoneAction} confirmMessage="این شماره حذف شود؟"><input type="hidden" name="id" value={item.id} /><button className="danger-button"><Trash2 /> حذف</button></ActionForm>
+          </article>)}
         </div>
       </section>
       <section className="admin-card sms-admin-settings">

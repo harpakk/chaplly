@@ -1616,8 +1616,11 @@ export async function getAdminDashboardData(
         db.from("notification_outbox").select("id,event_type,recipient_phone,status,attempts,sent_at,last_error,created_at").order("created_at", { ascending: false }).limit(30),
       ])
     : [{ data: [], error: null }, { data: [], error: null }];
-  if (smsConfigsResult.error || smsOutboxResult.error)
-    throw new Error(smsConfigsResult.error?.message || smsOutboxResult.error?.message);
+  const supportPhonesResult = needsSettings
+    ? await db.from("support_phone_numbers").select("id,label,phone,sort_order,status").order("sort_order").order("label")
+    : { data: [], error: null };
+  if (smsConfigsResult.error || smsOutboxResult.error || supportPhonesResult.error)
+    throw new Error(smsConfigsResult.error?.message || smsOutboxResult.error?.message || supportPhonesResult.error?.message);
   let buyerRefundsResult = needsFinancial
     ? await db
         .from("refunds")
@@ -1741,6 +1744,7 @@ export async function getAdminDashboardData(
       system_prompt: string;
       updated_at: string;
     } | null,
+    supportPhones: supportPhonesResult.data || [],
     graphicStyles: graphicStylesResult.data || [],
     freeDesigns,
     categories: categoriesResult.data || [],
@@ -1856,6 +1860,7 @@ export async function getAdminOverviewData(): Promise<AdminDashboardData> {
     smsOutbox: [],
     knowledgeBase: [],
     supportAiSettings: null,
+    supportPhones: [],
     graphicStyles: [],
     freeDesigns: [],
     categories: [],

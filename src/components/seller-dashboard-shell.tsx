@@ -15,6 +15,7 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Plus,
+  Phone,
   Video,
   Store,
   ShoppingCart,
@@ -50,17 +51,21 @@ export function SellerDashboardShell({
   logoUrl,
   tourState,
   unreadTickets,
+  supportPhones,
 }: {
   children: ReactNode;
   storeName: string;
   logoUrl: string | null;
   tourState: SellerTourState;
   unreadTickets: number;
+  supportPhones: { id: string; label: string; phone: string }[];
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobile, setMobile] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [aiLauncherDismissed, setAiLauncherDismissed] = useState(false);
+  const [callOpen, setCallOpen] = useState(false);
+  const [callLauncherDismissed, setCallLauncherDismissed] = useState(false);
   const pathname = usePathname();
   const isDesignStudio = pathname === "/seller/dashboard/products/new/design";
   const params = useSearchParams();
@@ -84,6 +89,11 @@ export function SellerDashboardShell({
         new CustomEvent("chapli:seller-section", { detail: next }),
       );
   }, [params, pathname]);
+  useEffect(() => {
+    const openCalls = () => setCallOpen(true);
+    window.addEventListener("chapli:call-support", openCalls);
+    return () => window.removeEventListener("chapli:call-support", openCalls);
+  }, []);
 
   const toggle = () =>
     setCollapsed((value) => {
@@ -207,6 +217,12 @@ export function SellerDashboardShell({
         </aside>
       )}
       <section className="sd-main">{children}</section>
+      {!isDesignStudio && supportPhones.length > 0 && !callLauncherDismissed && (
+        <div className="sd-call-launcher">
+          <button className="sd-call-button" onClick={() => setCallOpen(true)}><Phone /> <span>تماس با ما</span></button>
+          <button className="sd-ai-chat-dismiss" type="button" aria-label="بستن دکمه تماس" onClick={() => setCallLauncherDismissed(true)}><X /></button>
+        </div>
+      )}
       {!isDesignStudio && !aiLauncherDismissed && (
         <div className="sd-ai-chat-launcher">
           <button className="sd-ai-chat-button" onClick={() => setAiOpen(true)}>
@@ -229,6 +245,10 @@ export function SellerDashboardShell({
           window.location.assign("/seller/dashboard/support?new=1");
         }}
       />
+      {callOpen && <div className="support-call-backdrop" onClick={() => setCallOpen(false)}><section className="support-call-popup" onClick={(event) => event.stopPropagation()}>
+        <header><div><Phone /><span><b>تماس با پشتیبانی</b><small>یک شماره آمادهٔ تماس را انتخاب کنید</small></span></div><button aria-label="بستن" onClick={() => setCallOpen(false)}><X /></button></header>
+        <div>{supportPhones.map((item) => <article key={item.id}><span><b>{item.label}</b><small dir="ltr">{item.phone}</small></span><a href={`tel:${item.phone}`}><Phone /> تماس</a></article>)}</div>
+      </section></div>}
       {pathname === "/seller/dashboard" && (
         <SellerOnboardingTour tour="sidebar" state={tourState} steps={sidebarTourSteps} />
       )}
