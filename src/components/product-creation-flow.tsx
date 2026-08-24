@@ -221,6 +221,7 @@ function FinalProduct({
   const showFreshMockupRenders = !isEditing || replaceProductImages;
   const productSlug =
     draft?.slug || `${raw?.slug || "product"}-${designId.slice(0, 8)}`;
+  const designEditorUrl = `/seller/dashboard/products/new/design?raw=${encodeURIComponent(rawProductId)}&design=${encodeURIComponent(designId)}${editingProductId ? `&product=${encodeURIComponent(editingProductId)}` : ""}`;
   const eligible = data.suppliers.filter((offer) =>
     data.design!.variantIds.every((variantId) =>
       offer.variants.some(
@@ -556,6 +557,9 @@ function FinalProduct({
                       }),
               ),
             );
+            if (warpedCanvases.some((canvas) => canvas.dataset.warpReady === "failed")) {
+              throw new Error("MOCKUP_ARTWORK_RENDER_FAILED");
+            }
             const images = Array.from(node.querySelectorAll("img"));
             await Promise.all(
               images.map(async (image) => {
@@ -576,7 +580,9 @@ function FinalProduct({
             );
             if (
               !background ||
-              background.dataset.mockupViewId !== item.view.id
+              background.dataset.mockupViewId !== item.view.id ||
+              !background.complete ||
+              background.naturalWidth === 0
             ) {
               throw new Error("MOCKUP_BACKGROUND_IDENTITY_MISMATCH");
             }
@@ -637,11 +643,9 @@ function FinalProduct({
     orderedPrepared.forEach((item) => transfer.items.add(item.file));
     if (failedRenderLabels.length) {
       const labels = [...new Set(failedRenderLabels)].slice(0, 3).join("، ");
-      showClientError(
-        `رندر ${labels} کامل نشد. در بخش «تصاویر محصول» همان موکاپ را حذف و دوباره انتخاب کنید؛ یا آن را حذف کنید و یک تصویر دلخواه اضافه کنید.`,
-        "productImages",
-      );
       setPreparingImages(false);
+      window.alert(`در رندر ${labels} خطای قطعی رخ داد. برای بررسی و ذخیره دوباره طرح، به صفحه طراحی برمی‌گردید.`);
+      window.location.assign(designEditorUrl);
       return;
     }
     if (!transfer.files.length && !retainedExistingImages.length) {

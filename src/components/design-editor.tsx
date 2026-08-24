@@ -252,7 +252,8 @@ export function DesignEditor({ data, tourState, productId }: { data: EditorData;
     [mockupColorFilter, setMockupColorFilter] = useState("ALL"),
     [chatGuideOpen, setChatGuideOpen] = useState(false),
     [fileDragActive, setFileDragActive] = useState(false),
-    [blockingSave, setBlockingSave] = useState("");
+    [blockingSave, setBlockingSave] = useState(""),
+    [pendingUploads, setPendingUploads] = useState(0);
   const uploadRef = useRef<HTMLInputElement>(null),
     copiedObject = useRef<ObjectItem | null>(null),
     saving = useRef(false);
@@ -421,6 +422,7 @@ export function DesignEditor({ data, tourState, productId }: { data: EditorData;
   });
   latestDraft.current = { name: designName, views: canvasViews, variantIds: selectedVariants };
   const designIdRef = useRef(existing?.id || "");
+  const uploadTasks = useRef<Set<Promise<void>>>(new Set());
   const changeRevision = useRef(0);
   const savedRevision = useRef(0);
   const activeSave = useRef<Promise<string> | null>(null);
@@ -448,6 +450,11 @@ export function DesignEditor({ data, tourState, productId }: { data: EditorData;
           savedId = result.id;
           designIdRef.current = result.id;
           setDesignId(result.id);
+          const currentUrl = new URL(window.location.href);
+          if (currentUrl.searchParams.get("design") !== result.id) {
+            currentUrl.searchParams.set("design", result.id);
+            window.history.replaceState(window.history.state, "", currentUrl);
+          }
           savedRevision.current = targetRevision;
           localStorage.removeItem(`chapli-design-canvas:new:${raw.id}`);
           localStorage.removeItem(`chapli-design-colors:new:${raw.id}`);
@@ -716,10 +723,11 @@ export function DesignEditor({ data, tourState, productId }: { data: EditorData;
     });
     const form = new FormData();
     form.set("file", file);
+    setPendingUploads((value) => value + 1);
     setSaveState("تصویر اضافه شد؛ در حال آپلود…");
     try {
       const result = await uploadDesignAssetAction(form);
-      if (result.ok && result.url) {
+      if (result.ok && result.url && result.fileId) {
         setObjects((current) => ({
           ...current,
           [activeKey]: (current[activeKey] || []).map((entry) =>
@@ -734,7 +742,7 @@ export function DesignEditor({ data, tourState, productId }: { data: EditorData;
         }));
         setUploads((current) => [
           {
-            id: result.fileId || crypto.randomUUID(),
+            id: result.fileId,
             name: file.name,
             url: result.url!,
           },
@@ -742,21 +750,37 @@ export function DesignEditor({ data, tourState, productId }: { data: EditorData;
         ]);
         URL.revokeObjectURL(temporaryUrl);
         setSaveState("تصویر آپلود و ذخیره شد");
-      } else setSaveState(`تصویر موقت است؛ ${result.message}`);
+      } else {
+        setObjects((current) => ({ ...current, [activeKey]: (current[activeKey] || []).filter((entry) => entry.id !== objectId) }));
+        URL.revokeObjectURL(temporaryUrl);
+        setSaveState(`آپلود تصویر انجام نشد: ${result.message}`);
+      }
     } catch {
-      setSaveState("تصویر روی بوم است اما آپلود ناموفق بود؛ دوباره تلاش کنید.");
+      setObjects((current) => ({ ...current, [activeKey]: (current[activeKey] || []).filter((entry) => entry.id !== objectId) }));
+      URL.revokeObjectURL(temporaryUrl);
+      setSaveState("آپلود تصویر ناموفق بود و تصویر اضافه نشد؛ دوباره تلاش کنید.");
+    } finally {
+      setPendingUploads((value) => Math.max(0, value - 1));
     }
   };
   const upload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (file) void uploadFile(file);
+    if (file) {
+      const task = uploadFile(file);
+      uploadTasks.current.add(task);
+      void task.finally(() => uploadTasks.current.delete(task));
+    }
   };
   const dropOnCanvas = (event: ReactDragEvent<HTMLElement>) => {
     event.preventDefault();
     setFileDragActive(false);
     const file = [...event.dataTransfer.files].find((item) => item.type.startsWith("image/"));
-    if (file) void uploadFile(file);
+    if (file) {
+      const task = uploadFile(file);
+      uploadTasks.current.add(task);
+      void task.finally(() => uploadTasks.current.delete(task));
+    }
     else setSaveState("فایل رهاشده تصویر نیست؛ PNG، JPG یا WEBP انتخاب کنید.");
   };
   const drag = (
@@ -1032,6 +1056,21 @@ export function DesignEditor({ data, tourState, productId }: { data: EditorData;
     window.addEventListener("keydown", keyboard);
     return () => window.removeEventListener("keydown", keyboard);
   });
+  const continueFromDesign = async () => {
+    setBlockingSave(pendingUploads ? "در حال تکمیل آپلود تصویر…" : "در حال ذخیره طراحی…");
+    try {
+      if (uploadTasks.current.size) await Promise.all([...uploadTasks.current]);
+      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+      const id = await persist();
+      if (!id) {
+        setSaveState("ذخیره طراحی انجام نشد؛ تا ذخیره موفق نمی‌توانید ادامه دهید.");
+        return;
+      }
+      setPhase("supplier");
+    } finally {
+      setBlockingSave("");
+    }
+  };
   const finish = async () => {
     if (productId && !window.confirm(
       "با ادامه، رنگ‌ها و سایزهای انتخاب‌شده برای همین محصول ذخیره می‌شوند. پس از تأیید نهایی در مرحله بعد، همه تصاویر فعلی محصول حذف و موکاپ‌های تازه جایگزین آن‌ها خواهند شد. آیا مطمئن هستید؟",
@@ -1356,8 +1395,8 @@ export function DesignEditor({ data, tourState, productId }: { data: EditorData;
             <Save /> ذخیره حالا
           </button>
           <SellerTourReplayButton tour="design" label="راهنما" />
-          <button data-tour="design-continue" onClick={() => setPhase("supplier")}>
-            ادامه <ChevronLeft />
+          <button data-tour="design-continue" disabled={Boolean(blockingSave) || pendingUploads > 0} onClick={() => void continueFromDesign()}>
+            {pendingUploads > 0 ? "در حال آپلود…" : blockingSave ? "در حال ذخیره…" : "ادامه"} <ChevronLeft />
           </button>
         </div>
       </header>
